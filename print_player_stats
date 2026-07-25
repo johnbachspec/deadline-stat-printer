@@ -1,0 +1,152 @@
+local PLAYER_NAME = "roblox_player"
+local TARGET_WEAPON = "" -- Set to weapon name (e.g., "M4A1") or leave empty to list all
+
+-- Alias mapping: [Old Legacy ID] = "New Combined ID"
+local WEAPON_ALIASES = {
+    ["HK416A5"] = "KF416",
+    ["AK74N"]   = "AK_545",
+    ["AKMN"]    = "AK_762",
+    ["PP19"]    = "AK_9",
+    ["UMP45"]   = "UMP",
+}
+
+type weapon_data = {
+    attachment_stats: {[string]: {
+        experience: number,
+        kills: number,
+    }},
+    kills: number,
+    deaths_with: number,
+    experience: number,
+    owned_attachments: {string},
+    deaths_from: number,
+    rounds_fired: number,
+    owned_camo: {[string]: {string}}, 
+}
+
+type weapon_entry = {
+    name: string,
+    data: weapon_data,
+}
+
+local ROW_FORMAT    = "%-20s %8d %12d %7.2f %13d %8.2f %12.1f"
+local HEADER_FORMAT = "%-20s %8s %12s %7s %13s %8s %12s"
+
+local function print_table_header()
+    print(string.format(HEADER_FORMAT, "weapon", "kills", "deaths with", "kdr", "rounds fired", "RFpK", "EXP with"))
+    print(string.rep("-", 86))
+end
+
+local function print_weapon_row(name: string, data: weapon_data)
+    local kills = data.kills or 0
+    local deaths_with = data.deaths_with or 0
+    local rounds_fired = data.rounds_fired or 0
+    local experience = data.experience or 0
+
+    local kdr = if deaths_with > 0 then (kills / deaths_with) else kills
+    local rfpk = if kills > 0 then (rounds_fired / kills) else rounds_fired
+
+    print(string.format(ROW_FORMAT, name, kills, deaths_with, kdr, rounds_fired, rfpk, experience))
+end
+
+-- Deep clone helper to avoid mutating real profile data
+local function clone_weapon_data(data: weapon_data): weapon_data
+    return {
+        attachment_stats = data.attachment_stats,
+        kills = data.kills or 0,
+        deaths_with = data.deaths_with or 0,
+        experience = data.experience or 0,
+        owned_attachments = data.owned_attachments,
+        deaths_from = data.deaths_from or 0,
+        rounds_fired = data.rounds_fired or 0,
+        owned_camo = data.owned_camo,
+    }
+end
+
+-- Process and combine stats based on WEAPON_ALIASES map
+local function get_processed_weapon_stats(player: string): {[string]: weapon_data}
+    local raw_stats = players.get(player).get_profile_stats().weapon
+    local combined_stats: {[string]: weapon_data} = {}
+
+    -- First pass: Copy all base weapon data over
+    for weapon_name, data in pairs(raw_stats) do
+        if not WEAPON_ALIASES[weapon_name] then
+            combined_stats[weapon_name] = clone_weapon_data(data :: weapon_data)
+        end
+    end
+
+    -- Second pass: Merge old legacy stats into target weapons
+    for weapon_name, data in pairs(raw_stats) do
+        local target_name = WEAPON_ALIASES[weapon_name]
+        if target_name then
+            -- Ensure target weapon exists in combined table even if target was missing in profile
+            if not combined_stats[target_name] then
+                combined_stats[target_name] = {
+                    attachment_stats = {},
+                    kills = 0,
+                    deaths_with = 0,
+                    experience = 0,
+                    owned_attachments = {},
+                    deaths_from = 0,
+                    rounds_fired = 0,
+                    owned_camo = {},
+                }
+            end
+
+            local target = combined_stats[target_name]
+            local legacy = data :: weapon_data
+
+            target.kills = (target.kills or 0) + (legacy.kills or 0)
+            target.deaths_with = (target.deaths_with or 0) + (legacy.deaths_with or 0)
+            target.deaths_from = (target.deaths_from or 0) + (legacy.deaths_from or 0)
+            target.rounds_fired = (target.rounds_fired or 0) + (legacy.rounds_fired or 0)
+            target.experience = (target.experience or 0) + (legacy.experience or 0)
+        end
+    end
+
+    return combined_stats
+end
+
+function print_all_weapons_stats(player: string)
+    local weapon_stats = get_processed_weapon_stats(player)
+    local weapon_list: {weapon_entry} = {}
+
+    for weapon_name, data in pairs(weapon_stats) do
+        table.insert(weapon_list, {
+            name = weapon_name,
+            data = data,
+        })
+    end
+
+    -- Sort descending by combined kills
+    table.sort(weapon_list, function(a, b)
+        return a.data.kills > b.data.kills
+    end)
+
+    print_table_header()
+    for _, weapon in ipairs(weapon_list) do
+        print_weapon_row(weapon.name, weapon.data)
+    end
+
+    return weapon_list
+end
+
+function print_specific_weapon_stats(player: string, target_weapon_name: string)
+    local weapon_stats = get_processed_weapon_stats(player)
+    local target_weapon = weapon_stats[target_weapon_name]
+
+    if not target_weapon then
+        warn(`Weapon "{target_weapon_name}" not found in player stats.`)
+        return
+    end
+
+    print_table_header()
+    print_weapon_row(target_weapon_name, target_weapon)
+end
+
+-- Execution logic
+if TARGET_WEAPON and TARGET_WEAPON ~= "" then
+    print_specific_weapon_stats(PLAYER_NAME, TARGET_WEAPON)
+else
+    print_all_weapons_stats(PLAYER_NAME)
+end
