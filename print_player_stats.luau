@@ -130,6 +130,16 @@ local function pad_right(str, length)
     return str .. string.rep(" ", length - #str)
 end
 
+-- Helper for centering text without ever building a dynamic-width format
+-- specifier (some VMs cap width/precision in "%Ns" and error out on long
+-- inputs like long player names, especially with multi-byte characters).
+local function center_text(text, width)
+    text = tostring(text or "")
+    local pad = (width or 0) - string.len(text)
+    if pad < 0 then pad = 0 end
+    return string.rep(" ", math.floor(pad / 2)) .. text
+end
+
 local function get_prestige_and_level(xp)
     local safe_xp = tonumber(xp) or 0
     local prestige = math.floor(safe_xp / MAX_LEVEL_XP)
@@ -296,7 +306,7 @@ local function print_overall_recap(player_name, player_stats, spendings_stats, a
     local header_title = "OVERALL ACCOUNT STATISTICS FOR " .. tostring(player_name)
 
     print(BAR_FULL)
-    print(string.format("%" .. math.floor((GRID_WIDTH + string.len(header_title)) / 2) .. "s", header_title))
+    print(center_text(header_title, GRID_WIDTH))
     print(string.rep(" ", GRID_WIDTH))
     
     local col_w = math.floor((GRID_WIDTH - 2) / 3)
@@ -360,7 +370,7 @@ local function print_overall_recap(player_name, player_stats, spendings_stats, a
     local avg_lifespan_str = format_duration_short(avg_lifespan_sec)
 
     local pace_title = "AVERAGE STATS PER MATCH AND MINUTE"
-    print(string.format("%" .. math.floor((GRID_WIDTH + string.len(pace_title)) / 2) .. "s", pace_title))
+    print(center_text(pace_title, GRID_WIDTH))
     print(string.rep(" ", GRID_WIDTH))
 
     local num_cols = 5
@@ -385,7 +395,7 @@ end
 
 local function print_table_header()
     local pace_title = "DETAILED WEAPON STATS"
-    print(string.format("%" .. math.floor((GRID_WIDTH + string.len(pace_title)) / 2) .. "s", pace_title))
+    print(center_text(pace_title, GRID_WIDTH))
     print(string.rep(" ", GRID_WIDTH))
     print(string.format(HEADER_FORMAT, "weapon", "kills", "deaths w/", "w-KDR", "% allK", "rds. ct", "K/Min", "RFpK", "weapon XP", "time used", "% allT", "type"))
     print(string.rep("-", GRID_WIDTH))
