@@ -3,13 +3,13 @@
 
 local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
 
-local WeaponData    = require(REPO_BASE .. "weapon_data.lua")
-local LevelData     = require(REPO_BASE .. "level_data.lua")
-local Formatters    = require(REPO_BASE .. "formatters.lua")
-local Achievements  = require(REPO_BASE .. "achievements.lua")
-local Aggregator    = require(REPO_BASE .. "stats_aggregator.lua")
-local FilterSort    = require(REPO_BASE .. "filters_sorters.lua")
-local Renderer      = require(REPO_BASE .. "renderer.lua")
+local WeaponData    = require(REPO_BASE .. "weapon_data.luau")
+local LevelData     = require(REPO_BASE .. "level_data.luau")
+local Formatters    = require(REPO_BASE .. "formatters.luau")
+local Achievements  = require(REPO_BASE .. "achievements.luau")
+local Aggregator    = require(REPO_BASE .. "stats_aggregator.luau")
+local FilterSort    = require(REPO_BASE .. "filters_sorters.luau")
+local Renderer      = require(REPO_BASE .. "renderer.luau")
 
 -- ===== User Config =====
 local TARGET_WEAPON = "" -- Leave empty "" to list all or set to a weapon name (e.g. "AK_762")
