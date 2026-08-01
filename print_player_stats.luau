@@ -1,7 +1,7 @@
 -- main/print_player_stat.lua
 -- in Server Luau console, run `require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")`
 
-local REPO_BASE = "https://github.com/johnbachspec/deadline-stat-printer/blob/main/modules/"
+local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
 
 local WeaponData    = require(REPO_BASE .. "weapon_data.luau")
 local LevelData     = require(REPO_BASE .. "level_data.luau")
