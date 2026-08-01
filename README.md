@@ -30,7 +30,7 @@ As of this version, the codebase has been refactored into small, single-purpose 
 
 1. **Insert Code**: Open a private Deadline server. Press tilde (`` ` ``) to open the Luau console. Switch to `Luau Server Console` and insert the code.
 
-2. **Configure Parameters**: at the top of `main/print_player_stat.lua`, set:
+2. **Configure Parameters**: at the top of `main/print_player_stats.luau`, set:
 
    ```lua
    local TARGET_WEAPON = "" -- Set to "AK_762" or leave empty "" for all weapons
@@ -82,31 +82,31 @@ TOTAL                     1,250         270      4.630    100.00%       12,450  
 
 ## Project Structure
 
-The script is split into single-purpose modules (SOLID) but is still reachable from one `require()` link, since `main/print_player_stat.lua` is a thin composition root that pulls the modules in for you:
+The script is split into single-purpose modules (SOLID) but is still reachable from one `require()` link, since `main/print_player_stats.luau` is a thin composition root that pulls the modules in for you:
 
 ```
 main/
-  print_player_stat.lua   <- entry point; the require() URL never changes
+  print_player_stats.luau  <- entry point; the require() URL never changes
 
 modules/
-  weapon_data.lua         <- weapon aliases, display names, caliber/type lookups
-  level_data.lua          <- XP thresholds + prestige/level math
-  formatters.lua          <- number, currency, time, and padding/centering helpers
-  achievements.lua        <- tester-status interpretation from achievement data
-  stats_aggregator.lua    <- merges raw profile stats into combined per-weapon stats
-  filters_sorters.lua     <- weapon list filtering + pluggable sort strategies
-  renderer.lua            <- all console printing/layout logic
+  weapon_data.luau         <- weapon aliases, display names, caliber/type lookups
+  level_data.luau          <- XP thresholds + prestige/level math
+  formatters.luau          <- number, currency, time, and padding/centering helpers
+  achievements.luau        <- tester-status interpretation from achievement data
+  stats_aggregator.luau    <- merges raw profile stats into combined per-weapon stats
+  filters_sorters.luau     <- weapon list filtering + pluggable sort strategies
+  renderer.luau            <- all console printing/layout logic
 ```
 
-| Module | Responsibility |
-| --- | --- |
-| `weapon_data` | Static weapon metadata: legacy ID aliases, display names, caliber/type classification |
-| `level_data` | XP-to-level and prestige calculation |
-| `formatters` | Pure string/number formatting: `format_num`, `format_currency`, `format_use_time`, `pad_right`, `center_text` |
-| `achievements` | Reads an achievements table and returns tester status (`"alpha tester"`, `"predemo tester"`, etc.) |
-| `stats_aggregator` | Combines raw per-weapon stats, merging legacy aliases and backfilling untracked (e.g. explosive) kills |
-| `filters_sorters` | Builds the filtered weapon list and sorts it via a strategy table (`KILLS`, `TYPE`) |
-| `renderer` | Prints the account recap, pace stats, and weapon table using data handed to it — no lookups of its own |
+| Module              | Responsibility                                                                                                 |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `weapon_data`       | Static weapon metadata: legacy ID aliases, display names, caliber/type classification                          |
+| `level_data`        | XP-to-level and prestige calculation                                                                           |
+| `formatters`        | Pure string/number formatting: `format_num`, `format_currency`, `format_use_time`, `pad_right`, `center_text`  |
+| `achievements`      | Reads an achievements table and returns tester status (`"alpha tester"`, `"predemo tester"`, etc.)             |
+| `stats_aggregator`  | Combines raw per-weapon stats, merging legacy aliases and backfilling untracked (e.g. explosive) kills         |
+| `filters_sorters`   | Builds the filtered weapon list and sorts it via a strategy table (`KILLS`, `TYPE`)                            |
+| `renderer`          | Prints the account recap, pace stats, and weapon table using data handed to it — no lookups of its own         |
 
 Each module returns a plain table and has no dependency on the others beyond what's passed into it as a parameter (dependency injection), so any single piece can be swapped, tested, or extended without touching the rest of the script. For example, adding a new `SORT_BY` mode only requires adding an entry to `filters_sorters.lua`'s strategy table — no other file needs to change.
 
@@ -134,8 +134,8 @@ This mapping now lives in `modules/weapon_data.lua`, alongside the display-name 
 
 ## Configuration Reference
 
-| Setting         | Location                     | Values                                                          |
-| ---             | ---                          | ---                                                             |
-| `TARGET_WEAPON` | `main/print_player_stat.lua` | `""` for all weapons, or a specific weapon ID (e.g. `"AK_762"`) |
-| `FILTER_TYPE`   | `main/print_player_stat.lua` | `""`, `"308"`, `"Bolt"`, `"762"`, `"556"`, `"545"`, `"58"`, `"Pistol"`, `"SMG"`, `"Shotgun"`, `"Melee"`, `"RPG"`, `"Grenade"`, `"Smoke"`, `"Flash"`, `"Unknown"` |
-| `SORT_BY`       | `main/print_player_stat.lua` | `"KILLS"` (default) or `"TYPE"`                                 |
+| Setting         | Location                       | Values                                                          |
+| --------------- | ------------------------------ | --------------------------------------------------------------- |
+| `TARGET_WEAPON` | `main/print_player_stats.luau` | `""` for all weapons, or a specific weapon ID (e.g. `"AK_762"`) |
+| `FILTER_TYPE`   | `main/print_player_stats.luau` | `""`, `"308"`, `"Bolt"`, `"762"`, `"556"`, `"545"`, `"58"`, `"Pistol"`, `"SMG"`, `"Shotgun"`, `"Melee"`, `"RPG"`, `"Grenade"`, `"Smoke"`, `"Flash"`, `"Unknown"` |
+| `SORT_BY`       | `main/print_player_stats.luau` | `"KILLS"` (default) or `"TYPE"`                                 |
