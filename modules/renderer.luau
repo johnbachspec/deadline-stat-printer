@@ -1,4 +1,4 @@
--- modules/renderer.lua
+-- modules/renderer.luau
 -- SRP: this module's only job is turning already-computed numbers into
 -- printed grid output. It does no stats math beyond simple ratios/percents
 -- derived from numbers it's handed, and no data lookups of its own.
