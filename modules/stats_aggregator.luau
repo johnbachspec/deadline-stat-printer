@@ -1,4 +1,4 @@
--- modules/stats_aggregator.lua
+-- modules/stats_aggregator.luau
 -- SRP: turns raw profile_stats data into a combined per-weapon stats table
 -- (merging legacy aliases, backfilling missing "Warhead" kills).
 -- DIP: this module never touches a player object directly. main.lua reads
