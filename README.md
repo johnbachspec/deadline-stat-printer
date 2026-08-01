@@ -21,6 +21,11 @@ As of this version, the codebase has been refactored into small, single-purpose 
   - **Weapon XP / Time Used**: Experience and playtime attributed to each weapon.
 - **Fixed-Width Monospaced Alignment**: Uses string format specifiers and manual padding to keep columns aligned cleanly in the Roblox Studio console output window without wrapping, regardless of player name length.
 - **Configurable Filtering & Sorting**: Filter the weapon table by caliber/type (`"556"`, `"SMG"`, `"RPG"`, etc.) or a single weapon, and sort by kills or by type.
+- **Fuzzy Two-Way Type Matching**: `FILTER_TYPE` doesn't need to match a caliber exactly — it matches if the filter is a substring of the caliber *or* the caliber is a substring of the filter, so partial values still resolve correctly.
+- **Untracked Kill Reconciliation**: If a player's total kill count is higher than the sum of all per-weapon kills (e.g. explosive, environmental, or otherwise unattributed kills), the difference is automatically rolled into a synthetic `HEAT/HE Warhead` row so the weapon table always reconciles with the account-wide kill total.
+- **Many-to-One Legacy Merging**: Multiple legacy weapon IDs can merge into the same modern weapon — not just 1:1. For example, both `Glock17` and `Glock20` are merged into `Kosch`.
+- **Auto-Run for All Connected Players**: When `require()`'d, the script automatically loops over every non-bot player currently in the server (via `players.get_all()`) and prints a full report for each — no per-player setup needed.
+- **Reusable Public Function**: `print_filtered_weapon_stats_for_player(player_obj, filter_override)` is exposed as a global function, so it can be called manually (e.g. from a chat command or admin tool) for a specific player, optionally overriding `FILTER_TYPE` for just that call without changing the script's global config.
 - **Type-Safe Luau**: Built with explicit Luau typing conventions for performance and developer readability.
 - **Modular, SOLID Architecture**: Data tables, formatting, stats aggregation, filtering/sorting, and rendering each live in their own module, making the script easier to extend, test, and maintain.
 
@@ -77,6 +82,36 @@ M67                          30           0     30.000      2.40%           30  
 ----------------------------------------------------------------------------------------------------------------------------------------------------
 TOTAL                     1,250         270      4.630    100.00%       12,450     3.12     9.96         99,000       6h 40m  0s    100.00%
 ```
+
+---
+
+## Stat Definitions
+
+A few stats shown in the recap aren't self-explanatory from their labels alone:
+
+| Stat | Formula | Notes |
+| --- | --- | --- |
+| `Accuracy` | `total kills / total rounds fired` | This is a kills-per-shot efficiency metric across the whole loadout, **not** a hit/miss ratio — `rounds_hit` is tracked per weapon but isn't used in this calculation. |
+| `KDR` | `total kills / total deaths` | Account-wide, independent of weapon. |
+| `w-KDR` | `weapon kills / deaths while holding that weapon` | Per-weapon equivalent of KDR; falls back to raw kill count if the player never died holding that weapon. |
+| `RFpK` | `rounds fired / kills` | How many rounds it costs, on average, to land a kill with that weapon. |
+| `Avg Lifespan` | `total playtime / total deaths` | Falls back to total playtime if the player has no recorded deaths. |
+
+---
+
+## Manual / Programmatic Usage
+
+Besides the automatic per-server loop, `print_filtered_weapon_stats_for_player` is exposed globally after the script runs, so it can be invoked directly for a single player — for example from a chat command handler:
+
+```lua
+-- print report for one specific player, using the script's default FILTER_TYPE/SORT_BY
+print_filtered_weapon_stats_for_player(targetPlayerObj)
+
+-- print report for one specific player, overriding the filter for just this call
+print_filtered_weapon_stats_for_player(targetPlayerObj, "SMG")
+```
+
+The second argument is optional and, when provided, overrides `FILTER_TYPE` for that single call only — it does not change the script's global config or affect the automatic per-server loop.
 
 ---
 
@@ -139,3 +174,5 @@ This mapping now lives in `modules/weapon_data.lua`, alongside the display-name 
 | `TARGET_WEAPON` | `main/print_player_stats.luau` | `""` for all weapons, or a specific weapon ID (e.g. `"AK_762"`) |
 | `FILTER_TYPE`   | `main/print_player_stats.luau` | `""`, `"308"`, `"Bolt"`, `"762"`, `"556"`, `"545"`, `"58"`, `"Pistol"`, `"SMG"`, `"Shotgun"`, `"Melee"`, `"RPG"`, `"Grenade"`, `"Smoke"`, `"Flash"`, `"Unknown"` |
 | `SORT_BY`       | `main/print_player_stats.luau` | `"KILLS"` (default) or `"TYPE"`                                 |
+
+> **Note:** in the current entry file, `TARGET_WEAPON` is declared but not yet wired into the filtering call (`FilterSort.build_weapon_list` only reads `FILTER_TYPE`). Until that's connected, use `FILTER_TYPE` for narrowing the table, or call `print_filtered_weapon_stats_for_player(playerObj, "WeaponID")` manually (see [Manual / Programmatic Usage](#manual--programmatic-usage)) to target a single weapon per-call.
