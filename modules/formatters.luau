@@ -1,4 +1,4 @@
--- modules/formatters.lua
+-- modules/formatters.luau
 -- SRP: pure string/number formatting helpers. No knowledge of weapons,
 -- players, or layout widths beyond what's passed in as arguments.
 -- Every function here is a pure function: same input -> same output,
