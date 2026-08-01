@@ -1,8 +1,8 @@
 # deadline-stat-printer
 
-Prints Deadline Roblox detailed kill stats.
+Prints Deadline Roblox detailed stats.
 
-A robust, type-safe **Luau** utility script suite designed for Roblox games to extract, aggregate, process, and display weapon performance statistics from player profile data. Original script from @LegitACarWithAGun.
+A robust, type-safe **Luau** utility script suite designed for Roblox games to extract, aggregate, process, and display weapon performance statistics from player profile data. Original script and inspiration from [@LegitACarWithAGun](https://github.com/LegitACarWithAGun).
 
 Features automatic legacy weapon ID merging, real-time performance metric calculations (K/D Ratio, Rounds Fired per Kill, Accuracy, Pace stats), and clean monospaced tabular console output designed specifically for Roblox Studio's output window.
 
