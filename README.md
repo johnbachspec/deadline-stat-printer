@@ -31,6 +31,7 @@ Features automatic legacy weapon ID merging, real-time performance metric calcul
    ```
 3. **Run**: Execute the code. Output will display in the Roblox Studio Output window.
 
+Alternatively, run require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")
 ---
 
 ## Example Console Output
