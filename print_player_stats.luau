@@ -3,13 +3,13 @@
 
 local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
 
-local WeaponData    = require(REPO_BASE .. "weapon_data")
-local LevelData      = require(REPO_BASE .. "level_data")
-local Formatters      = require(REPO_BASE .. "formatters")
-local Achievements     = require(REPO_BASE .. "achievements")
-local Aggregator        = require(REPO_BASE .. "stats_aggregator")
-local FilterSort          = require(REPO_BASE .. "filters_sorters")
-local Renderer              = require(REPO_BASE .. "renderer")
+local WeaponData    = require(REPO_BASE .. "weapon_data.lua")
+local LevelData     = require(REPO_BASE .. "level_data.lua")
+local Formatters    = require(REPO_BASE .. "formatters.lua")
+local Achievements  = require(REPO_BASE .. "achievements.lua")
+local Aggregator    = require(REPO_BASE .. "stats_aggregator.lua")
+local FilterSort    = require(REPO_BASE .. "filters_sorters.lua")
+local Renderer      = require(REPO_BASE .. "renderer.lua")
 
 -- ===== User Config =====
 local TARGET_WEAPON = "" -- Leave empty "" to list all or set to a weapon name (e.g. "AK_762")
@@ -24,8 +24,8 @@ local SORT_BY = "KILLS"
 -- ========================
 
 local renderer = Renderer.new({
-    formatters = Formatters,
-    level_data = LevelData,
+    formatters   = Formatters,
+    level_data   = LevelData,
     achievements = Achievements,
 })
 
@@ -37,12 +37,12 @@ local function print_filtered_weapon_stats_for_player(player_obj, filter_overrid
         profile_stats = player_obj.get_profile_stats() or {}
     end
 
-    local combined_stats = Aggregator.combine_weapon_stats(profile_stats, WeaponData)
-    local player_stats = Aggregator.player_stats(profile_stats)
-    local spendings_stats = Aggregator.spendings_stats(profile_stats)
-    local achievements_stats = Aggregator.achievements_stats(profile_stats)
+    local combined_stats      = Aggregator.combine_weapon_stats(profile_stats, WeaponData)
+    local player_stats        = Aggregator.player_stats(profile_stats)
+    local spendings_stats     = Aggregator.spendings_stats(profile_stats)
+    local achievements_stats  = Aggregator.achievements_stats(profile_stats)
 
-    local active_filter = filter_override or FILTER_TYPE
+    local active_filter       = filter_override or FILTER_TYPE
     local weapon_list, totals = FilterSort.build_weapon_list(combined_stats, WeaponData, active_filter)
     FilterSort.sort(weapon_list, SORT_BY)
 
