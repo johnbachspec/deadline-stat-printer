@@ -24,10 +24,9 @@ Features automatic legacy weapon ID merging, real-time performance metric calcul
 
 1. **Insert Code**: Open a private Deadline server. Press tilde (```) to open the Luau console. Switch to `Luau Server Console` and insert the code.
 2. **Configure Parameters**:
-   Change `PLAYER_NAME` to your username and `TARGET_WEAPON` to either a specific weapon string or leave empty `""` to display all weapons.
+   Change `TARGET_WEAPON` to either a specific weapon string or leave empty `""` to display all weapons.
 
    ```luau
-   local PLAYER_NAME = "bachancuc123"
    local TARGET_WEAPON = "" -- Set to "M4A1" or leave empty "" for all weapons
    ```
 3. **Run**: Execute the code. Output will display in the Roblox Studio Output window.
