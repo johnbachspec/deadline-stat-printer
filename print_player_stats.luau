@@ -121,6 +121,15 @@ local LevelData = {
 local MAX_LEVEL = 85
 local MAX_LEVEL_XP = LevelData[MAX_LEVEL]
 
+-- Helper string padding to bypass VM dynamic specifier limit errors
+local function pad_right(str, length)
+    str = tostring(str or "")
+    if #str >= length then
+        return str
+    end
+    return str .. string.rep(" ", length - #str)
+end
+
 local function get_prestige_and_level(xp)
     local safe_xp = tonumber(xp) or 0
     local prestige = math.floor(safe_xp / MAX_LEVEL_XP)
@@ -291,7 +300,6 @@ local function print_overall_recap(player_name, player_stats, spendings_stats, a
     print(string.rep(" ", GRID_WIDTH))
     
     local col_w = math.floor((GRID_WIDTH - 2) / 3)
-    local C_FORMAT = string.format("%%-%ds| %%-%ds| %%-%ds", col_w, col_w, col_w)
 
     -- Column 1
     local r1_col1 = string.format(" %-19s%d", "Level:", calculated_level)
@@ -320,13 +328,13 @@ local function print_overall_recap(player_name, player_stats, spendings_stats, a
     local r6_col3 = string.format("%-19s%s", "On Weapons:", weapon_str)
     local r7_col3 = string.format("%-19s%s st", "Dist Travelled:", format_num(dist_travelled))
 
-    print(string.format(C_FORMAT, r1_col1, r1_col2, r1_col3))
-    print(string.format(C_FORMAT, r2_col1, r2_col2, r2_col3))
-    print(string.format(C_FORMAT, r3_col1, r3_col2, r3_col3))
-    print(string.format(C_FORMAT, r4_col1, r4_col2, r4_col3))
-    print(string.format(C_FORMAT, r5_col1, r5_col2, r5_col3))
-    print(string.format(C_FORMAT, r6_col1, r6_col2, r6_col3))
-    print(string.format(C_FORMAT, r7_col1, r7_col2, r7_col3))
+    print(pad_right(r1_col1, col_w) .. "| " .. pad_right(r1_col2, col_w) .. "| " .. r1_col3)
+    print(pad_right(r2_col1, col_w) .. "| " .. pad_right(r2_col2, col_w) .. "| " .. r2_col3)
+    print(pad_right(r3_col1, col_w) .. "| " .. pad_right(r3_col2, col_w) .. "| " .. r3_col3)
+    print(pad_right(r4_col1, col_w) .. "| " .. pad_right(r4_col2, col_w) .. "| " .. r4_col3)
+    print(pad_right(r5_col1, col_w) .. "| " .. pad_right(r5_col2, col_w) .. "| " .. r5_col3)
+    print(pad_right(r6_col1, col_w) .. "| " .. pad_right(r6_col2, col_w) .. "| " .. r6_col3)
+    print(pad_right(r7_col1, col_w) .. "| " .. pad_right(r7_col2, col_w) .. "| " .. r7_col3)
 
     print(BAR_FULL)
 
@@ -356,8 +364,7 @@ local function print_overall_recap(player_name, player_stats, spendings_stats, a
     print(string.rep(" ", GRID_WIDTH))
 
     local num_cols = 5
-    local col_width = math.floor((GRID_WIDTH - (num_cols - 1)) / num_cols)
-    local P_FORMAT = string.format("%%-%ds| %%-%ds| %%-%ds| %%-%ds| %%-%ds", col_width, col_width, col_width, col_width, col_width)
+    local p_col_width = math.floor((GRID_WIDTH - (num_cols - 1)) / num_cols)
 
     local p1_1 = string.format(" Kills / Match: %9.2f", kpm)
     local p1_2 = string.format("Kills / Min:    %9.3f", kills_per_min)
@@ -371,8 +378,8 @@ local function print_overall_recap(player_name, player_stats, spendings_stats, a
     local p2_4 = string.format("HE / Match:     %9.2f", epm)
     local p2_5 = string.format("Dist / Match:   %6s st", format_num(dpm))
 
-    print(string.format(P_FORMAT, p1_1, p1_2, p1_3, p1_4, p1_5))
-    print(string.format(P_FORMAT, p2_1, p2_2, p2_3, p2_4, p2_5))
+    print(pad_right(p1_1, p_col_width) .. "| " .. pad_right(p1_2, p_col_width) .. "| " .. pad_right(p1_3, p_col_width) .. "| " .. pad_right(p1_4, p_col_width) .. "| " .. p1_5)
+    print(pad_right(p2_1, p_col_width) .. "| " .. pad_right(p2_2, p_col_width) .. "| " .. pad_right(p2_3, p_col_width) .. "| " .. pad_right(p2_4, p_col_width) .. "| " .. p2_5)
     print(BAR_FULL)
 end
 
