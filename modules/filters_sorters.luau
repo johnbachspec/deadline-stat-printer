@@ -1,4 +1,4 @@
--- modules/filters_sorters.lua
+-- modules/filters_sorters.luau
 -- OCP: filtering and sorting are expressed as strategy tables/functions.
 -- To add a new sort mode or filter behavior, ADD an entry here rather
 -- than editing an if/else chain buried in unrelated code.
