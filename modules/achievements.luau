@@ -1,4 +1,4 @@
--- modules/achievements.lua
+-- modules/achievements.luau
 -- SRP: the only thing this module knows how to do is read an achievements
 -- table and describe tester status. Kept separate from stats_aggregator
 -- so a future "achievements summary" feature doesn't need to touch or
