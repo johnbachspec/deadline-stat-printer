@@ -43,11 +43,8 @@ As of this version, the codebase has been refactored into small, single-purpose 
 ### Alternatively, run:
 
 ```lua
-require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stat")
+require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")
 ```
-
-This single link is unchanged from previous versions — internally it now pulls in the smaller modules under `modules/` via chained `require()` calls, but the call site you use stays exactly the same.
-
 ---
 
 ## Example Console Output
