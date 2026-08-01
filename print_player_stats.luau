@@ -207,30 +207,6 @@ local ROW_FORMAT    = "%-20s %10s %11s %10.3f %9.2f%% %12s %8.2f %8.2f %14s %16s
 local HEADER_FORMAT = "%-20s %10s %11s %10s %10s %12s %8s %8s %14s %16s %10s  %-8.8s"
 local GRID_WIDTH    = 154
 
-local function get_local_player_info()
-    local p = nil
-    if type(players.get_local_player) == "function" then
-        p = players.get_local_player()
-    elseif players.local_player then
-        p = players.local_player
-    end
-
-    if p then
-        local name = (type(p) == "table" and p.name) or tostring(p)
-        return p, name
-    end
-
-    if type(players.get_all) == "function" then
-        local all = players.get_all()
-        if #all > 0 then
-            local first_p = all[1]
-            return first_p, (type(first_p) == "table" and first_p.name) or tostring(first_p)
-        end
-    end
-
-    return nil, "Unknown"
-end
-
 local function print_overall_recap(player_name: string, player_stats: any, spendings_stats: any, achievements_stats: any, total_playtime_sec: number, total_rounds_fired_all: number, total_rounds_hit_all: number)
     local p = player_stats or {}
     local s = spendings_stats or {}
@@ -522,14 +498,10 @@ local function get_processed_weapon_stats(player_obj: any)
     return combined_stats, player_stats, spendings_stats, achievements_stats
 end
 
-function print_filtered_weapon_stats(filter: string?)
-    local player_obj, player_name = get_local_player_info()
-    if not player_obj then
-        print("Error: Could not locate invoking player instance.")
-        return
-    end
-
-    local active_filter = filter or FILTER_TYPE
+function print_filtered_weapon_stats_for_player(player_obj, filter: string?)
+    local player_name = player_obj.name
+    
+	local active_filter = filter or FILTER_TYPE
     local weapon_stats, player_stats, spendings_stats, achievements_stats = get_processed_weapon_stats(player_obj)
     local weapon_list: {weapon_entry} = {}
     local total_kills_all = 0
@@ -588,4 +560,8 @@ function print_filtered_weapon_stats(filter: string?)
     return weapon_list
 end
 
-print_filtered_weapon_stats()
+for _,plr in ipairs(players.get_all()) do
+	if plr.is_bot() == false then
+		print_filtered_weapon_stats_for_player(plr)
+	end
+end
