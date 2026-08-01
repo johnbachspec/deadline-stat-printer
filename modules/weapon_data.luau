@@ -1,4 +1,4 @@
--- modules/weapon_data.lua
+-- modules/weapon_data.luau
 -- SRP: this module's only job is knowing facts about weapons
 -- (legacy id aliasing, display names, caliber/type classification).
 -- It has zero knowledge of stats, formatting, or printing.
