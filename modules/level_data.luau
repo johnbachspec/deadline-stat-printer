@@ -1,4 +1,4 @@
--- modules/level_data.lua
+-- modules/level_data.luau
 -- SRP: owns XP thresholds and the prestige/level calculation.
 -- Nothing here knows about weapons, printing, or player objects.
 
