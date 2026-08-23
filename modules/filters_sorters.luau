@@ -1,78 +1,64 @@
 -- modules/filters_sorters.luau
--- OCP: filtering and sorting are expressed as strategy tables/functions.
--- To add a new sort mode or filter behavior, ADD an entry here rather
--- than editing an if/else chain buried in unrelated code.
+-- Turns the combined stats table into a flat, filtered, sorted list of rows.
 
 local FilterSort = {}
 
--- Turns the combined weapon-stats table into a flat, sorted/filterable
--- list of {name, display_name, caliber_type, data} entries.
-function FilterSort.build_weapon_list(combined_stats, weapon_data, filter_type)
+-- filter_type:   "" -> everything except "Unknown"; otherwise a two-way
+--                substring match against the weapon type (case-insensitive).
+-- target_weapon: "" -> no restriction; otherwise only that weapon (raw id,
+--                legacy id, or display name). Overrides filter_type.
+-- Returns the row list and totals over the rows included.
+function FilterSort.build_weapon_list(combined, weapon_data, filter_type, target_weapon)
+    local target_id = (target_weapon or "") ~= "" and weapon_data.resolve(target_weapon) or nil
+    local filter = string.lower(filter_type or "")
+
     local list = {}
-    local totals = {
-        kills = 0,
-        use_time = 0,
-        rounds_fired = 0,
-        rounds_hit = 0,
-    }
+    local totals = { kills = 0, use_time = 0, rounds_fired = 0 }
 
-    for weapon_name, data in pairs(combined_stats) do
-        local caliber = weapon_data.caliber(weapon_name)
-        local display_name = weapon_data.display_name(weapon_name)
+    for id, data in pairs(combined) do
+        local weapon_type = weapon_data.type_of(id)
+        local type_lower = string.lower(weapon_type)
 
-        local should_include
-        if filter_type == "" or filter_type == nil then
-            should_include = (caliber ~= "Unknown")
+        local include
+        if target_id then
+            include = (id == target_id)
+        elseif filter == "" then
+            include = (weapon_type ~= "Unknown")
         else
-            local lower_caliber = string.lower(tostring(caliber))
-            local lower_filter = string.lower(tostring(filter_type))
-            should_include = lower_caliber:find(lower_filter, 1, true) ~= nil
-                          or lower_filter:find(lower_caliber, 1, true) ~= nil
+            include = type_lower:find(filter, 1, true) ~= nil or filter:find(type_lower, 1, true) ~= nil
         end
 
-        if should_include then
+        if include then
             table.insert(list, {
-                name = weapon_name,
-                display_name = display_name,
-                caliber_type = caliber,
+                name = id,
+                display_name = weapon_data.display_name(id),
+                caliber_type = weapon_type,
                 data = data,
             })
-            totals.kills = totals.kills + (tonumber(data.kills) or 0)
-            totals.use_time = totals.use_time + (tonumber(data.use_time) or 0)
-            totals.rounds_fired = totals.rounds_fired + (tonumber(data.rounds_fired) or 0)
-            totals.rounds_hit = totals.rounds_hit + (tonumber(data.rounds_hit) or 0)
+            totals.kills += data.kills
+            totals.use_time += data.use_time
+            totals.rounds_fired += data.rounds_fired
         end
     end
 
     return list, totals
 end
 
--- Sort strategies: add a new key here to support a new SORT_BY value
--- without touching FilterSort.sort or any calling code.
+local function by_kills_then_name(a, b)
+    if a.data.kills ~= b.data.kills then return a.data.kills > b.data.kills end
+    return a.display_name < b.display_name
+end
+
 FilterSort.SORT_STRATEGIES = {
-    KILLS = function(list)
-        table.sort(list, function(a, b)
-            local a_kills = tonumber(a.data and a.data.kills) or 0
-            local b_kills = tonumber(b.data and b.data.kills) or 0
-            return a_kills > b_kills
-        end)
-    end,
-    TYPE = function(list)
-        table.sort(list, function(a, b)
-            local a_kills = tonumber(a.data and a.data.kills) or 0
-            local b_kills = tonumber(b.data and b.data.kills) or 0
-            if a.caliber_type == b.caliber_type then
-                return a_kills > b_kills
-            end
-            return tostring(a.caliber_type) < tostring(b.caliber_type)
-        end)
+    KILLS = by_kills_then_name,
+    TYPE = function(a, b)
+        if a.caliber_type ~= b.caliber_type then return a.caliber_type < b.caliber_type end
+        return by_kills_then_name(a, b)
     end,
 }
 
 function FilterSort.sort(list, sort_by)
-    local strategy = FilterSort.SORT_STRATEGIES[string.upper(tostring(sort_by))]
-        or FilterSort.SORT_STRATEGIES.KILLS
-    strategy(list)
+    table.sort(list, FilterSort.SORT_STRATEGIES[string.upper(sort_by or "")] or by_kills_then_name)
     return list
 end
 

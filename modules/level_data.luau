@@ -1,10 +1,10 @@
 -- modules/level_data.luau
--- SRP: owns XP thresholds and the prestige/level calculation.
--- Nothing here knows about weapons, printing, or player objects.
+-- XP thresholds and the level calculation.
 
 local LevelData = {}
 
--- Level Experience Thresholds (Max Level: 85)
+-- Mirrors the CHARACTER list in the game's progression spreadsheet
+-- (Max Level: 85). The game has no prestige system.
 LevelData.THRESHOLDS = {
     [0] = 0, [1] = 1000, [2] = 3500, [3] = 6000, [4] = 9000,
     [5] = 12500, [6] = 16500, [7] = 21000, [8] = 26000, [9] = 31300,
@@ -29,22 +29,30 @@ LevelData.THRESHOLDS = {
 LevelData.MAX_LEVEL = 85
 LevelData.MAX_LEVEL_XP = LevelData.THRESHOLDS[LevelData.MAX_LEVEL]
 
-function LevelData.get_prestige_and_level(xp)
-    local safe_xp = tonumber(xp) or 0
-    local prestige = math.floor(safe_xp / LevelData.MAX_LEVEL_XP)
-    local remaining_xp = safe_xp % LevelData.MAX_LEVEL_XP
+-- Returns level, xp_to_next_level (0 at max level).
+-- Matches the game's ProgressionData: a threshold is passed only once XP is
+-- strictly greater than it, and the level caps at MAX_LEVEL (no prestige).
+function LevelData.get_level(xp)
+    xp = tonumber(xp) or 0
 
-    local current_level = 0
-    for lvl = 0, LevelData.MAX_LEVEL do
-        local threshold = LevelData.THRESHOLDS[lvl] or 0
-        if remaining_xp >= threshold then
-            current_level = lvl
-        else
-            break
-        end
+    local level = 0
+    for lvl = 1, LevelData.MAX_LEVEL do
+        if xp > LevelData.THRESHOLDS[lvl] then level = lvl else break end
     end
 
-    return prestige, current_level
+    if level >= LevelData.MAX_LEVEL then return level, 0 end
+    return level, LevelData.THRESHOLDS[level + 1] - xp + 1
+end
+
+-- Unofficial progress measure past the level cap (the game itself has no
+-- prestige). Returns prestige, wrapped_level: prestige is how many times the
+-- max-level XP total has been earned, wrapped_level is the level the
+-- remaining XP would be worth on its own.
+function LevelData.get_prestige(xp)
+    xp = tonumber(xp) or 0
+    local prestige = math.floor(xp / LevelData.MAX_LEVEL_XP)
+    local wrapped_level = LevelData.get_level(xp % LevelData.MAX_LEVEL_XP)
+    return prestige, wrapped_level
 end
 
 return LevelData
