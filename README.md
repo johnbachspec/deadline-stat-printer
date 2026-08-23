@@ -31,7 +31,7 @@ shared.print_player_stats(players.get("SomeName"), nil, "AKM") -- override TARGE
 
 ## What It Shows
 
-**Account recap** — level and XP to next level, kills, deaths, KDR, headshot / wallbang / explosive kill percentages, matches played, objectives captured, money spent (split by attachments vs weapons), tester status, time alive, distance travelled, and per-match / per-minute averages.
+**Account recap** — level, unofficial prestige, XP to next level, kills, deaths, KDR, headshot / wallbang / explosive kill percentages, matches played, objectives captured, money spent (split by attachments vs weapons), tester status, time alive, distance travelled, and per-match / per-minute averages.
 
 **Weapon table** — one row per weapon: kills, deaths while carrying it, w-KDR, share of kills, rounds fired, kills per minute, rounds fired per kill, weapon XP, time used, share of time used, and type. Legacy weapon ids are merged into their current weapon (e.g. `HK416A5` → `KF416`, `AKMN` → `AK_762`, `Glock17`/`Glock20` → `KOSCH`).
 
@@ -47,7 +47,8 @@ These follow from how the game records stats, so they're worth knowing:
 | `Time Alive` | Time spent alive with a weapon equipped (summed across all weapons), not session time. Per-minute stats and `Avg Lifespan` are based on this. |
 | `Grenades + old RPG` | Kills the game counted toward the account total but never stored under a weapon. Thrown-grenade kills are still recorded with no weapon name today; rocket launcher kills were too until April 2025 (they now land on `RPG7` / `PSRL`). |
 | `% allK`, `% allT` | Relative to the weapons shown in the table (so they respect the filter). The recap above the table is always account-wide. |
-| `Level` | From the game's progression table (max 85). The game has no prestige. |
+| `Level` | The game's level, from its progression table (caps at 85). |
+| `Prestige`, `Prestige Level` | Unofficial — the game has no prestige. `Prestige` is how many times the max-level XP total (4,678,000) has been earned; `Prestige Level` is the level the leftover XP would be worth on its own. Together they quantify progress past the level cap. |
 
 Career stats are not recorded in the lobby or in player-owned private servers, so a fresh account will show zeros.
 

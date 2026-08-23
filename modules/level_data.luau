@@ -27,6 +27,7 @@ LevelData.THRESHOLDS = {
 }
 
 LevelData.MAX_LEVEL = 85
+LevelData.MAX_LEVEL_XP = LevelData.THRESHOLDS[LevelData.MAX_LEVEL]
 
 -- Returns level, xp_to_next_level (0 at max level).
 -- Matches the game's ProgressionData: a threshold is passed only once XP is
@@ -41,6 +42,17 @@ function LevelData.get_level(xp)
 
     if level >= LevelData.MAX_LEVEL then return level, 0 end
     return level, LevelData.THRESHOLDS[level + 1] - xp + 1
+end
+
+-- Unofficial progress measure past the level cap (the game itself has no
+-- prestige). Returns prestige, wrapped_level: prestige is how many times the
+-- max-level XP total has been earned, wrapped_level is the level the
+-- remaining XP would be worth on its own.
+function LevelData.get_prestige(xp)
+    xp = tonumber(xp) or 0
+    local prestige = math.floor(xp / LevelData.MAX_LEVEL_XP)
+    local wrapped_level = LevelData.get_level(xp % LevelData.MAX_LEVEL_XP)
+    return prestige, wrapped_level
 end
 
 return LevelData

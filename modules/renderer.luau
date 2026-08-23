@@ -67,6 +67,7 @@ function Renderer:print_overall_recap(player_name, p, spendings, achievements, a
 
     local level, xp_to_next = self.level_data.get_level(xp)
     local next_level = xp_to_next > 0 and (fmt.format_num(xp_to_next) .. " XP") or "MAX"
+    local prestige, prestige_level = self.level_data.get_prestige(xp)
 
     local spent_attachments, spent_weapons = n(spendings.attachments), n(spendings.weapons)
     local spent = spent_attachments + spent_weapons
@@ -82,18 +83,20 @@ function Renderer:print_overall_recap(player_name, p, spendings, achievements, a
             label("Matches Played:", fmt.format_num(matches)),
             label("Total Money Spent:", fmt.format_currency(spent)),
             label("Time Alive:", fmt.format_use_time(alive_sec)),
+            label("Status:", tester_status(achievements)),
         },
         {
-            label("Next Level In:", next_level),
+            label("Prestige Level:", prestige_level),
             label("Deaths:", fmt.format_num(deaths)),
             label("Wallbangs:", fmt.format_num(wallbangs)),
             label("Wall %:", string.format("%.2f%%", pct(wallbangs, kills))),
             label("Objectives Cap:", fmt.format_num(points)),
             label("On Attachments:", string.format("%s (%.2f%%)", fmt.format_currency(spent_attachments), pct(spent_attachments, spent))),
             label("Total Experience:", fmt.format_num(xp)),
+            label("Next Level In:", next_level),
         },
         {
-            label("Status:", tester_status(achievements)),
+            label("Prestige:", prestige),
             label("KDR:", string.format("%.5f", deaths > 0 and kills / deaths or kills)),
             label("HE Kills:", fmt.format_num(he_kills)),
             label("HE %:", string.format("%.2f%%", pct(he_kills, kills))),
@@ -101,6 +104,7 @@ function Renderer:print_overall_recap(player_name, p, spendings, achievements, a
             label("Rounds / Kill:", string.format("%.2f", kills > 0 and rounds / kills or rounds)),
             label("On Weapons:", string.format("%s (%.2f%%)", fmt.format_currency(spent_weapons), pct(spent_weapons, spent))),
             label("Dist Travelled:", fmt.format_num(distance) .. " st"),
+            "",
         },
     })
     print(BAR)
