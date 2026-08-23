@@ -6,9 +6,9 @@
 local Renderer = {}
 Renderer.__index = Renderer
 
-local GRID_WIDTH    = 154
-local ROW_FORMAT    = "%-20s %10s %11s %10.3f %9.2f%% %12s %8.2f %8.2f %14s %16s %9.2f%%  %-8.8s"
-local HEADER_FORMAT = "%-20s %10s %11s %10s %10s %12s %8s %8s %14s %16s %10s  %-8.8s"
+local GRID_WIDTH    = 166
+local ROW_FORMAT    = "%-20s %10s %11s %11s %10.3f %9.2f%% %12s %8.2f %8.2f %14s %16s %9.2f%%  %-8.8s"
+local HEADER_FORMAT = "%-20s %10s %11s %11s %10s %10s %12s %8s %8s %14s %16s %10s  %-8.8s"
 local BAR           = string.rep("=", GRID_WIDTH)
 local THIN_BAR      = string.rep("-", GRID_WIDTH)
 
@@ -54,7 +54,7 @@ end
 
 -- account_totals = { use_time, rounds_fired } over ALL weapons, so the recap
 -- does not change with FILTER_TYPE.
-function Renderer:print_overall_recap(player_name, p, spendings, achievements, account_totals)
+function Renderer:print_overall_recap(player_name, p, spendings, achievements, account_totals, collection)
     local fmt = self.fmt
     local n = function(v) return tonumber(v) or 0 end
     local label = function(name, value) return string.format("%-19s%s", name, value) end
@@ -84,6 +84,7 @@ function Renderer:print_overall_recap(player_name, p, spendings, achievements, a
             label("Total Money Spent:", fmt.format_currency(spent)),
             label("Time Alive:", fmt.format_use_time(alive_sec)),
             label("Status:", tester_status(achievements)),
+            label("Owned Weapons:", fmt.format_num(collection.weapons)),
         },
         {
             label("Prestige Level:", prestige_level),
@@ -94,6 +95,7 @@ function Renderer:print_overall_recap(player_name, p, spendings, achievements, a
             label("On Attachments:", string.format("%s (%.2f%%)", fmt.format_currency(spent_attachments), pct(spent_attachments, spent))),
             label("Total Experience:", fmt.format_num(xp)),
             label("Next Level In:", next_level),
+            label("Owned Attachments:", fmt.format_num(collection.attachments)),
         },
         {
             label("Prestige:", prestige),
@@ -104,7 +106,8 @@ function Renderer:print_overall_recap(player_name, p, spendings, achievements, a
             label("Rounds / Kill:", string.format("%.2f", kills > 0 and rounds / kills or rounds)),
             label("On Weapons:", string.format("%s (%.2f%%)", fmt.format_currency(spent_weapons), pct(spent_weapons, spent))),
             label("Dist Travelled:", fmt.format_num(distance) .. " st"),
-            "",
+            label("Rounds Fired:", fmt.format_num(rounds)),
+            label("Owned Camos:", fmt.format_num(collection.camos)),
         },
     })
     print(BAR)
@@ -137,46 +140,41 @@ end
 
 function Renderer:print_table_header()
     self:print_title("DETAILED WEAPON STATS")
-    print(" deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon); TOTAL row uses account deaths instead")
-    print(" % allK / % allT are relative to the weapons shown in this table")
-    print(string.format(HEADER_FORMAT, "weapon", "kills", "deaths w/", "w-KDR", "% allK", "rds. ct", "K/Min", "RFpK", "weapon XP", "time used", "% allT", "type"))
+    print(" deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)")
+    print(" deaths by = times this weapon killed you; % allK / % allT are relative to the weapons shown in this table")
+    print(string.format(HEADER_FORMAT, "weapon", "kills", "deaths w/", "deaths by", "w-KDR", "% allK", "rds. ct", "K/Min", "RFpK", "weapon XP", "time used", "% allT", "type"))
     print(THIN_BAR)
 end
 
-function Renderer:print_row(name, weapon_type, kills, deaths, rounds, xp, use_time, total_kills, total_time)
-    local fmt = self.fmt
+function Renderer:print_row(w, total_kills, total_time)
+    local fmt, d = self.fmt, w.data
     print(string.format(
         ROW_FORMAT,
-        name,
-        fmt.format_num(kills),
-        fmt.format_num(deaths),
-        deaths > 0 and kills / deaths or kills,
-        pct(kills, total_kills),
-        fmt.format_num(rounds),
-        ratio(kills, use_time / 60),
-        kills > 0 and rounds / kills or rounds,
-        fmt.format_num(xp),
-        fmt.format_use_time(use_time),
-        pct(use_time, total_time),
-        weapon_type
+        w.display_name,
+        fmt.format_num(d.kills),
+        fmt.format_num(d.deaths_with),
+        fmt.format_num(d.deaths_from),
+        d.deaths_with > 0 and d.kills / d.deaths_with or d.kills,
+        pct(d.kills, total_kills),
+        fmt.format_num(d.rounds_fired),
+        ratio(d.kills, d.use_time / 60),
+        d.kills > 0 and d.rounds_fired / d.kills or d.rounds_fired,
+        fmt.format_num(d.experience),
+        fmt.format_use_time(d.use_time),
+        pct(d.use_time, total_time),
+        w.caliber_type
     ))
 end
 
--- table_totals   = totals over the rows shown
--- account_deaths = the player's total_deaths (used for the TOTAL row; see header note)
-function Renderer:print_report(player_name, player_stats, spendings, achievements, weapon_list, table_totals, account_totals)
-    self:print_overall_recap(player_name, player_stats, spendings, achievements, account_totals)
+-- table_totals   = totals over the rows shown (for % allK / % allT)
+-- account_totals = totals over ALL weapons (for the recap)
+function Renderer:print_report(player_name, player_stats, spendings, achievements, collection, weapon_list, table_totals, account_totals)
+    self:print_overall_recap(player_name, player_stats, spendings, achievements, account_totals, collection)
     self:print_table_header()
-
-    local sum = { kills = 0, rounds_fired = 0, experience = 0, use_time = 0 }
     for _, w in ipairs(weapon_list) do
-        local d = w.data
-        self:print_row(w.display_name, w.caliber_type, d.kills, d.deaths_with, d.rounds_fired, d.experience, d.use_time, table_totals.kills, table_totals.use_time)
-        for field in pairs(sum) do sum[field] += d[field] end
+        self:print_row(w, table_totals.kills, table_totals.use_time)
     end
-
     print(THIN_BAR)
-    self:print_row("TOTAL", "", sum.kills, tonumber(player_stats.total_deaths) or 0, sum.rounds_fired, sum.experience, sum.use_time, sum.kills, sum.use_time)
 end
 
 return Renderer

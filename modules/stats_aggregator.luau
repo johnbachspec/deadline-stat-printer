@@ -62,4 +62,20 @@ function Aggregator.account_totals(combined)
     return totals
 end
 
+-- Counts of owned weapons, attachments and camos.
+-- owned_camo is weapon -> camo -> true (older profiles: weapon -> list of camos).
+function Aggregator.collection(profile_stats)
+    local player_stats = profile_stats.player or {}
+    local counts = { weapons = #(player_stats.owned_weapons or {}), attachments = 0, camos = 0 }
+    for _, data in pairs(profile_stats.weapon or {}) do
+        counts.attachments += #(data.owned_attachments or {})
+        for _, camos in pairs(data.owned_camo or {}) do
+            for _, owned in pairs(camos) do
+                if owned then counts.camos += 1 end
+            end
+        end
+    end
+    return counts
+end
+
 return Aggregator

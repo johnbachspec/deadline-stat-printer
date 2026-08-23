@@ -19,7 +19,7 @@ Prints detailed account and per-weapon statistics for Deadline (Roblox) players 
    local SORT_BY       = "KILLS" -- "KILLS" or "TYPE"
    ```
 
-3. A report prints for every human player currently in the server. Output appears in the Luau console itself (not the Roblox Studio Output window); the console is monospaced, but the 154-column grid will wrap if the console window is narrow.
+3. A report prints for every human player currently in the server. Output appears in the Luau console itself (not the Roblox Studio Output window); the console is monospaced, but the 166-column grid will wrap if the console window is narrow.
 
 After the script has run once, `shared.print_player_stats` stays available in the console for the rest of the session:
 
@@ -31,9 +31,9 @@ shared.print_player_stats(players.get("SomeName"), nil, "AKM") -- override TARGE
 
 ## What It Shows
 
-**Account recap** — level, unofficial prestige, XP to next level, kills, deaths, KDR, headshot / wallbang / explosive kill percentages, matches played, objectives captured, money spent (split by attachments vs weapons), tester status, time alive, distance travelled, and per-match / per-minute averages.
+**Account recap** — level, unofficial prestige, XP to next level, kills, deaths, KDR, headshot / wallbang / explosive kill percentages, matches played, objectives captured, rounds fired, money spent (split by attachments vs weapons), tester status, time alive, distance travelled, owned weapons / attachments / camos, and per-match / per-minute averages.
 
-**Weapon table** — one row per weapon: kills, deaths while carrying it, w-KDR, share of kills, rounds fired, kills per minute, rounds fired per kill, weapon XP, time used, share of time used, and type. Legacy weapon ids are merged into their current weapon (e.g. `HK416A5` → `KF416`, `AKMN` → `AK_762`, `Glock17`/`Glock20` → `KOSCH`).
+**Weapon table** — one row per weapon: kills, deaths while carrying it, deaths caused by it, w-KDR, share of kills, rounds fired, kills per minute, rounds fired per kill, weapon XP, time used, share of time used, and type. Legacy weapon ids are merged into their current weapon (e.g. `HK416A5` → `KF416`, `AKMN` → `AK_762`, `Glock17`/`Glock20` → `KOSCH`).
 
 ### How to read the numbers
 
@@ -41,10 +41,11 @@ These follow from how the game records stats, so they're worth knowing:
 
 | Stat | Meaning |
 | --- | --- |
-| `deaths w/` | Deaths while carrying the weapon in **any** slot. The game increments this for every weapon carried at death, so one death counts toward up to four weapons. The `TOTAL` row therefore uses account deaths rather than a sum. |
+| `deaths w/` | Deaths while carrying the weapon in **any** slot. The game increments this for every weapon carried at death, so one death counts toward up to four weapons (which is why the table has no total row). |
+| `deaths by` | How many times that weapon killed you. |
 | `w-KDR` | `kills with weapon / deaths while carrying it`. Falls back to the kill count if there are no such deaths. |
 | `Rounds / Kill`, `RFpK` | Rounds fired per kill. The profile stores no hit counts, so true accuracy can't be computed. |
-| `Time Alive` | Time spent alive with a weapon equipped (summed across all weapons), not session time. Per-minute stats and `Avg Lifespan` are based on this. |
+| `Time Alive`, `time used`, `rds. ct` | Time alive with a weapon equipped, and rounds fired, summed across all weapons. **These are floors:** the game only saves a life's time / rounds / distance when that life ends in a real death — surviving to the end of a match, a map reset, or leaving the server discards them, while kills are counted immediately. Per-minute stats, `Avg Lifespan`, `RFpK` and `Rounds / Kill` are all skewed by this. Tracking also only began in July 2024. |
 | `Grenades + old RPG` | Kills the game counted toward the account total but never stored under a weapon. Thrown-grenade kills are still recorded with no weapon name today; rocket launcher kills were too until April 2025 (they now land on `RPG7` / `PSRL`). |
 | `% allK`, `% allT` | Relative to the weapons shown in the table (so they respect the filter). The recap above the table is always account-wide. |
 | `Level` | The game's level, from its progression table (caps at 85). |
