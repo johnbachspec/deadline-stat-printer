@@ -141,7 +141,6 @@ end
 function Renderer:print_table_header()
     self:print_title("DETAILED WEAPON STATS")
     print(" deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)")
-    print(" deaths by = times this weapon killed you; % allK / % allT are relative to the weapons shown in this table")
     print(string.format(HEADER_FORMAT, "weapon", "kills", "deaths w/", "deaths by", "w-KDR", "% allK", "rds. ct", "K/Min", "RFpK", "weapon XP", "time used", "% allT", "type"))
     print(THIN_BAR)
 end
