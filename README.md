@@ -45,7 +45,7 @@ These follow from how the game records stats, so they're worth knowing:
 | `w-KDR` | `kills with weapon / deaths while carrying it`. Falls back to the kill count if there are no such deaths. |
 | `Rounds / Kill`, `RFpK` | Rounds fired per kill. The profile stores no hit counts, so true accuracy can't be computed. |
 | `Time Alive` | Time spent alive with a weapon equipped (summed across all weapons), not session time. Per-minute stats and `Avg Lifespan` are based on this. |
-| `Grenades (unattrib.)` | Kills the game counted toward the account total but never stored under a weapon: thrown-grenade kills are recorded with no weapon name. Rocket launcher kills are attributed normally. |
+| `Grenades + old RPG` | Kills the game counted toward the account total but never stored under a weapon. Thrown-grenade kills are still recorded with no weapon name today; rocket launcher kills were too until April 2025 (they now land on `RPG7` / `PSRL`). |
 | `% allK`, `% allT` | Relative to the weapons shown in the table (so they respect the filter). The recap above the table is always account-wide. |
 | `Level` | From the game's progression table (max 85). The game has no prestige. |
 

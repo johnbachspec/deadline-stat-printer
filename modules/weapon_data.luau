@@ -17,9 +17,9 @@ WeaponData.ALIASES = {
     Glock20 = "KOSCH",
 }
 
--- Synthetic row for kills the game counts toward total_kills but never stores
--- under a weapon key. Thrown-grenade kills (F1, M67, ...) are recorded with no
--- weapon name; rocket (RPG7/PSRL) kills are attributed normally.
+-- Synthetic row for kills the game counts toward total_kills but never stored
+-- under a weapon key: thrown-grenade kills (F1, M67, ...) to this day, and
+-- rocket (RPG7/PSRL) kills from before April 2025.
 WeaponData.UNATTRIBUTED_ID = "Unattributed"
 
 WeaponData.DISPLAY_NAMES = {
@@ -49,7 +49,7 @@ WeaponData.DISPLAY_NAMES = {
     RPG7              = "RPG-7",
     Zarya3            = "Zarya-3",
     PlacingTool       = "Placing Tool",
-    [WeaponData.UNATTRIBUTED_ID] = "Grenades (unattrib.)",
+    [WeaponData.UNATTRIBUTED_ID] = "Grenades + old RPG",
 }
 
 WeaponData.TYPES = {
