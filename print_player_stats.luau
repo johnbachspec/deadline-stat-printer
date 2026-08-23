@@ -1,6 +1,6 @@
 -- print_player_stats.luau
 -- In the in-game Luau Server Console, run:
---   require("https://raw.githubusercontent.com/refact0r/deadline-stat-printer/main/print_player_stats.luau")
+--   require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")
 -- Output appears in that console (not the Roblox Studio Output window).
 
 local REPO_BASE = "https://raw.githubusercontent.com/refact0r/deadline-stat-printer/main/modules/"
