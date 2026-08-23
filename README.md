@@ -1,178 +1,69 @@
 # deadline-stat-printer
 
-Prints Deadline Roblox detailed stats.
-
-A robust, type-safe **Luau** utility script suite designed for Roblox games to extract, aggregate, process, and display weapon performance statistics from player profile data. Original script and inspiration from [@LegitACarWithAGun](https://github.com/LegitACarWithAGun).
-
-Features automatic legacy weapon ID merging, real-time performance metric calculations (K/D Ratio, Rounds Fired per Kill, Accuracy, Pace stats), and clean monospaced tabular console output designed specifically for Roblox Studio's output window.
-
-As of this version, the codebase has been refactored into small, single-purpose modules following **SOLID** design principles, while still being runnable from a single `require()` link — see [Project Structure](#project-structure) below.
-
----
-
-## Key Features
-
-- **Legacy Weapon ID Merging**: Automatically aggregates stats from older or renamed weapon IDs into their modern counterparts (e.g., merging `HK416A5` into `KF416`, `AK74N` into `AK_545`).
-- **Full Account Recap**: Prints level/prestige, KDR, headshot %, wallbang %, HE %, accuracy, money spent, tester status, and per-match / per-minute pace stats above the weapon breakdown.
-- **Calculated Performance Metrics** (per weapon):
-  - **w-KDR (K/D With)**: Kills per death while holding the weapon (`Kills / DeathsWith`).
-  - **RFpK (Rounds Fired per Kill)**: Total ammunition expenditure required per kill achieved (`RoundsFired / Kills`).
-  - **K/Min**: Kills per minute of time spent using the weapon.
-  - **Weapon XP / Time Used**: Experience and playtime attributed to each weapon.
-- **Fixed-Width Monospaced Alignment**: Uses string format specifiers and manual padding to keep columns aligned cleanly in the Roblox Studio console output window without wrapping, regardless of player name length.
-- **Configurable Filtering & Sorting**: Filter the weapon table by caliber/type (`"556"`, `"SMG"`, `"RPG"`, etc.) or a single weapon, and sort by kills or by type.
-- **Fuzzy Two-Way Type Matching**: `FILTER_TYPE` doesn't need to match a caliber exactly — it matches if the filter is a substring of the caliber *or* the caliber is a substring of the filter, so partial values still resolve correctly.
-- **Untracked Kill Reconciliation**: If a player's total kill count is higher than the sum of all per-weapon kills (e.g. explosive, environmental, or otherwise unattributed kills), the difference is automatically rolled into a synthetic `HEAT/HE Warhead` row so the weapon table always reconciles with the account-wide kill total.
-- **Many-to-One Legacy Merging**: Multiple legacy weapon IDs can merge into the same modern weapon — not just 1:1. For example, both `Glock17` and `Glock20` are merged into `Kosch`.
-- **Auto-Run for All Connected Players**: When `require()`'d, the script automatically loops over every non-bot player currently in the server (via `players.get_all()`) and prints a full report for each — no per-player setup needed.
-- **Reusable Public Function**: `print_filtered_weapon_stats_for_player(player_obj, filter_override)` is exposed as a global function, so it can be called manually (e.g. from a chat command or admin tool) for a specific player, optionally overriding `FILTER_TYPE` for just that call without changing the script's global config.
-- **Type-Safe Luau**: Built with explicit Luau typing conventions for performance and developer readability.
-- **Modular, SOLID Architecture**: Data tables, formatting, stats aggregation, filtering/sorting, and rendering each live in their own module, making the script easier to extend, test, and maintain.
-
----
+Prints detailed account and per-weapon statistics for Deadline (Roblox) players from the in-game Luau server console. Original script and inspiration from [@LegitACarWithAGun](https://github.com/LegitACarWithAGun); modular version by [@johnbachspec](https://github.com/johnbachspec).
 
 ## How to Use
 
-1. **Insert Code**: Open a private Deadline server. Press tilde (`` ` ``) to open the Luau console. Switch to `Luau Server Console` and insert the code.
-
-2. **Configure Parameters**: at the top of `main/print_player_stats.luau`, set:
+1. Open a private Deadline server. Press tilde (`` ` ``) to open the Luau console and switch to **Luau Server Console**.
+2. Run:
 
    ```lua
-   local TARGET_WEAPON = "" -- Set to "AK_762" or leave empty "" for all weapons
-   local FILTER_TYPE   = "" -- e.g. "556", "SMG", "RPG", or "" for all (excluding Unknown)
+   require("https://raw.githubusercontent.com/refact0r/deadline-stat-printer/main/print_player_stats.luau")
+   ```
+
+   Or paste the contents of `print_player_stats.luau` into the console. Edit the config block at the top first if you want a filter:
+
+   ```lua
+   local TARGET_WEAPON = "" -- one weapon only: raw id ("AK_762"), legacy id ("AKMN"), or display name ("AKM")
+   local FILTER_TYPE   = "" -- e.g. "556", "SMG", "RPG"; "" = everything except Unknown
    local SORT_BY       = "KILLS" -- "KILLS" or "TYPE"
    ```
 
-3. **Run**: Execute the code. Output will display in the Roblox Studio Output window.
+3. A report prints for every human player currently in the server. Output appears in the Luau console itself (not the Roblox Studio Output window); the console is monospaced, but the 166-column grid will wrap if the console window is narrow.
 
-### Alternatively, run:
-
-```lua
-require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")
-```
----
-
-## Example Console Output
-
-```
-======================================================================================================================================================
-                                                       OVERALL ACCOUNT STATISTICS FOR bachancuc123
-                                                                                                                                                        
- Level:             66             | Prestige:          0                | Status:            predemo tester, alpha tester
- Kills:             1,250          | Deaths:            430              | KDR:               2.90698
- Headshots:         300            | Wallbangs:         40               | HE Kills:          60
- HS %:              24.00%         | Wall %:            3.20%            | HE %:              4.80%
- Matches Played:    85             | Objectives Cap:    120              | Accuracy:          10.04%
- Total Money Spent: $50,000        | On Attachments:    $12,000 (24.00%) | On Weapons:        $38,000 (76.00%)
- Active Playtime:   6h 40m  0s     | Total Experience:  2,750,000        | Dist Travelled:    543,210 st
-======================================================================================================================================================
-                                                            AVERAGE STATS PER MATCH AND MINUTE
-
- Kills / Match:     14.71 | Kills / Min:        3.125 | HS / Match:          3.53 | Obj. / Match:        1.41 | Avg Lifespan:         55s
- Points / Match:   32,352 | EXP / Min:          6,875 | Wall / Match:        0.47 | HE / Match:          0.71 | Dist / Match:    6,390 st
-======================================================================================================================================================
-                                                                  DETAILED WEAPON STATS
-
-weapon                    kills   deaths w/      w-KDR     % allK      rds. ct    K/Min     RFpK      weapon XP        time used     % allT  type
-----------------------------------------------------------------------------------------------------------------------------------------------------
-KF416                       500         170      2.941     40.00%        6,200     2.50    12.40         48,000       3h 20m  0s     50.00%  556
-AKM                         500         100      5.000     40.00%        6,000     2.50    12.00         50,000       3h 20m  0s     50.00%  762
-HEAT/HE Warhead             220           0    220.000     17.60%          220     0.00     1.00              0               0s      0.00%  RPG
-M67                          30           0     30.000      2.40%           30     0.00     1.00          1,000               0s      0.00%  Grenade
-----------------------------------------------------------------------------------------------------------------------------------------------------
-TOTAL                     1,250         270      4.630    100.00%       12,450     3.12     9.96         99,000       6h 40m  0s    100.00%
-```
-
----
-
-## Stat Definitions
-
-A few stats shown in the recap aren't self-explanatory from their labels alone:
-
-| Stat | Formula | Notes |
-| --- | --- | --- |
-| `Accuracy` | `total kills / total rounds fired` | This is a kills-per-shot efficiency metric across the whole loadout, **not** a hit/miss ratio — `rounds_hit` is tracked per weapon but isn't used in this calculation. |
-| `KDR` | `total kills / total deaths` | Account-wide, independent of weapon. |
-| `w-KDR` | `weapon kills / deaths while holding that weapon` | Per-weapon equivalent of KDR; falls back to raw kill count if the player never died holding that weapon. |
-| `RFpK` | `rounds fired / kills` | How many rounds it costs, on average, to land a kill with that weapon. |
-| `Avg Lifespan` | `total playtime / total deaths` | Falls back to total playtime if the player has no recorded deaths. |
-
----
-
-## Manual / Programmatic Usage
-
-Besides the automatic per-server loop, `print_filtered_weapon_stats_for_player` is exposed globally after the script runs, so it can be invoked directly for a single player — for example from a chat command handler:
+After the script has run once, `shared.print_player_stats` stays available in the console for the rest of the session:
 
 ```lua
--- print report for one specific player, using the script's default FILTER_TYPE/SORT_BY
-print_filtered_weapon_stats_for_player(targetPlayerObj)
-
--- print report for one specific player, overriding the filter for just this call
-print_filtered_weapon_stats_for_player(targetPlayerObj, "SMG")
+shared.print_player_stats(players.get("SomeName"))            -- default config
+shared.print_player_stats(players.get("SomeName"), "SMG")     -- override FILTER_TYPE for this call
+shared.print_player_stats(players.get("SomeName"), nil, "AKM") -- override TARGET_WEAPON for this call
 ```
 
-The second argument is optional and, when provided, overrides `FILTER_TYPE` for that single call only — it does not change the script's global config or affect the automatic per-server loop.
+## What It Shows
 
----
+**Account recap** — level, unofficial prestige, XP to next level, kills, deaths, KDR, headshot / wallbang / explosive kill percentages, matches played, objectives captured, rounds fired, money spent (split by attachments vs weapons), tester status, time alive, distance travelled, owned weapons / attachments / camos, and per-match / per-minute averages.
+
+**Weapon table** — one row per weapon: kills, deaths while carrying it, deaths caused by it, w-KDR, share of kills, rounds fired, kills per minute, rounds fired per kill, weapon XP, time used, share of time used, and type. Legacy weapon ids are merged into their current weapon (e.g. `HK416A5` → `KF416`, `AKMN` → `AK_762`, `Glock17`/`Glock20` → `KOSCH`).
+
+### How to read the numbers
+
+These follow from how the game records stats, so they're worth knowing:
+
+| Stat | Meaning |
+| --- | --- |
+| `deaths w/` | Deaths while carrying the weapon in **any** slot. The game increments this for every weapon carried at death, so one death counts toward up to four weapons (which is why the table has no total row). |
+| `deaths by` | How many times that weapon killed you. |
+| `w-KDR` | `kills with weapon / deaths while carrying it`. Falls back to the kill count if there are no such deaths. |
+| `Rounds / Kill`, `RFpK` | Rounds fired per kill. The profile stores no hit counts, so true accuracy can't be computed. |
+| `Time Alive`, `time used`, `rds. ct` | Time alive with a weapon equipped, and rounds fired, summed across all weapons. **These are floors:** the game only saves a life's time / rounds / distance when that life ends in a real death — surviving to the end of a match, a map reset, or leaving the server discards them, while kills are counted immediately. Per-minute stats, `Avg Lifespan`, `RFpK` and `Rounds / Kill` are all skewed by this. Tracking also only began in July 2024. |
+| `Grenades + old RPG` | Kills the game counted toward the account total but never stored under a weapon. Thrown-grenade kills are still recorded with no weapon name today; rocket launcher kills were too until April 2025 (they now land on `RPG7` / `PSRL`). |
+| `% allK`, `% allT` | Relative to the weapons shown in the table (so they respect the filter). The recap above the table is always account-wide. |
+| `Level` | The game's level, from its progression table (caps at 85). |
+| `Prestige`, `Prestige Level` | Unofficial — the game has no prestige. `Prestige` is how many times the max-level XP total (4,678,000) has been earned; `Prestige Level` is the level the leftover XP would be worth on its own. Together they quantify progress past the level cap. |
+
+Career stats are not recorded in the lobby or in player-owned private servers, so a fresh account will show zeros.
 
 ## Project Structure
 
-The script is split into single-purpose modules (SOLID) but is still reachable from one `require()` link, since `main/print_player_stats.luau` is a thin composition root that pulls the modules in for you:
-
 ```
-main/
-  print_player_stats.luau  <- entry point; the require() URL never changes
-
+print_player_stats.luau    <- entry point and config; require()s the modules below
 modules/
-  weapon_data.luau         <- weapon aliases, display names, caliber/type lookups
-  level_data.luau          <- XP thresholds + prestige/level math
-  formatters.luau          <- number, currency, time, and padding/centering helpers
-  achievements.luau        <- tester-status interpretation from achievement data
-  stats_aggregator.luau    <- merges raw profile stats into combined per-weapon stats
-  filters_sorters.luau     <- weapon list filtering + pluggable sort strategies
-  renderer.luau            <- all console printing/layout logic
+  weapon_data.luau         <- weapon ids: legacy aliases, display names, types
+  level_data.luau          <- XP thresholds and level calculation
+  formatters.luau          <- number / currency / time / padding helpers
+  stats_aggregator.luau    <- merges raw profile stats into one per-weapon table
+  filters_sorters.luau     <- filtering and sorting of the weapon list
+  renderer.luau            <- all console printing / layout
 ```
 
-| Module              | Responsibility                                                                                                 |
-| ------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `weapon_data`       | Static weapon metadata: legacy ID aliases, display names, caliber/type classification                          |
-| `level_data`        | XP-to-level and prestige calculation                                                                           |
-| `formatters`        | Pure string/number formatting: `format_num`, `format_currency`, `format_use_time`, `pad_right`, `center_text`  |
-| `achievements`      | Reads an achievements table and returns tester status (`"alpha tester"`, `"predemo tester"`, etc.)             |
-| `stats_aggregator`  | Combines raw per-weapon stats, merging legacy aliases and backfilling untracked (e.g. explosive) kills         |
-| `filters_sorters`   | Builds the filtered weapon list and sorts it via a strategy table (`KILLS`, `TYPE`)                            |
-| `renderer`          | Prints the account recap, pace stats, and weapon table using data handed to it — no lookups of its own         |
-
-Each module returns a plain table and has no dependency on the others beyond what's passed into it as a parameter (dependency injection), so any single piece can be swapped, tested, or extended without touching the rest of the script. For example, adding a new `SORT_BY` mode only requires adding an entry to `filters_sorters.lua`'s strategy table — no other file needs to change.
-
-> **Note on deployment:** if chained `require()` calls ever prove slower or unsupported on a given VM, the modules can instead be concatenated into a single file at publish time while keeping this same structure in source. See the comment at the bottom of `main/print_player_stat.lua` for details.
-
----
-
-## Weapon Alias Mapping
-
-The script automatically combines stats for weapons that underwent ID migrations or name changes across game updates:
-
-| Legacy Weapon ID  |  Target Combined Weapon ID |
-| ----------------- | -------------------------- |
-| `HK416A5`         | `KF416`                    |
-| `AK74N`           | `AK_545`                   |
-| `AKMN`            | `AK_762`                   |
-| `PP19`            | `AK_9`                     |
-| `UMP45`           | `UMP`                      |
-| `Glock17`         | `Kosch`                    |
-| `Glock20`         | `Kosch`                    |
-
-This mapping now lives in `modules/weapon_data.lua`, alongside the display-name and caliber/type tables.
-
----
-
-## Configuration Reference
-
-| Setting         | Location                       | Values                                                          |
-| --------------- | ------------------------------ | --------------------------------------------------------------- |
-| `TARGET_WEAPON` | `main/print_player_stats.luau` | `""` for all weapons, or a specific weapon ID (e.g. `"AK_762"`) |
-| `FILTER_TYPE`   | `main/print_player_stats.luau` | `""`, `"308"`, `"Bolt"`, `"762"`, `"556"`, `"545"`, `"58"`, `"Pistol"`, `"SMG"`, `"Shotgun"`, `"Melee"`, `"RPG"`, `"Grenade"`, `"Smoke"`, `"Flash"`, `"Unknown"` |
-| `SORT_BY`       | `main/print_player_stats.luau` | `"KILLS"` (default) or `"TYPE"`                                 |
-
-> **Note:** in the current entry file, `TARGET_WEAPON` is declared but not yet wired into the filtering call (`FilterSort.build_weapon_list` only reads `FILTER_TYPE`). Until that's connected, use `FILTER_TYPE` for narrowing the table, or call `print_filtered_weapon_stats_for_player(playerObj, "WeaponID")` manually (see [Manual / Programmatic Usage](#manual--programmatic-usage)) to target a single weapon per-call.
+Weapon ids are the exact (case-sensitive) model names under `ReplicatedStorage.data.item` in the game. To add or retype a weapon, edit the tables in `modules/weapon_data.luau`.
