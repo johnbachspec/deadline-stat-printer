@@ -323,49 +323,63 @@ local function print_attachment_stats(target_player)
             return a.kills > b.kills
         end)
 
-        local player_name = my_player.name or "Player"
-        print(string.format("-- TOTAL ATTACHMENTS FOR %s: %d (3 per line, uniform width)", tostring(player_name), #sorted))
+        -- Reference-style rows: one attachment per line, left-aligned columns
+        -- with consistent spacing (rank / id / kills floor to the reference
+        -- widths #%-3d / %-32s / %-6d, widening only if the data needs it).
+        local limit = math.min(500, #sorted)
+        local rank_width = math.max(#tostring(math.max(limit, 1)), 3)
+        local id_width = 32
+        local kills_width = 6
+        local gun_width = #("Top Gun")
+        for i = 1, limit do
+            local item = sorted[i]
+            if #item.id > id_width then
+                id_width = #item.id
+            end
+            local digits = #tostring(item.kills)
+            if digits > kills_width then
+                kills_width = digits
+            end
+            if #item.top_gun > gun_width then
+                gun_width = #item.top_gun
+            end
+        end
+
+        local function pad_right(text, width)
+            text = tostring(text)
+            if #text < width then
+                return text .. string.rep(" ", width - #text)
+            end
+            return text
+        end
+
+        print(string.format("\n================ TOP %d ATTACHMENTS BY KILLS ================", limit))
         if legacy_merged > 0 then
             print(string.format("-- ALIASES MERGED: %d legacy attachment ids folded into current ids (renames.csv)", legacy_merged))
         end
-        print("ATTACHMENT_DATA = {")
 
-        -- Pre-format every entry so all 3 columns share one uniform width.
-        -- Pre-format every entry so all 3 columns share one uniform width.
-        -- (Manual space-padding via string.rep, not a "%-Ns" format flag,
-        -- so this works on every Luau build.)
-        local entries = {}
-        local width = 0
-        for _, item in ipairs(sorted) do
-            local entry = string.format('["%s"]={kills=%d,top_gun="%s",top_gun_kills=%d}',
-                item.id, item.kills, item.top_gun, item.top_gun_kills)
-            table.insert(entries, entry)
-            if #entry > width then
-                width = #entry
-            end
-        end
+        if limit == 0 then
+            print("No attachment kills found across any weapons.")
+        else
+            print("Total Unique Attachments Found: " .. #sorted)
+            print("Displaying Top " .. limit .. "...\n")
 
-        local line_items = {}
-        local lines_printed = 0
+            -- Batch printing to avoid console buffer overflow
+            for i = 1, limit do
+                local item = sorted[i]
+                print("#" .. pad_right(tostring(i), rank_width)
+                    .. " " .. pad_right(item.id, id_width)
+                    .. " | Kills: " .. pad_right(tostring(item.kills), kills_width)
+                    .. " | Top Gun: " .. pad_right(item.top_gun, gun_width)
+                    .. " (" .. tostring(item.top_gun_kills) .. ")")
 
-        for i, entry in ipairs(entries) do
-            -- Pad this cell out to the shared width with trailing spaces.
-            table.insert(line_items, entry .. string.rep(" ", width - #entry))
-
-            if #line_items == 3 or i == #entries then
-                local is_last = (i == #entries)
-                local suffix = is_last and "" or ","
-                print("    " .. table.concat(line_items, ", ") .. suffix)
-                table.clear(line_items)
-                lines_printed = lines_printed + 1
-                -- Yield roughly every 100 items (~33 lines) to let output stream cleanly.
-                if not is_last and lines_printed % 33 == 0 and task and task.wait then
-                    task.wait(0.05)
+                -- Pause briefly every 50 entries to keep the log rendering cleanly
+                if i % 50 == 0 and task and task.wait then
+                    task.wait(0.1)
                 end
             end
         end
-
-        print("}")
+        print("==============================================================")
         return sorted
     else
         print("Could not retrieve player profile stats.")
