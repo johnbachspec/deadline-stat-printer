@@ -1,3 +1,4 @@
+--!strict
 -- modules/stats_aggregator.luau
 -- Turns raw profile statistics into one combined per-weapon table:
 -- merges legacy aliases, attaches use time, and adds a row for kills the
@@ -10,40 +11,76 @@
 
 local Aggregator = {}
 
-local FIELDS = { "kills", "deaths_with", "deaths_from", "experience", "rounds_fired" }
+export type WeaponStats = {
+    kills: number,
+    deaths_with: number,
+    deaths_from: number,
+    experience: number,
+    rounds_fired: number,
+    use_time: number,
+}
 
-local function empty()
+export type CombinedStats = { [string]: WeaponStats }
+
+export type AccountTotals = {
+    use_time: number,
+    rounds_fired: number,
+}
+
+export type CollectionCounts = {
+    weapons: number,
+    attachments: number,
+    camos: number,
+}
+
+local FIELDS: { [number]: string } = { "kills", "deaths_with", "deaths_from", "experience", "rounds_fired" }
+
+local function empty(): WeaponStats
     return { kills = 0, deaths_with = 0, deaths_from = 0, experience = 0, rounds_fired = 0, use_time = 0 }
 end
 
-local function add_into(target, data, use_time)
+local function add_into(target: WeaponStats, data: any, use_time: any)
     for _, field in ipairs(FIELDS) do
-        target[field] = target[field] + (tonumber(type(data) == "table" and data[field]) or 0)
+        local val = type(data) == "table" and data[field] or 0
+        local cur = (target :: any)[field] or 0
+        ;(target :: any)[field] = cur + (tonumber(val) or 0)
     end
     target.use_time = target.use_time + (tonumber(use_time) or 0)
 end
 
-function Aggregator.combine_weapon_stats(profile_stats, weapon_data)
-    local raw_stats = profile_stats.weapon or {}
-    local player_stats = profile_stats.player or {}
+function Aggregator.combine_weapon_stats(profile_stats: any, weapon_data: any): CombinedStats
+    local raw_stats = (profile_stats and profile_stats.weapon) or {}
+    local player_stats = (profile_stats and profile_stats.player) or {}
     local use_times = player_stats.weapon_use_time or {}
 
-    local combined = {}
-    local function row(id)
-        combined[id] = combined[id] or empty()
-        return combined[id]
+    local combined: CombinedStats = {}
+    local function row(id: string): WeaponStats
+        local existing = combined[id]
+        if not existing then
+            existing = empty()
+            combined[id] = existing
+        end
+        return existing
     end
 
     for id, data in pairs(raw_stats) do
-        add_into(row(weapon_data.ALIASES[id] or id), data, use_times[id])
+        local canonical_id = weapon_data.ALIASES[id] or id
+        add_into(row(canonical_id), data, use_times[id])
     end
+
     -- Items with use time but no stats entry (e.g. a smoke never carried at death).
     for id, seconds in pairs(use_times) do
-        if not raw_stats[id] then add_into(row(weapon_data.ALIASES[id] or id), nil, seconds) end
+        if not raw_stats[id] then
+            local canonical_id = weapon_data.ALIASES[id] or id
+            add_into(row(canonical_id), nil, seconds)
+        end
     end
 
     local attributed = 0
-    for _, data in pairs(combined) do attributed = attributed + data.kills end
+    for _, data in pairs(combined) do
+        attributed = attributed + data.kills
+    end
+
     local missing = (tonumber(player_stats.total_kills) or 0) - attributed
     if missing > 0 then
         row(weapon_data.UNATTRIBUTED_ID).kills += missing
@@ -53,8 +90,8 @@ function Aggregator.combine_weapon_stats(profile_stats, weapon_data)
 end
 
 -- Totals across ALL weapons, independent of any table filter.
-function Aggregator.account_totals(combined)
-    local totals = { use_time = 0, rounds_fired = 0 }
+function Aggregator.account_totals(combined: CombinedStats): AccountTotals
+    local totals: AccountTotals = { use_time = 0, rounds_fired = 0 }
     for _, data in pairs(combined) do
         totals.use_time += data.use_time
         totals.rounds_fired += data.rounds_fired
@@ -64,10 +101,14 @@ end
 
 -- Counts of owned weapons, attachments and camos.
 -- owned_camo is weapon -> camo -> true (older profiles: weapon -> list of camos).
-function Aggregator.collection(profile_stats)
-    local player_stats = profile_stats.player or {}
-    local counts = { weapons = #(player_stats.owned_weapons or {}), attachments = 0, camos = 0 }
-    for _, data in pairs(profile_stats.weapon or {}) do
+function Aggregator.collection(profile_stats: any): CollectionCounts
+    local player_stats = (profile_stats and profile_stats.player) or {}
+    local counts: CollectionCounts = {
+        weapons = #(player_stats.owned_weapons or {}),
+        attachments = 0,
+        camos = 0,
+    }
+    for _, data in pairs((profile_stats and profile_stats.weapon) or {}) do
         counts.attachments += #(data.owned_attachments or {})
         for _, camos in pairs(data.owned_camo or {}) do
             for _, owned in pairs(camos) do

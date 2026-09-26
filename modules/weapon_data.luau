@@ -1,3 +1,4 @@
+--!strict
 -- modules/weapon_data.luau
 -- Static facts about weapons: legacy id aliases, display names, type classification.
 -- Weapon ids are the exact (case-sensitive) model names under
@@ -72,25 +73,34 @@ WeaponData.TYPES = {
     Turret = "Turret", PlacingTool = "Turret",
 }
 
-function WeaponData.display_name(id)
+-- Pre-indexed lowercase map for O(1) resolution:
+-- maps lowercase (raw id | alias | display name) -> canonical weapon id.
+local RESOLVE_LOOKUP: { [string]: string } = {}
+
+for legacy, target in pairs(WeaponData.ALIASES) do
+    RESOLVE_LOOKUP[string.lower(legacy)] = target
+end
+for id in pairs(WeaponData.TYPES) do
+    RESOLVE_LOOKUP[string.lower(id)] = id
+    local dname = WeaponData.DISPLAY_NAMES[id]
+    if dname then
+        RESOLVE_LOOKUP[string.lower(dname)] = id
+    end
+end
+
+function WeaponData.display_name(id: string): string
     return WeaponData.DISPLAY_NAMES[id] or id
 end
 
-function WeaponData.type_of(id)
+function WeaponData.type_of(id: string): string
     return WeaponData.TYPES[id] or "Unknown"
 end
 
 -- Resolves user input (raw id, legacy id, or display name; case-insensitive)
 -- to the id used as a key in the combined stats table.
-function WeaponData.resolve(name)
+function WeaponData.resolve(name: string): string
     local lower = string.lower(name)
-    for legacy, target in pairs(WeaponData.ALIASES) do
-        if string.lower(legacy) == lower then return target end
-    end
-    for id in pairs(WeaponData.TYPES) do
-        if string.lower(id) == lower or string.lower(WeaponData.display_name(id)) == lower then return id end
-    end
-    return name
+    return RESOLVE_LOOKUP[lower] or name
 end
 
 return WeaponData

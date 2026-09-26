@@ -1,3 +1,4 @@
+--!strict
 -- print_player_stats.luau
 -- In the in-game Luau Server Console, run:
 --   require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")
@@ -5,12 +6,25 @@
 
 local REPO_BASE = "https://raw.githubusercontent.com/refact0r/deadline-stat-printer/main/modules/"
 
-local WeaponData = require(REPO_BASE .. "weapon_data.luau")
-local LevelData  = require(REPO_BASE .. "level_data.luau")
-local Formatters = require(REPO_BASE .. "formatters.luau")
-local Aggregator = require(REPO_BASE .. "stats_aggregator.luau")
-local FilterSort = require(REPO_BASE .. "filters_sorters.luau")
-local Renderer   = require(REPO_BASE .. "renderer.luau")
+-- Resolves module locally if present in the Roblox hierarchy, falling back to remote URL.
+local function load_module(module_name: string): any
+    local current_script = script
+    if current_script and current_script.Parent then
+        local modules_folder = current_script.Parent:FindFirstChild("modules")
+        local local_mod = modules_folder and modules_folder:FindFirstChild(module_name)
+        if local_mod then
+            return require(local_mod)
+        end
+    end
+    return require(REPO_BASE .. module_name .. ".luau")
+end
+
+local WeaponData = load_module("weapon_data")
+local LevelData  = load_module("level_data")
+local Formatters = load_module("formatters")
+local Aggregator = load_module("stats_aggregator")
+local FilterSort = load_module("filters_sorters")
+local Renderer   = load_module("renderer")
 
 -- ===== User Config =====
 -- "" lists all weapons. Set to one weapon to show only that row: raw id
@@ -29,16 +43,39 @@ local SORT_BY = "KILLS"
 
 local renderer = Renderer.new({ formatters = Formatters, level_data = LevelData })
 
-local function print_player_stats(player, filter_override, target_override)
+export type PrintOptions = {
+    filter: string?,
+    target: string?,
+    sort_by: string?,
+}
+
+-- Supports either:
+--   print_player_stats(player, { filter = "SMG", target = "MP5", sort_by = "TYPE" })
+-- or legacy positional arguments:
+--   print_player_stats(player, filter_override, target_override, sort_override)
+local function print_player_stats(player: any, options_or_filter: any, target_override: string?, sort_override: string?): any
+    local filter: string = FILTER_TYPE
+    local target: string = TARGET_WEAPON
+    local sort_by: string = SORT_BY
+
+    if type(options_or_filter) == "table" then
+        if options_or_filter.filter ~= nil then filter = options_or_filter.filter end
+        if options_or_filter.target ~= nil then target = options_or_filter.target end
+        if options_or_filter.sort_by ~= nil then sort_by = options_or_filter.sort_by end
+    else
+        if options_or_filter ~= nil then filter = tostring(options_or_filter) end
+        if target_override ~= nil then target = tostring(target_override) end
+        if sort_override ~= nil then sort_by = tostring(sort_override) end
+    end
+
     local stats = player.get_profile_stats() or {}
     local player_stats = stats.player or {}
 
     local combined = Aggregator.combine_weapon_stats(stats, WeaponData)
     local account_totals = Aggregator.account_totals(combined)
 
-    local weapon_list, table_totals = FilterSort.build_weapon_list(
-        combined, WeaponData, filter_override or FILTER_TYPE, target_override or TARGET_WEAPON)
-    FilterSort.sort(weapon_list, SORT_BY)
+    local weapon_list, table_totals = FilterSort.build_weapon_list(combined, WeaponData, filter, target)
+    FilterSort.sort(weapon_list, sort_by)
 
     renderer:print_report(player.name, player_stats, stats.spendings or {}, stats.achievements or {},
         Aggregator.collection(stats), weapon_list, table_totals, account_totals)
@@ -48,6 +85,7 @@ end
 -- Every console execution gets a fresh environment, so a plain global would
 -- vanish when this script finishes. `shared` persists across executions:
 --   shared.print_player_stats(players.get("Name"), "SMG")
+--   shared.print_player_stats(players.get("Name"), { filter = "SMG", sort_by = "TYPE" })
 --   shared.print_player_stats(players.get("Name"), nil, "AKM")
 shared.print_player_stats = print_player_stats
 
