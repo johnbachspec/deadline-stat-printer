@@ -4,7 +4,7 @@
 --   require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")
 -- Output appears in that console (not the Roblox Studio Output window).
 
-local REPO_BASE = "https://raw.githubusercontent.com/refact0r/deadline-stat-printer/main/modules/"
+local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
 
 -- Resolves module locally if present in the Roblox hierarchy, falling back to remote URL.
 local function load_module(module_name: string): any
