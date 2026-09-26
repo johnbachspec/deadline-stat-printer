@@ -27,6 +27,7 @@ After the script has run once, `shared.print_player_stats` stays available in th
 shared.print_player_stats(players.get("SomeName"))            -- default config
 shared.print_player_stats(players.get("SomeName"), "SMG")     -- override FILTER_TYPE for this call
 shared.print_player_stats(players.get("SomeName"), nil, "AKM") -- override TARGET_WEAPON for this call
+shared.print_player_stats(players.get("SomeName"), { filter = "SMG", sort_by = "TYPE" }) -- options table
 ```
 
 ## What It Shows
