@@ -30,11 +30,28 @@ shared.print_player_stats(players.get("SomeName"), nil, "AKM") -- override TARGE
 shared.print_player_stats(players.get("SomeName"), { filter = "SMG", sort_by = "TYPE" }) -- options table
 ```
 
+### Attachment Stats
+
+To view aggregated attachment statistics across all weapons, paste `print-attachment-stats.luau` into the Luau console or run:
+
+```lua
+require("https://raw.githubusercontent.com/refact0r/deadline-stat-printer/main/print-attachment-stats.luau")
+```
+
+After running once, `shared.print_attachment_stats` remains available:
+
+```lua
+shared.print_attachment_stats()                      -- prints for the first human player found
+shared.print_attachment_stats(players.get("SomeName")) -- prints for a specific player
+```
+
 ## What It Shows
 
 **Account recap** — level, unofficial prestige, XP to next level, kills, deaths, KDR, headshot / wallbang / explosive kill percentages, matches played, objectives captured, rounds fired, money spent (split by attachments vs weapons), tester status, time alive, distance travelled, owned weapons / attachments / camos, and per-match / per-minute averages.
 
 **Weapon table** — one row per weapon: kills, deaths while carrying it, deaths caused by it, w-KDR, share of kills, rounds fired, kills per minute, rounds fired per kill, weapon XP, time used, share of time used, and type. Legacy weapon ids are merged into their current weapon (e.g. `HK416A5` → `KF416`, `AKMN` → `AK_762`, `Glock17`/`Glock20` → `KOSCH`).
+
+**Attachment stats** — per-attachment kills and top weapon across all guns. Legacy attachment ids are folded into their current ids (embedded snapshot of `deadline-balancing` `renames.csv`, tracked here as `renames.csv` and refreshable via `tools/build_attachment_aliases.py`), so renamed or merged parts — e.g. `vector_9mm_bolt` + `vector_45acp_bolt` → `kalis_scalar_std_bcg` — report unified totals.
 
 ### How to read the numbers
 
@@ -58,6 +75,9 @@ Career stats are not recorded in the lobby or in player-owned private servers, s
 
 ```
 print_player_stats.luau    <- entry point and config; require()s the modules below
+print-attachment-stats.luau <- standalone attachment-kills printer (legacy ids merged via embedded aliases)
+rename.py                   <- applies renames.csv to the name column of CSV/Excel balancing sheets
+renames.csv                 <- rename list mirrored from deadline-balancing
 modules/
   weapon_data.luau         <- weapon ids: legacy aliases, display names, types
   level_data.luau          <- XP thresholds and level calculation
@@ -65,6 +85,13 @@ modules/
   stats_aggregator.luau    <- merges raw profile stats into one per-weapon table
   filters_sorters.luau     <- filtering and sorting of the weapon list
   renderer.luau            <- all console printing / layout
+tests/
+  attachment logs output.txt <- saved printer output used as the verify_attachment_merge fixture
+tools/
+  build_attachment_aliases.py <- regenerates / verifies the embedded alias table from renames.csv
+  verify_attachment_merge.py  <- replays the alias merge in Python and checks the totals
 ```
+
+To refresh the embedded attachment aliases after a new `deadline-balancing` rename list lands, overwrite `renames.csv` with the fresh list, run `python tools/build_attachment_aliases.py`, then `python tools/verify_attachment_merge.py` to confirm kill totals are conserved.
 
 Weapon ids are the exact (case-sensitive) model names under `ReplicatedStorage.data.item` in the game. To add or retype a weapon, edit the tables in `modules/weapon_data.luau`.
