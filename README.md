@@ -35,7 +35,7 @@ shared.print_player_stats(players.get("SomeName"), { filter = "SMG", sort_by = "
 To view aggregated attachment statistics across all weapons, paste `print-attachment-stats.luau` into the Luau console or run:
 
 ```lua
-require("https://raw.githubusercontent.com/refact0r/deadline-stat-printer/main/print-attachment-stats.luau")
+require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print-attachment-stats.luau")
 ```
 
 After running once, `shared.print_attachment_stats` remains available:

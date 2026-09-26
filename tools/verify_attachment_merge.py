@@ -63,7 +63,7 @@ def main():
     if not log_path.is_file():
         print(f"FAIL  log fixture not found: {log_path}")
         print("      pass the printer output file as an argument, e.g.:")
-        print("      python verify_attachment_merge.py \"path/to/log output.txt\"")
+        print("      python tools/verify_attachment_merge.py \"path/to/log output.txt\"")
         return 1
     aliases = load_aliases()
     check(bool(aliases), f"loaded {len(aliases)} alias pairs from {CSV_PATH.name}")

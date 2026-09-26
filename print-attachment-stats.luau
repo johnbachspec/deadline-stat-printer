@@ -324,26 +324,43 @@ local function print_attachment_stats(target_player)
         end)
 
         local player_name = my_player.name or "Player"
-        print(string.format("-- TOTAL ATTACHMENTS FOR %s: %d (split into lines of 100)", tostring(player_name), #sorted))
+        print(string.format("-- TOTAL ATTACHMENTS FOR %s: %d (3 per line, uniform width)", tostring(player_name), #sorted))
         if legacy_merged > 0 then
             print(string.format("-- ALIASES MERGED: %d legacy attachment ids folded into current ids (renames.csv)", legacy_merged))
         end
         print("ATTACHMENT_DATA = {")
 
+        -- Pre-format every entry so all 3 columns share one uniform width.
+        -- Pre-format every entry so all 3 columns share one uniform width.
+        -- (Manual space-padding via string.rep, not a "%-Ns" format flag,
+        -- so this works on every Luau build.)
+        local entries = {}
+        local width = 0
+        for _, item in ipairs(sorted) do
+            local entry = string.format('["%s"]={kills=%d,top_gun="%s",top_gun_kills=%d}',
+                item.id, item.kills, item.top_gun, item.top_gun_kills)
+            table.insert(entries, entry)
+            if #entry > width then
+                width = #entry
+            end
+        end
+
         local line_items = {}
-        local CHUNK_SIZE = 100
+        local lines_printed = 0
 
-        for i, item in ipairs(sorted) do
-            table.insert(line_items, string.format('["%s"]={kills=%d,top_gun="%s",top_gun_kills=%d}', 
-                item.id, item.kills, item.top_gun, item.top_gun_kills))
+        for i, entry in ipairs(entries) do
+            -- Pad this cell out to the shared width with trailing spaces.
+            table.insert(line_items, entry .. string.rep(" ", width - #entry))
 
-            if #line_items == CHUNK_SIZE or i == #sorted then
-                local is_last = (i == #sorted)
+            if #line_items == 3 or i == #entries then
+                local is_last = (i == #entries)
                 local suffix = is_last and "" or ","
                 print("    " .. table.concat(line_items, ", ") .. suffix)
                 table.clear(line_items)
-                if task and task.wait then
-                    task.wait(0.05) -- brief yield to let output stream cleanly
+                lines_printed = lines_printed + 1
+                -- Yield roughly every 100 items (~33 lines) to let output stream cleanly.
+                if not is_last and lines_printed % 33 == 0 and task and task.wait then
+                    task.wait(0.05)
                 end
             end
         end
