@@ -29,8 +29,17 @@ if not iris then
     print("[theme] iris is missing: run this in the client Luau console")
     return
 end
-local type_of = typeof or type
 local templates = iris.TemplateConfig or {}
+
+-- Iris 2.1+ sets FontFace, which takes a Font object (any family, weight); Iris 2.0 and
+-- older set Font, which takes an Enum.Font item. A Font object has .Family (checked
+-- that way because typeof may not exist in the console).
+local function uses_font_objects()
+    local current = (templates.sizeDefault or {}).TextFont
+    if current == nil then return Font ~= nil end
+    local ok, family = pcall(function() return current.Family end)
+    return ok and family ~= nil
+end
 local theme = {}
 
 local function copy(template)
@@ -51,9 +60,8 @@ if FONT == "?" then
         print("[theme] could not list fonts here: " .. tostring(items))
     end
 elseif FONT then
-    -- Iris 2.1+ takes a Font object (any family, weight); Iris 2.0 and older only an Enum.Font item.
     local ok, font = pcall(function()
-        local objects = type_of((templates.sizeDefault or {}).TextFont) == "Font"
+        local objects = uses_font_objects()
         local weight = FONT_WEIGHT and Enum.FontWeight[FONT_WEIGHT]
         if type(FONT) == "number" then
             assert(objects, "this Iris only takes built-in font names")

@@ -137,6 +137,7 @@ The game's Fiu build fails to load any function spanning more than 255 source li
 | `Error: ...` in the hub | A window failed to draw | Report the text; the other windows keep working |
 | A table looks scrambled | Possibly the wrong table style for this Iris | Report the "Iris ... tables" part of the ready message |
 | `[theme] font ... not available` | Not a font name here, or an asset id on an Iris that only takes names | Set `FONT = "?"` and paste to list the names; check the asset id in the store link |
+| `[viewer] theme turned off, Iris rejected it: ...` (e.g. `Font expected, got EnumItem`) | A theme value this Iris can't use; the viewer dropped the theme so the windows keep working | Send the message; paste the theme again after a fix |
 | Theme pasted but nothing changed | Pasted before the viewer, or the viewer is from before themes existed | Paste the current `iris_viewer.luau`, then the theme |
 | Frame rate drops with a window open | Too many cells drawn per frame | Press **Pages** instead of Show all, lower `PAGE_ROWS`, or collapse sections you are not reading |
 

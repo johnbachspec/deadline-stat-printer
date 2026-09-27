@@ -321,7 +321,7 @@ shared.stop_cap_announcer(); __caps.Bob = 5; __tick(); __say("!caps")
 IRIS_MOCKS = r"""
 local __new_tables = __NEW_TABLES__
 local __widgets, __stack, __next_id, __frame_fn, __clicks = {}, {}, nil, nil, {}
-local __drawn, __grids, __sent, __auto_ids, __configs = {}, {}, 0, {}, 0
+local __drawn, __grids, __sent, __auto_ids, __configs, __pushed = {}, {}, 0, {}, 0, nil
 local function __state(v) return { value = v, set = function(self, x) self.value = x end } end
 local function __esc(s) return (tostring(s):gsub("\t", "<TAB>"):gsub("\n", "<NL>")) end
 local function __make(kind, container)
@@ -338,6 +338,7 @@ local function __make(kind, container)
     w.clicked = function() return __clicks[id] == true end
     local text, parent = args and args[1], __stack[#__stack]
     if text == "boom" then error("boom") end
+    if __pushed and __pushed.reject then error("Unable to assign property FontFace. Font expected, got EnumItem") end
     if kind == "Text" and parent and parent.kind == "Table" then
       if not __new_tables then parent.row = math.ceil(parent.index / parent.n); parent.col = (parent.index - 1) % parent.n + 1 end
       __grids[parent.id] = __grids[parent.id] or {}
@@ -365,9 +366,9 @@ local iris = {
   PushConfig = function(t)
     table.insert(__drawn, string.format("PushConfig %s size=%s font=%s color=%s", tostring(__next_id),
       tostring(t.TextSize), tostring(t.TextFont), tostring(t.TextColor)))
-    __next_id = nil; __configs = __configs + 1
+    __next_id = nil; __configs = __configs + 1; __pushed = t
   end,
-  PopConfig = function() __configs = __configs - 1; table.insert(__drawn, "PopConfig") end,
+  PopConfig = function() __configs = __configs - 1; __pushed = nil; table.insert(__drawn, "PopConfig") end,
   TemplateConfig = { colorDark = { TextColor = "white" }, colorLight = { TextColor = "black" },
     sizeDefault = { TextFont = "Enum.Font.Code", TextSize = 13 }, sizeClear = { TextFont = "Enum.Font.Ubuntu", TextSize = 15 } },
 }
@@ -534,12 +535,12 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
     def test_theme_fonts_by_asset_id_and_weight(self):
         # Iris 2.1+ keeps Font objects, so any Creator Store font (by asset id) and weight works.
         font_objects = """
-iris.TemplateConfig.sizeDefault.TextFont = { font = true }
-local typeof = function(v) if type(v) == "table" and v.font then return "Font" end return type(v) end
+iris.TemplateConfig.sizeDefault.TextFont = { Family = "rbxasset://fonts/families/SourceSansPro.json" }
+local typeof = nil
 Enum.FontWeight = { Medium = "Medium", Bold = "Bold" }
 local Font = {
   fromId = function(id, weight) return "Font.fromId(" .. id .. "," .. tostring(weight) .. ")" end,
-  fromEnum = function(item) return { font = true, Family = item .. ".json", Style = "Normal" } end,
+  fromEnum = function(item) return { Family = item .. ".json", Style = "Normal" } end,
   new = function(family, weight, style) return "Font.new(" .. family .. "," .. weight .. "," .. style .. ")" end,
 }"""
         theme = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
@@ -587,6 +588,16 @@ local Font = {
         self.assertIn("[viewer] ready", output)
         self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=Enum.Font.Code color=white",
                                              "Window Stat printer"])
+
+    def test_a_theme_iris_rejects_is_turned_off(self):
+        after = """shared.iris_viewer_theme = { reject = true }
+__frame(); print("-- after " .. tostring(shared.iris_viewer_theme)); __frame(); __dump()"""
+        output = run_script("iris_viewer.luau", "nil", prelude=IRIS_MOCKS.replace("__NEW_TABLES__", "false"), after=after)
+        self.assertIn("[viewer] theme turned off, Iris rejected it: ", output)
+        self.assertIn("-- after nil", output)
+        frame = drawn(output.split("-- after nil")[1])
+        self.assertEqual(frame[0], "Window Stat printer")  # next frame draws without the theme
+        self.assertTrue(any(line.startswith("Text Error: theme turned off") for line in frame))
 
     def test_a_failing_window_is_closed_and_reported_once(self):
         after = r"""
