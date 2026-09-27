@@ -417,6 +417,8 @@ function __deliver(message) __sent = __sent + 1; for _, h in ipairs(__client_han
 local __me = type(players) == "table" and players.get and players.get("Tester")
 if __me then __me.fire_client = __deliver end
 local function fire_server(message) for _, h in ipairs(__server_handlers) do h(__me, message) end end
+local __assert = assert
+local assert = nil -- Deadline's client console has no assert; scripts run after this line cannot use it
 """
 
 
@@ -485,7 +487,7 @@ report:section("All", true)
 report:columns({ "Name", "Note" })
 for i = 1, 120 do report:row({ "row " .. i, string.rep("é", 40) .. "\ttab\\slash\nline" }) end
 local messages = report:messages()
-for _, m in ipairs(messages) do assert(utf8.len(m), "a part split a UTF-8 character") end
+for _, m in ipairs(messages) do __assert(utf8.len(m), "a part split a UTF-8 character") end
 print("PARTS " .. #messages)
 for _, m in ipairs(messages) do __deliver(m) end
 __frame(); print("-- page 1"); __dump()
@@ -544,9 +546,9 @@ iris.TemplateConfig.sizeDefault.TextFont = { Family = "rbxasset://fonts/families
 local typeof = nil
 Enum.FontWeight = { Medium = "Medium", Bold = "Bold" }
 local Font = {
-  fromId = function(id, weight) return "Font.fromId(" .. id .. "," .. tostring(weight) .. ")" end,
+  fromId = function(id, weight) return setmetatable({}, { __tostring = function() return "Font.fromId(" .. id .. "," .. tostring(weight) .. ")" end }) end,
   fromEnum = function(item) return { Family = item .. ".json", Style = "Normal" } end,
-  new = function(family, weight, style) return "Font.new(" .. family .. "," .. weight .. "," .. style .. ")" end,
+  new = function(family, weight, style) return setmetatable({}, { __tostring = function() return "Font.new(" .. family .. "," .. weight .. "," .. style .. ")" end }) end,
 }"""
         theme = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
         cases = (('12187365977', '"Medium"', "Font.fromId(12187365977,Medium)"),
@@ -627,6 +629,7 @@ __frame(); __frame(); __dump()"""
     def test_captures_window_follows_the_announcer(self):
         cap_players = CAP_PRELUDE.replace("is_bot = function() return false end,",
                                           "is_bot = function() return false end, fire_client = __deliver,")
+        cap_players = cap_players.replace("assert(", "__assert(")  # a server-side mock, after the client's assert = nil
         after = """
 __caps.Alice = 1; __tick(); __frame(); print("-- captured"); __dump()
 __widgets["dsp:caps"].state.isOpened.value = false

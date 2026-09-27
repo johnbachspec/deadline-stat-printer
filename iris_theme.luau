@@ -51,14 +51,15 @@ if FONT == "?" then
     end
 elseif FONT then
     -- Deadline's Iris (2.1+) sets FontFace, which only takes a Font object, never an Enum.Font.
+    -- (No assert/error here: the client console has no assert.)
     local ok, font = pcall(function()
-        assert(Font, "this console has no Font type, so fonts can't be changed here")
+        if not Font then return "this console has no Font type, so fonts can't be changed here" end
         local weight = FONT_WEIGHT and Enum.FontWeight[FONT_WEIGHT]
         if type(FONT) == "number" then return Font.fromId(FONT, weight) end
         local face = Font.fromEnum(Enum.Font[FONT])
         return weight and Font.new(face.Family, weight, face.Style) or face
     end)
-    if ok and font ~= nil then
+    if ok and font ~= nil and type(font) ~= "string" then -- a string is the reason there is no font
         theme.TextFont = font
     else
         print(string.format("[theme] font %s not available (%s); set FONT = \"?\" to list the names",

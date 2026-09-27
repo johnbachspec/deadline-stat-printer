@@ -6,7 +6,8 @@ local FILTER_ROWS = 12 -- tables with more rows than this get a filter box
 local WINDOW_SIZES = { stats = { 1180, 640 }, attachments = { 820, 640 }, caps = { 380, 320 } }
 local DEFAULT_SIZE = { 700, 500 }
 local ONLY_FOR = {} -- player names, e.g. { "bachancuc123" }: in Client Autorun, only they get the viewer; {} = everyone
-if #ONLY_FOR > 0 and not table.find(ONLY_FOR, tostring(local_player)) then return end
+local allowed = #ONLY_FOR == 0; for _, name in ipairs(ONLY_FOR) do allowed = allowed or name == tostring(local_player) end
+if not allowed then return end -- (a loop, not table.find: the client console lacks some standard functions)
 if not (iris and on_server_event and shared) then return print("[viewer] iris, on_server_event or shared is missing: run this in the client Luau console") end
 local NEW_TABLES = iris.NextHeaderColumn ~= nil -- Iris 2.4+ table API (see IRIS_VIEWER.md)
 local set_id = iris.SetNextWidgetID or function() end -- every widget needs an explicit id (see IRIS_VIEWER.md)
