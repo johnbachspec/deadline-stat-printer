@@ -320,7 +320,7 @@ shared.stop_cap_announcer(); __caps.Bob = 5; __tick(); __say("!caps")
 IRIS_MOCKS = r"""
 local __new_tables = __NEW_TABLES__
 local __widgets, __stack, __next_id, __frame_fn, __clicks = {}, {}, nil, nil, {}
-local __drawn, __grids, __sent, __auto_ids = {}, {}, 0, {}
+local __drawn, __grids, __sent, __auto_ids, __configs = {}, {}, 0, {}, 0
 local function __state(v) return { value = v, set = function(self, x) self.value = x end } end
 local function __esc(s) return (tostring(s):gsub("\t", "<TAB>"):gsub("\n", "<NL>")) end
 local function __make(kind, container)
@@ -361,7 +361,16 @@ local iris = {
     elseif t.col == t.n then t.col = 1; t.row = t.row + 1 else t.col = t.col + 1 end
   end,
   Connect = function(self, fn) __frame_fn = fn end,
+  PushConfig = function(t)
+    table.insert(__drawn, string.format("PushConfig %s size=%s font=%s color=%s", tostring(__next_id),
+      tostring(t.TextSize), tostring(t.TextFont), tostring(t.TextColor)))
+    __next_id = nil; __configs = __configs + 1
+  end,
+  PopConfig = function() __configs = __configs - 1; table.insert(__drawn, "PopConfig") end,
+  TemplateConfig = { colorDark = { TextColor = "white" }, colorLight = { TextColor = "black" },
+    sizeDefault = { TextFont = "Enum.Font.Code", TextSize = 13 }, sizeClear = { TextFont = "Enum.Font.Ubuntu", TextSize = 15 } },
 }
+local Enum = { Font = { Code = "Enum.Font.Code", Ubuntu = "Enum.Font.Ubuntu" } }
 if __new_tables then
   iris.NextHeaderColumn = function() end
   iris.SetHeaderColumnIndex = function(i) local t = __stack[#__stack]; t.row = 0; t.col = i end
@@ -370,6 +379,7 @@ local function __frame()
   __drawn, __grids = {}, {}
   __frame_fn()
   assert(#__stack == 0, "a frame left " .. #__stack .. " widgets open")
+  assert(__configs == 0, "a frame left " .. __configs .. " PushConfig calls without PopConfig")
   -- Under Fiu, Iris's automatic ids are draw order, so any widget without an explicit id can
   -- take over another one's state (or kind) when a report changes.
   assert(#__auto_ids == 0, "drawn without an explicit id: " .. table.concat(__auto_ids, "; "))
@@ -504,6 +514,68 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
                     script.write_text(source, encoding="utf-8")
                     output = run_script(script, "nil", prelude=mocks)
                 self.assertEqual("[viewer] ready" in output, runs)
+
+    def test_theme_snippet_styles_only_the_viewer_windows(self):
+        theme = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
+        for font, expected, warning in (('"Ubuntu"', "Enum.Font.Ubuntu", False), ('"Comic"', "nil", True)):
+            with self.subTest(font=font):
+                source = theme.replace('local FONT = "Code"', f"local FONT = {font}")
+                with tempfile.TemporaryDirectory() as tmp:
+                    script = Path(tmp) / "theme.luau"
+                    script.write_text(source, encoding="utf-8")
+                    output = run_script(script, "nil", prelude=viewer_prelude(), after="__frame(); __dump()")
+                frame = drawn(output)
+                self.assertEqual(frame[0], f"PushConfig dsp:theme size=14 font={expected} color=white")
+                self.assertEqual(frame[1], "Window Stat printer")  # the push wraps our windows only
+                self.assertEqual(frame[-1], "PopConfig")
+                self.assertEqual("not available" in output, warning)
+
+    def test_theme_fonts_by_asset_id_and_weight(self):
+        # Iris 2.1+ keeps Font objects, so any Creator Store font (by asset id) and weight works.
+        font_objects = """
+iris.TemplateConfig.sizeDefault.TextFont = { font = true }
+local typeof = function(v) if type(v) == "table" and v.font then return "Font" end return type(v) end
+Enum.FontWeight = { Medium = "Medium", Bold = "Bold" }
+local Font = {
+  fromId = function(id, weight) return "Font.fromId(" .. id .. "," .. tostring(weight) .. ")" end,
+  fromEnum = function(item) return { font = true, Family = item .. ".json", Style = "Normal" } end,
+  new = function(family, weight, style) return "Font.new(" .. family .. "," .. weight .. "," .. style .. ")" end,
+}"""
+        theme = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
+        cases = (('12187365977', '"Medium"', "Font.fromId(12187365977,Medium)"),
+                 ('"Ubuntu"', '"Bold"', "Font.new(Enum.Font.Ubuntu.json,Bold,Normal)"))
+        for font, weight, expected in cases:
+            with self.subTest(font=font):
+                source = (theme.replace('local FONT = "Code"', f"local FONT = {font}")
+                          .replace("local FONT_WEIGHT = nil", f"local FONT_WEIGHT = {weight}"))
+                with tempfile.TemporaryDirectory() as tmp:
+                    script = Path(tmp) / "theme.luau"
+                    script.write_text(source, encoding="utf-8")
+                    output = run_script(script, "nil", prelude=viewer_prelude(extra=font_objects),
+                                        after="__frame(); __dump()")
+                self.assertEqual(drawn(output)[0], f"PushConfig dsp:theme size=14 font={expected} color=white")
+                self.assertNotIn("not available", output)
+
+    def test_number_font_applies_to_number_cells_only(self):
+        theme = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
+        cases = (('"RobotoMono"', "nil", '<font face="RobotoMono">'),
+                 ('12187365977', '"Medium"', '<font family="rbxassetid://12187365977" weight="500">'))
+        for font, weight, tag in cases:
+            with self.subTest(font=font):
+                source = (theme.replace("local NUMBER_FONT = nil", f"local NUMBER_FONT = {font}")
+                          .replace("local NUMBER_WEIGHT = nil", f"local NUMBER_WEIGHT = {weight}"))
+                extra = f";(function()\n{source}\nend)()\n"
+                output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
+                                    prelude=viewer_prelude(extra=extra), after="__frame(); __dump()")
+                vector = next(row for row in only_table(output, 13) if row[0] == "Vector")
+                self.assertEqual(vector[1], f"{tag}950</font>")       # kills
+                self.assertEqual(vector[4], f"{tag}2.375</font>")     # w-KDR
+                self.assertEqual(vector[5], f"{tag}31.67%</font>")    # % allK
+                self.assertEqual(vector[10], f"{tag}1h 30m  0s</font>")  # time used
+                self.assertEqual(vector[12], "SMG")                   # words keep the main font
+                recap = only_table(output, 6)
+                self.assertEqual(recap[1][:2], ["Kills:", f"{tag}3,000</font>"])
+                self.assertEqual(only_table(output, 13)[0][1], "kills")  # headers too
 
     def test_a_failing_window_is_closed_and_reported_once(self):
         after = r"""

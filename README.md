@@ -39,6 +39,8 @@ The reports can also open as windows built with [Iris](https://sirmallard.github
 
 Each report opens in its own window, with collapsible sections, filterable and paged tables, and a **Refresh** button. By default the scripts still print to the console as well; set `SHOW_IN` at the top of a script to `"iris"` for windows only or `"console"` for none. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
 
+To pick colors, spacing, a font or a text size, paste `iris_theme.luau` into the client console as well ([details](IRIS_VIEWER.md#theme-colors-spacing-font-and-text-size)).
+
 **[IRIS_VIEWER.md](IRIS_VIEWER.md)** has the full guide: every control and setting, how the server and client talk, why the viewer is written the way it is under Fiu, troubleshooting, and how to change it.
 
 ### Attachment Stats
@@ -104,6 +106,7 @@ print_attachment_stats_delimited.luau <- attachment data as Lua-table lines, to 
 cap_announcer.luau                    <- announces who captured a point; live Captures window
 explore_console.luau                  <- read-only survey of what the console API returns
 iris_viewer.luau                      <- CLIENT console: shows the reports above in Iris windows
+iris_theme.luau                       <- CLIENT console: colors, spacing, font and text size for those windows
 IRIS_VIEWER.md                        <- guide and maintenance notes for iris_viewer.luau
 modules/                                 downloaded by the entry points at run time
   iris_report.luau           <- builds reports for iris_viewer and sends them (fire_client); Refresh
