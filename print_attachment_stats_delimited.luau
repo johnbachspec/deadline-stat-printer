@@ -303,7 +303,21 @@ if not ok_data or not AttachmentData then
             end
             return current
         end,
-        sync_latest_renames = function() return false, "embedded snapshot" end,
+        sync_latest_renames = function()
+            local ok, http = pcall(function() return game:GetService("HttpService") end)
+            if not ok or not http then return false, "HttpService not available" end
+            local success, body = pcall(function()
+                return http:GetAsync("https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/renames.csv", true)
+            end)
+            if not success or type(body) ~= "string" then return false, "fetch failed" end
+            for line in body:gmatch("[^\r\n]+") do
+                local old_id, new_id = line:match("^%s*([^,]+)%s*,%s*([^,%s]+)%s*$")
+                if old_id and new_id and old_id ~= "old_name" and new_id ~= "new_name" then
+                    ATTACHMENT_ALIASES[old_id] = new_id
+                end
+            end
+            return true, "synced"
+        end,
         get_sync_status = function() return "embedded snapshot" end,
     }
 end
@@ -317,7 +331,9 @@ local renderer = (ok_rnd and AttachmentRenderer and AttachmentRenderer.new())
 local function print_attachment_stats_delimited(target_player)
     -- 1. Synchronize latest upstream renames via AttachmentData (SRP)
     if AttachmentData.sync_latest_renames then
-        AttachmentData.sync_latest_renames()
+        pcall(function()
+            AttachmentData.sync_latest_renames()
+        end)
     end
 
     -- 2. Locate target human player
