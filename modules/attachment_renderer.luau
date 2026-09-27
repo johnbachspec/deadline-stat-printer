@@ -1,6 +1,7 @@
 -- modules/attachment_renderer.luau
--- Prints aggregated attachment rows (from attachment_aggregator): a readable
--- table with in-game names, or Lua-table lines that tests/fixtures are made from.
+-- Shows aggregated attachment rows (from attachment_aggregator): a readable
+-- table with in-game names (printed, or added to an Iris report), or Lua-table
+-- lines that tests/fixtures are made from.
 -- NOTE: Deadline's Luau console uses a Lua 5.x-style VM ('Fiu') that does not
 -- accept Luau type annotations, so this file intentionally has none.
 
@@ -63,6 +64,13 @@ function AttachmentRenderer:gun_name(gun_id)
     return self.weapon_data.display_name(gun_id)
 end
 
+function AttachmentRenderer:names_source()
+    if self.names_version then
+        return "names: deadline-balancing " .. tostring(self.names_version)
+    end
+    return "names: prettified ids (attachment_names module not loaded)"
+end
+
 function AttachmentRenderer:render_table(aggregated)
     local items = aggregated.items
     local names, width = {}, 0
@@ -71,11 +79,7 @@ function AttachmentRenderer:render_table(aggregated)
         width = math.min(math.max(width, text_width(names[i])), NAME_COLUMN_MAX)
     end
     print(string.format("\n================ ALL %d ATTACHMENTS BY KILLS ================", #items))
-    if self.names_version then
-        print("-- names: deadline-balancing " .. tostring(self.names_version))
-    else
-        print("-- names: prettified ids (attachment_names module not loaded)")
-    end
+    print("-- " .. self:names_source())
     for i, item in ipairs(items) do
         print(string.format("#%-3d %s | Kills: %-6d | Top Gun: %s (%d)",
             i,
@@ -83,6 +87,18 @@ function AttachmentRenderer:render_table(aggregated)
             item.kills,
             self:gun_name(item.top_gun),
             item.top_gun_kills))
+    end
+end
+
+-- The same table for iris_viewer.luau; `report` is a modules/iris_report.luau report.
+function AttachmentRenderer:add_to_report(report, aggregated)
+    local items = aggregated.items
+    report:text(self:names_source())
+    report:section(string.format("All %d attachments by kills", #items), true)
+    report:columns({ "Attachment", "Kills", "Top gun (kills)" })
+    for i, item in ipairs(items) do
+        report:row({ string.format("%d. %s", i, self:item_name(item)), tostring(item.kills),
+            string.format("%s (%d)", self:gun_name(item.top_gun), item.top_gun_kills) })
     end
 end
 

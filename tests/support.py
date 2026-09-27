@@ -42,9 +42,10 @@ def fixture_profile_lua(rows):
     return "{ weapon = {\n" + body + "\n} }"
 
 
-def run_script(script, players, after="", missing_modules=()):
+def run_script(script, players, after="", missing_modules=(), prelude=""):
     """Runs a console script (path relative to the repo root) and returns its printed output.
 
+    `prelude` is Luau run first, e.g. `local config = {...}` to mock more console globals.
     `after` is Luau run once the script has finished (e.g. shared.print_x(...) calls).
     Modules named in `missing_modules` fail to load, like a failed download.
     """
@@ -63,6 +64,7 @@ def run_script(script, players, after="", missing_modules=()):
         f"local players = {players}\n"
         "local shared = {}\n"
         "local script = nil\n"
+        + prelude + "\n"
         "local __result = (function()\n"
         + (ROOT / script).read_text(encoding="utf-8") +
         "\nend)()\n" + after + "\n")

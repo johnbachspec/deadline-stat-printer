@@ -1,14 +1,16 @@
 -- modules/renderer.luau
--- Prints the account recap and the per-weapon table. Does simple ratios
--- on numbers it is handed; no data lookups of its own.
--- Output goes through the global `print`, i.e. the in-game Luau console.
+-- The account recap and the per-weapon table, printed to the in-game Luau
+-- console or added to an Iris report (modules/iris_report.luau). Does simple
+-- ratios on numbers it is handed; no data lookups of its own.
 
 local Renderer = {}
 Renderer.__index = Renderer
 
 local DEFAULT_GRID_WIDTH = 166
-local ROW_FORMAT         = "%-20s %10s %11s %11s %10.3f %9.2f%% %12s %8.2f %8.2f %14s %16s %9.2f%%  %-8.8s"
-local HEADER_FORMAT      = "%-20s %10s %11s %11s %10s %10s %12s %8s %8s %14s %16s %10s  %-8.8s"
+local ROW_FORMAT         = "%-20s %10s %11s %11s %10s %10s %12s %8s %8s %14s %16s %10s  %-8.8s"
+local WEAPON_COLUMNS     = { "weapon", "kills", "deaths w/", "deaths by", "w-KDR", "% allK", "rds. ct", "K/Min",
+    "RFpK", "weapon XP", "time used", "% allT", "type" }
+local DEATHS_WITH_NOTE   = "deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)"
 
 -- deps = { formatters = ..., level_data = ..., grid_width = 166 (optional) }
 function Renderer.new(deps)
@@ -49,21 +51,20 @@ function Renderer:print_title(title)
     print("")
 end
 
--- account_totals = { use_time, rounds_fired } over ALL weapons, so the recap
--- does not change with FILTER_TYPE.
-function Renderer:print_overall_recap(player_name, p, spendings, achievements, account_totals, collection)
+-- The recap as columns of { label, value } pairs: three columns of account
+-- totals, then five columns of per-match / per-minute averages.
+-- data.account_totals = { use_time, rounds_fired } over ALL weapons, so the
+-- recap does not change with FILTER_TYPE.
+function Renderer:recap_cells(data)
     local fmt = self.fmt
     local safe_div = fmt.safe_div
     local pct = fmt.pct
     local n = function(v) return tonumber(v) or 0 end
-    local label = function(name, value)
-        return string.format("%-19s%s", name, tostring(value))
-    end
 
-    p = p or {}
-    spendings = spendings or {}
-    account_totals = account_totals or {}
-    collection = collection or {}
+    local p = data.player_stats or {}
+    local spendings = data.spendings or {}
+    local account_totals = data.account_totals or {}
+    local collection = data.collection or {}
 
     local kills, deaths = n(p.total_kills), n(p.total_deaths)
     local headshots, wallbangs, he_kills = n(p.total_headshots), n(p.total_penetration_kills), n(p.total_explosive_kills)
@@ -78,111 +79,158 @@ function Renderer:print_overall_recap(player_name, p, spendings, achievements, a
     local spent_attachments, spent_weapons = n(spendings.attachments), n(spendings.weapons)
     local spent = spent_attachments + spent_weapons
 
-    print(self.bar)
-    self:print_title("OVERALL ACCOUNT STATISTICS FOR " .. tostring(player_name))
-    self:print_columns({
+    local totals = {
         {
-            label("Level:", level),
-            label("Kills:", fmt.format_num(kills)),
-            label("Headshots:", fmt.format_num(headshots)),
-            label("HS %:", string.format("%.2f%%", pct(headshots, kills))),
-            label("Matches Played:", fmt.format_num(matches)),
-            label("Total Money Spent:", fmt.format_currency(spent)),
-            label("Time Alive:", fmt.format_use_time(alive_sec)),
-            label("Status:", tester_status(achievements)),
-            label("Owned Weapons:", fmt.format_num(collection.weapons)),
+            { "Level:", level },
+            { "Kills:", fmt.format_num(kills) },
+            { "Headshots:", fmt.format_num(headshots) },
+            { "HS %:", string.format("%.2f%%", pct(headshots, kills)) },
+            { "Matches Played:", fmt.format_num(matches) },
+            { "Total Money Spent:", fmt.format_currency(spent) },
+            { "Time Alive:", fmt.format_use_time(alive_sec) },
+            { "Status:", tester_status(data.achievements) },
+            { "Owned Weapons:", fmt.format_num(collection.weapons) },
         },
         {
-            label("Prestige Level:", prestige_level),
-            label("Deaths:", fmt.format_num(deaths)),
-            label("Wallbangs:", fmt.format_num(wallbangs)),
-            label("Wall %:", string.format("%.2f%%", pct(wallbangs, kills))),
-            label("Objectives Cap:", fmt.format_num(points)),
-            label("On Attachments:", string.format("%s (%.2f%%)", fmt.format_currency(spent_attachments), pct(spent_attachments, spent))),
-            label("Total Experience:", fmt.format_num(xp)),
-            label("Next Level In:", next_level),
-            label("Owned Attachments:", fmt.format_num(collection.attachments)),
+            { "Prestige Level:", prestige_level },
+            { "Deaths:", fmt.format_num(deaths) },
+            { "Wallbangs:", fmt.format_num(wallbangs) },
+            { "Wall %:", string.format("%.2f%%", pct(wallbangs, kills)) },
+            { "Objectives Cap:", fmt.format_num(points) },
+            { "On Attachments:", string.format("%s (%.2f%%)", fmt.format_currency(spent_attachments), pct(spent_attachments, spent)) },
+            { "Total Experience:", fmt.format_num(xp) },
+            { "Next Level In:", next_level },
+            { "Owned Attachments:", fmt.format_num(collection.attachments) },
         },
         {
-            label("Prestige:", prestige),
-            label("KDR:", string.format("%.5f", safe_div(kills, deaths, kills))),
-            label("HE Kills:", fmt.format_num(he_kills)),
-            label("HE %:", string.format("%.2f%%", pct(he_kills, kills))),
+            { "Prestige:", prestige },
+            { "KDR:", string.format("%.5f", safe_div(kills, deaths, kills)) },
+            { "HE Kills:", fmt.format_num(he_kills) },
+            { "HE %:", string.format("%.2f%%", pct(he_kills, kills)) },
             -- The profile stores no hit counts, so real accuracy can't be computed.
-            label("Rounds / Kill:", string.format("%.2f", safe_div(rounds, kills, rounds))),
-            label("On Weapons:", string.format("%s (%.2f%%)", fmt.format_currency(spent_weapons), pct(spent_weapons, spent))),
-            label("Dist Travelled:", fmt.format_num(distance) .. " st"),
-            label("Rounds Fired:", fmt.format_num(rounds)),
-            label("Owned Camos:", fmt.format_num(collection.camos)),
+            { "Rounds / Kill:", string.format("%.2f", safe_div(rounds, kills, rounds)) },
+            { "On Weapons:", string.format("%s (%.2f%%)", fmt.format_currency(spent_weapons), pct(spent_weapons, spent)) },
+            { "Dist Travelled:", fmt.format_num(distance) .. " st" },
+            { "Rounds Fired:", fmt.format_num(rounds) },
+            { "Owned Camos:", fmt.format_num(collection.camos) },
         },
-    })
+    }
+    local averages = {
+        { { "Kills / Match:", string.format("%.2f", safe_div(kills, matches)) },
+          { "Points / Match:", fmt.format_num(safe_div(xp, matches)) } },
+        { { "Kills / Min:", string.format("%.3f", safe_div(kills, alive_min)) },
+          { "EXP / Min:", fmt.format_num(safe_div(xp, alive_min)) } },
+        { { "HS / Match:", string.format("%.2f", safe_div(headshots, matches)) },
+          { "Wall / Match:", string.format("%.2f", safe_div(wallbangs, matches)) } },
+        { { "Obj. / Match:", string.format("%.2f", safe_div(points, matches)) },
+          { "HE / Match:", string.format("%.2f", safe_div(he_kills, matches)) } },
+        { { "Avg Lifespan:", fmt.format_duration_short(safe_div(alive_sec, deaths, alive_sec)) },
+          { "Dist / Match:", fmt.format_num(safe_div(distance, matches)) .. " st" } },
+    }
+    return totals, averages
+end
+
+function Renderer:print_overall_recap(data)
+    local totals, averages = self:recap_cells(data)
+    local function lines(column, format)
+        local out = {}
+        for i, pair in ipairs(column) do out[i] = format(pair[1], pair[2]) end
+        return out
+    end
+
+    print(self.bar)
+    self:print_title("OVERALL ACCOUNT STATISTICS FOR " .. tostring(data.player_name))
+    local columns = {}
+    for i, column in ipairs(totals) do
+        columns[i] = lines(column, function(label, value)
+            return string.format("%-19s%s", label, tostring(value))
+        end)
+    end
+    self:print_columns(columns)
     print(self.bar)
 
     self:print_title("AVERAGE STATS PER MATCH AND MINUTE")
-    self:print_columns({
-        {
-            string.format("Kills / Match: %9.2f", safe_div(kills, matches)),
-            string.format("Points / Match:%9s", fmt.format_num(safe_div(xp, matches))),
-        },
-        {
-            string.format("Kills / Min:    %9.3f", safe_div(kills, alive_min)),
-            string.format("EXP / Min:      %9s", fmt.format_num(safe_div(xp, alive_min))),
-        },
-        {
-            string.format("HS / Match:     %9.2f", safe_div(headshots, matches)),
-            string.format("Wall / Match:   %9.2f", safe_div(wallbangs, matches)),
-        },
-        {
-            string.format("Obj. / Match:   %9.2f", safe_div(points, matches)),
-            string.format("HE / Match:     %9.2f", safe_div(he_kills, matches)),
-        },
-        {
-            string.format("Avg Lifespan:   %9s", fmt.format_duration_short(safe_div(alive_sec, deaths, alive_sec))),
-            string.format("Dist / Match:   %6s st", fmt.format_num(safe_div(distance, matches))),
-        },
-    })
+    columns = {}
+    for i, column in ipairs(averages) do
+        local label_width = i == 1 and 15 or 16
+        columns[i] = lines(column, function(label, value)
+            return self.fmt.pad_right(label, label_width) .. string.format("%9s", value)
+        end)
+    end
+    self:print_columns(columns)
     print(self.bar)
 end
 
 function Renderer:print_table_header()
     self:print_title("DETAILED WEAPON STATS")
-    print(" deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)")
-    print(string.format(HEADER_FORMAT, "weapon", "kills", "deaths w/", "deaths by", "w-KDR", "% allK", "rds. ct", "K/Min", "RFpK", "weapon XP", "time used", "% allT", "type"))
+    print(" " .. DEATHS_WITH_NOTE)
+    print(string.format(ROW_FORMAT, table.unpack(WEAPON_COLUMNS)))
     print(self.thin_bar)
 end
 
-function Renderer:print_row(w, total_kills, total_time)
+-- One weapon row, as the strings shown under WEAPON_COLUMNS.
+function Renderer:weapon_cells(w, total_kills, total_time)
     local fmt, d = self.fmt, w.data
     local safe_div = fmt.safe_div
     local pct = fmt.pct
-
-    print(string.format(
-        ROW_FORMAT,
+    return {
         w.display_name,
         fmt.format_num(d.kills),
         fmt.format_num(d.deaths_with),
         fmt.format_num(d.deaths_from),
-        safe_div(d.kills, d.deaths_with, d.kills),
-        pct(d.kills, total_kills),
+        string.format("%.3f", safe_div(d.kills, d.deaths_with, d.kills)),
+        string.format("%.2f%%", pct(d.kills, total_kills)),
         fmt.format_num(d.rounds_fired),
-        safe_div(d.kills, d.use_time / 60),
-        safe_div(d.rounds_fired, d.kills, d.rounds_fired),
+        string.format("%.2f", safe_div(d.kills, d.use_time / 60)),
+        string.format("%.2f", safe_div(d.rounds_fired, d.kills, d.rounds_fired)),
         fmt.format_num(d.experience),
         fmt.format_use_time(d.use_time),
-        pct(d.use_time, total_time),
-        w.caliber_type
-    ))
+        string.format("%.2f%%", pct(d.use_time, total_time)),
+        w.caliber_type,
+    }
 end
 
+function Renderer:print_row(w, total_kills, total_time)
+    print(string.format(ROW_FORMAT, table.unpack(self:weapon_cells(w, total_kills, total_time))))
+end
+
+-- data = { player_name, player_stats, spendings, achievements, collection,
+--          weapon_list, table_totals, account_totals }
 -- table_totals   = totals over the rows shown (for % allK / % allT)
 -- account_totals = totals over ALL weapons (for the recap)
-function Renderer:print_report(player_name, player_stats, spendings, achievements, collection, weapon_list, table_totals, account_totals)
-    self:print_overall_recap(player_name, player_stats, spendings, achievements, account_totals, collection)
+function Renderer:print_report(data)
+    self:print_overall_recap(data)
     self:print_table_header()
-    for _, w in ipairs(weapon_list) do
-        self:print_row(w, table_totals.kills, table_totals.use_time)
+    for _, w in ipairs(data.weapon_list) do
+        self:print_row(w, data.table_totals.kills, data.table_totals.use_time)
     end
     print(self.thin_bar)
+end
+
+-- The same report for iris_viewer.luau; `report` is a modules/iris_report.luau report.
+function Renderer:add_to_report(report, data)
+    local totals, averages = self:recap_cells(data)
+    report:section("Overall account statistics", true)
+    report:columns({ "", "", "", "", "", "" })
+    for row = 1, #totals[1] do
+        local cells = {}
+        for _, column in ipairs(totals) do
+            table.insert(cells, column[row][1])
+            table.insert(cells, tostring(column[row][2]))
+        end
+        report:row(cells)
+    end
+    report:section("Average stats per match and minute", true)
+    report:columns({ "", "", "", "" })
+    for _, column in ipairs(averages) do
+        report:row({ column[1][1], column[1][2], column[2][1], column[2][2] })
+    end
+    report:section(string.format("Detailed weapon stats (%d weapons)", #data.weapon_list), true)
+    report:text(DEATHS_WITH_NOTE)
+    report:columns(WEAPON_COLUMNS)
+    for _, w in ipairs(data.weapon_list) do
+        report:row(self:weapon_cells(w, data.table_totals.kills, data.table_totals.use_time))
+    end
 end
 
 return Renderer
