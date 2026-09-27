@@ -358,18 +358,28 @@ local function print_attachment_stats(target_player)
             -- Embedded fallback aggregator if module not available
             local raw_weapons = stats.weapon or {}
             local totals = {}
-            local legacy_cnt = 0
             for w_id, w_data in pairs(raw_weapons) do
                 local att_stats = (type(w_data) == "table" and w_data.attachment_stats) or {}
                 for att_id, data in pairs(att_stats) do
-                    local kills = (type(data) == "table" and tonumber(data.kills or data.kill_count or 0)) or (type(data) == "number" and data) or 0
+                    local kills = 0
+                    if type(data) == "table" then
+                        local raw_kills = data.kills
+                        if raw_kills == nil then raw_kills = data.kill_count end
+                        kills = tonumber(raw_kills) or 0
+                    elseif type(data) == "number" then
+                        kills = data
+                    end
                     if kills > 0 then
                         local canon = AttachmentData.resolve(att_id)
-                        if canon ~= att_id then legacy_cnt = legacy_cnt + 1 end
-                        local b = totals[canon] or { kills = 0, weapons = {} }
-                        totals[canon] = b
-                        b.kills = b.kills + kills
-                        b.weapons[w_id] = (b.weapons[w_id] or 0) + kills
+                        local b = totals[canon]
+                        if not b then
+                            b = {}
+                            b.kills = 0
+                            b.weapons = {}
+                            totals[canon] = b
+                        end
+                        b.kills = (tonumber(b.kills) or 0) + (tonumber(kills) or 0)
+                        b.weapons[w_id] = (tonumber(b.weapons[w_id]) or 0) + (tonumber(kills) or 0)
                     end
                 end
             end
@@ -384,7 +394,7 @@ local function print_attachment_stats(target_player)
                 table.insert(sorted, { id = att_id, kills = info.kills, top_gun = top_gun, top_gun_kills = top_kills })
             end
             table.sort(sorted, function(a, b) return a.kills > b.kills end)
-            aggregated = { items = sorted, legacy_merged = legacy_cnt, total_attachments = #sorted }
+            aggregated = { items = sorted, total_attachments = #sorted }
         end
 
         local player_name = my_player.name or "Player"
@@ -400,12 +410,12 @@ local function print_attachment_stats(target_player)
         else
             print(string.format("\n================ ALL %d ATTACHMENTS BY KILLS ================", #aggregated.items))
             for i, it in ipairs(aggregated.items) do
-            print(string.format("#%-3d %-32s | Kills: %-6d | Top Gun: %s (%d)",
-                i,
-                fallback_display_name(it.id),
-                it.kills,
-                fallback_display_name(it.top_gun),
-                it.top_gun_kills))
+                print(string.format("#%-3d %-32s | Kills: %-6d | Top Gun: %s (%d)",
+                    i,
+                    fallback_display_name(it.id),
+                    it.kills,
+                    fallback_display_name(it.top_gun),
+                    it.top_gun_kills))
             end
         end
 
