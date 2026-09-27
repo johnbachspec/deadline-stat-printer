@@ -190,11 +190,16 @@ class TestTableSynchronization(unittest.TestCase):
 
 class TestDynamicSyncMechanism(unittest.TestCase):
     def test_live_sync_present_and_protected(self):
-        for p in [PRINT_ATTACHMENT_LUAU, DELIMITED_LUAU, ATTACHMENT_DATA_LUAU]:
+        for p in [DELIMITED_LUAU, ATTACHMENT_DATA_LUAU]:
             content = p.read_text(encoding="utf-8")
             self.assertIn("sync_latest_renames", content, f"Missing sync_latest_renames in {p.name}")
             self.assertIn("pcall", content, f"sync_latest_renames must be wrapped in pcall in {p.name}")
             self.assertIn("recoil-group/deadline-balancing", content, f"Missing upstream URL in {p.name}")
+
+    def test_primary_attachment_script_is_standalone_for_fiu(self):
+        content = PRINT_ATTACHMENT_LUAU.read_text(encoding="utf-8")
+        self.assertNotIn("load_module(", content)
+        self.assertIn("fallback_display_name", content)
 
 
 class TestLogAggregationAndKillConservation(unittest.TestCase):
