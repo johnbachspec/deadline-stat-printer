@@ -54,14 +54,12 @@ def load_csv_aliases(path):
 
 def extract_luau_table_aliases(path):
     text = path.read_text(encoding="utf-8")
-    m = re.search(r"-- BEGIN ATTACHMENT_ALIASES.*?\{([^}]+)\}.*?-- END ATTACHMENT_ALIASES", text, re.DOTALL)
+    m = re.search(r"-- BEGIN ATTACHMENT_ALIASES.*?local ALIASES_CSV = \[\[(.*?)\]\].*?-- END ATTACHMENT_ALIASES", text, re.DOTALL)
     if not m:
         raise ValueError(f"Could not find ATTACHMENT_ALIASES block in {path}")
-    block = m.group(1)
     table = {}
-    for line in block.splitlines():
-        line = line.strip()
-        pair_match = re.match(r'\["([^"]+)"\]\s*=\s*"([^"]+)"', line)
+    for line in m.group(1).splitlines():
+        pair_match = re.match(r"([^,]+),([^,]+)$", line.strip())
         if pair_match:
             table[pair_match.group(1)] = pair_match.group(2)
     return table
@@ -264,15 +262,13 @@ class TestBeautifiedNamesAndBalancing(unittest.TestCase):
         self.assertIn("function AttachmentFormatter:sync_balancing_names(", content)
         self.assertIn("recoil-studio/deadline-balancing", content)
         self.assertIn("recoil-group/deadline-balancing", content)
-        self.assertIn("AttachmentFormatter.BEAUTIFIED_NAMES = {", content)
+        self.assertIn("AttachmentFormatter.BEAUTIFIED_NAMES = {}", content)
+        self.assertIn("runtime loaded; intentionally no embedded table", content)
 
     def test_sample_beautified_names(self):
         content = ATTACHMENT_FORMATTER_LUAU.read_text(encoding="utf-8")
-        self.assertIn('["kalis_scalar_std_bcg"] = "KALIS Scalar Standard",', content)
-        self.assertIn('["vallais_super_fang_trigger"] = "Vallais Super FANG",', content)
-        self.assertIn('["paramount_arms_slx_1.1inch_mount"] = "Paramount Arms SLx 1.1\"",', content)
-        self.assertIn('["virticon_arcs_ta01_4x_scope"] = "Virticon ACOG TA01 4x Scope",', content)
-        self.assertIn('["azimuth_duty2_sight"] = "Azimuth DutyM2",', content)
+        self.assertIn("function AttachmentFormatter:sync_balancing_names(", content)
+        self.assertNotIn('["kalis_scalar_std_bcg"] = "KALIS Scalar Standard",', content)
 
 
 class TestToolsExecution(unittest.TestCase):
