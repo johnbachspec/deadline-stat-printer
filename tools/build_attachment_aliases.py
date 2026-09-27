@@ -1,4 +1,4 @@
-"""Regenerate / verify the embedded ATTACHMENT_ALIASES table in
+"""Regenerate / verify the compact ATTACHMENT_ALIASES CSV string in
 modules/attachment_data.luau, print_attachment_stats.luau, and
 print_attachment_stats_delimited.luau from deadline-balancing renames.csv
 (tracked in this repo as renames.csv).
@@ -72,13 +72,13 @@ def load_pairs(path=None):
         dupes = sorted(k for k, c in Counter(o for o, _ in pairs).items() if c > 1)
         raise SystemExit(f"duplicate old_name entries: {dupes}")
     for o, n in pairs:
-        if '"' in o or '"' in n or "\" in o or "\" in n:
+        if '"' in o or '"' in n or "\\" in o or "\\" in n:
             raise SystemExit(f"id needs Luau escaping: {o!r} -> {n!r}")
     return sorted(pairs, key=lambda p: p[0].lower())
 
 
 def render(pairs):
-    return "\n".join(f'    ["{o}"] = "{n}",' for o, n in pairs)
+    return "\n".join(f"{o},{n}" for o, n in pairs)
 
 
 def split_markers(text):
@@ -86,22 +86,11 @@ def split_markers(text):
         raise SystemExit("BEGIN marker not found in Luau file")
     if END not in text:
         raise SystemExit("END marker not found in Luau file")
-    ctor_candidates = ["local ATTACHMENT_ALIASES = {", "AttachmentData.ALIASES = {"]
-    ctor_start = -1
-    for ctor in ctor_candidates:
-        pos = text.find(ctor)
-        if pos != -1 and pos >= text.index(BEGIN):
-            ctor_start = pos
-            break
-    if ctor_start == -1:
-        raise SystemExit("table constructor found before BEGIN marker or not found")
-    head_end = text.index("\n", ctor_start) + 1
     end_pos = text.index(END)
-    close_start = text.rfind("\n}", 0, end_pos)
-    if close_start == -1:
-        raise SystemExit('closing "}" line not found before END marker')
-    tail_start = close_start + 1
-    return text[:head_end], text[tail_start:]
+    csv_start = text.index("local ALIASES_CSV = [[", text.index(BEGIN))
+    body_start = text.index("\n", csv_start) + 1
+    body_end = text.index("]]", body_start, end_pos)
+    return text[:body_start], text[body_end:]
 
 
 def report_stats(pairs):
@@ -119,18 +108,16 @@ def report_stats(pairs):
 def sync_table(path, pairs, check_only=False):
     text = path.read_text(encoding="utf-8")
     head, tail = split_markers(text)
-    current_block = text[len(head):len(text) - len(tail)].strip("\n")
-    body_lines = [ln for ln in current_block.splitlines()
-                  if not ln.startswith("-- BEGIN") and not ln.startswith("-- END")]
+    body_lines = text[len(head):len(text) - len(tail)].strip("\r\n")
     expected = render(pairs)
-    if "\n".join(body_lines).strip() == expected.strip():
-        print(f"Luau table in {path.name} is in sync with renames.csv.")
+    if body_lines.replace("\r\n", "\n").strip() == expected.strip():
+        print(f"Compact alias data in {path.name} is in sync with renames.csv.")
         return 0
     if check_only:
-        print(f"DRIFT: Luau table in {path.name} does not match renames.csv. Run without --check to regenerate.")
+        print(f"DRIFT: compact alias data in {path.name} does not match renames.csv. Run without --check to regenerate.")
         return 1
-    path.write_text(head + expected + "\n" + tail, encoding="utf-8")
-    print(f"rewrote ATTACHMENT_ALIASES in {path.name} ({len(pairs)} entries).")
+    path.write_text(head + expected + "\n" + tail, encoding="utf-8", newline="\n")
+    print(f"rewrote compact ATTACHMENT_ALIASES in {path.name} ({len(pairs)} entries).")
     return 0
 
 

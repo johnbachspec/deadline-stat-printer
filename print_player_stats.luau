@@ -89,7 +89,9 @@ end
 --   shared.print_player_stats(players.get("Name"), "SMG")
 --   shared.print_player_stats(players.get("Name"), { filter = "SMG", sort_by = "TYPE" })
 --   shared.print_player_stats(players.get("Name"), nil, "AKM")
-shared.print_player_stats = print_player_stats
+if shared then
+    shared.print_player_stats = print_player_stats
+end
 
 -- Print a report for every human currently in the server.
 for _, player in ipairs(players.get_all()) do
