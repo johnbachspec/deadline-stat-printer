@@ -1,8 +1,10 @@
 """Comprehensive Test Suite for Deadline Stat Printer
 Runs unit tests, validation checks, and regression tests across:
-  - Fiu VM compatibility (no Luau type annotations `::`, no tabs `\t`, balanced braces)
+  - Fiu VM compatibility (no Luau type annotations `::`, no tabs `\t`, balanced braces,
+    and tools/check_fiu_compat.py's 255-line-per-function load check when luau-compile is available)
   - SRP modular architecture (modules/ integrity and responsibility boundaries)
   - Attachment renames & synchronization (renames.csv, balancing.csv, and embedded tables)
+  - Generated display names (modules/attachment_names.luau) and how the printer loads them
   - Live dynamic GitHub syncing protection (HttpService pcall guards)
   - Log aggregation and mathematical kill conservation (1,717,503 kills fixture)
   - Execution of tool scripts (verify_attachment_merge.py, build_attachment_aliases.py, build_attachment_names.py)
@@ -15,11 +17,16 @@ import csv
 import re
 import subprocess
 import sys
+import tempfile
 import unittest
 from collections import defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "tools"))
+import build_attachment_aliases  # noqa: E402
+import build_attachment_names  # noqa: E402
+import check_fiu_compat  # noqa: E402
 RENAMES_CSV = ROOT / "renames.csv"
 BALANCING_CSV = ROOT / "balancing.csv"
 PRINT_ATTACHMENT_LUAU = ROOT / "print_attachment_stats.luau"
@@ -31,6 +38,7 @@ ATTACHMENT_DATA_LUAU = MODULES_DIR / "attachment_data.luau"
 ATTACHMENT_AGGREGATOR_LUAU = MODULES_DIR / "attachment_aggregator.luau"
 ATTACHMENT_FORMATTER_LUAU = MODULES_DIR / "attachment_formatter.luau"
 ATTACHMENT_RENDERER_LUAU = MODULES_DIR / "attachment_renderer.luau"
+ATTACHMENT_NAMES_LUAU = MODULES_DIR / "attachment_names.luau"
 WEAPON_DATA_LUAU = MODULES_DIR / "weapon_data.luau"
 LEVEL_DATA_LUAU = MODULES_DIR / "level_data.luau"
 FORMATTERS_LUAU = MODULES_DIR / "formatters.luau"
@@ -54,15 +62,10 @@ def load_csv_aliases(path):
 
 def extract_luau_table_aliases(path):
     text = path.read_text(encoding="utf-8")
-    m = re.search(r"-- BEGIN ATTACHMENT_ALIASES.*?local ALIASES_CSV = \[\[(.*?)\]\].*?-- END ATTACHMENT_ALIASES", text, re.DOTALL)
+    m = re.search(r"-- BEGIN ATTACHMENT_ALIASES.*?\n(local ATTACHMENT_ALIASES = \{.*?\n\})\n-- END ATTACHMENT_ALIASES", text, re.DOTALL)
     if not m:
         raise ValueError(f"Could not find ATTACHMENT_ALIASES block in {path}")
-    table = {}
-    for line in m.group(1).splitlines():
-        pair_match = re.match(r"([^,]+),([^,]+)$", line.strip())
-        if pair_match:
-            table[pair_match.group(1)] = pair_match.group(2)
-    return table
+    return dict(re.findall(r'\["([^"]+)"\]\s*=\s*"([^"]+)"', m.group(1)))
 
 
 def resolve_alias(att_id, aliases):
@@ -78,7 +81,16 @@ class TestRenamesIntegrity(unittest.TestCase):
     def test_renames_csv_exists_and_has_full_count(self):
         self.assertTrue(RENAMES_CSV.is_file(), "renames.csv must exist in repo root")
         aliases = load_csv_aliases(RENAMES_CSV)
-        self.assertEqual(len(aliases), 253, f"Expected 253 aliases in renames.csv, found {len(aliases)}")
+        # 253 = upstream's 214 plus 39 hand-added historical renames; syncs may only add rows.
+        self.assertGreaterEqual(len(aliases), 253, f"Expected at least 253 aliases in renames.csv, found {len(aliases)}")
+
+    def test_upstream_merge_keeps_local_only_rows(self):
+        local = [("a_old", "a_new"), ("hand_added", "kept"), ("retarget", "stale")]
+        upstream = [("a_old", "a_new"), ("retarget", "fresh"), ("brand_new", "x")]
+        merged, added, changed = build_attachment_aliases.merge_pairs(local, upstream)
+        self.assertEqual(dict(merged), {"a_old": "a_new", "hand_added": "kept", "retarget": "fresh", "brand_new": "x"})
+        self.assertEqual(added, ["brand_new"])
+        self.assertEqual(changed, ["retarget"])
 
     def test_no_redundant_full_file(self):
         full_csv = ROOT / "renames_full.csv"
@@ -168,13 +180,13 @@ class TestTableSynchronization(unittest.TestCase):
 
     def test_print_attachment_stats_table_matches(self):
         table = extract_luau_table_aliases(PRINT_ATTACHMENT_LUAU)
-        self.assertEqual(len(table), 253, f"Expected 253 aliases in {PRINT_ATTACHMENT_LUAU.name}, got {len(table)}")
+        self.assertEqual(len(table), len(self.aliases), f"Expected {len(self.aliases)} aliases in {PRINT_ATTACHMENT_LUAU.name}, got {len(table)}")
         self.assertEqual(table, self.aliases, f"{PRINT_ATTACHMENT_LUAU.name} does not match renames.csv")
 
     def test_delimited_script_matches(self):
         self.assertTrue(DELIMITED_LUAU.is_file(), "print_attachment_stats_delimited.luau must exist")
         table = extract_luau_table_aliases(DELIMITED_LUAU)
-        self.assertEqual(len(table), 253, f"Expected 253 aliases in {DELIMITED_LUAU.name}, got {len(table)}")
+        self.assertEqual(len(table), len(self.aliases), f"Expected {len(self.aliases)} aliases in {DELIMITED_LUAU.name}, got {len(table)}")
         self.assertEqual(table, self.aliases, f"{DELIMITED_LUAU.name} does not match renames.csv")
 
     def test_only_one_delimited_file_exists(self):
@@ -184,7 +196,7 @@ class TestTableSynchronization(unittest.TestCase):
 
     def test_attachment_data_module_matches(self):
         table = extract_luau_table_aliases(ATTACHMENT_DATA_LUAU)
-        self.assertEqual(len(table), 253, f"Expected 253 aliases in {ATTACHMENT_DATA_LUAU.name}, got {len(table)}")
+        self.assertEqual(len(table), len(self.aliases), f"Expected {len(self.aliases)} aliases in {ATTACHMENT_DATA_LUAU.name}, got {len(table)}")
         self.assertEqual(table, self.aliases, f"{ATTACHMENT_DATA_LUAU.name} does not match renames.csv")
 
 
@@ -200,6 +212,13 @@ class TestDynamicSyncMechanism(unittest.TestCase):
         content = PRINT_ATTACHMENT_LUAU.read_text(encoding="utf-8")
         self.assertNotIn("load_module(", content)
         self.assertIn("fallback_display_name", content)
+
+    def test_primary_attachment_script_loads_names_safely(self):
+        content = PRINT_ATTACHMENT_LUAU.read_text(encoding="utf-8")
+        self.assertIn("local LOAD_NAMES = true", content)
+        self.assertRegex(content, r'local NAMES_URL = "https://raw\.githubusercontent\.com/[^"]+/modules/attachment_names\.luau"')
+        self.assertIn("pcall(function() return require(NAMES_URL) end)", content)
+        self.assertIn("or fallback_display_name(id)", content)
 
 
 class TestLogAggregationAndKillConservation(unittest.TestCase):
@@ -274,6 +293,56 @@ class TestBeautifiedNamesAndBalancing(unittest.TestCase):
         content = ATTACHMENT_FORMATTER_LUAU.read_text(encoding="utf-8")
         self.assertIn("function AttachmentFormatter:sync_balancing_names(", content)
         self.assertNotIn('["kalis_scalar_std_bcg"] = "KALIS Scalar Standard",', content)
+
+
+class TestDisplayNamesModule(unittest.TestCase):
+    def test_module_in_sync_with_balancing_csv(self):
+        self.assertTrue(ATTACHMENT_NAMES_LUAU.is_file(), "modules/attachment_names.luau must exist")
+        version, updated, names = build_attachment_names.load_names()
+        expected = build_attachment_names.render(version, updated, names)
+        self.assertEqual(ATTACHMENT_NAMES_LUAU.read_text(encoding="utf-8").replace("\r\n", "\n"), expected,
+                         "attachment_names.luau is stale; run python tools/build_attachment_names.py")
+
+    def test_known_names_and_escapes(self):
+        content = ATTACHMENT_NAMES_LUAU.read_text(encoding="utf-8")
+        self.assertIn('["kalis_scalar_std_bcg"] = "KALIS Scalar Standard",', content)
+        self.assertIn('["SCARH"] = "AFT MK-17",', content)  # weapons are named too (Top Gun column)
+        self.assertIn('["sig_sauer_bravo4_4x30"] = "Sic St\\195\\188rmer GAIUS4 4X30",', content)
+        self.assertTrue(content.isascii(), "generated module must be plain ASCII")
+
+    def test_luau_string_escaping(self):
+        s = build_attachment_names.luau_string
+        self.assertEqual(s('SLx 1.1"'), '"SLx 1.1\\""')
+        self.assertEqual(s("a\\b"), '"a\\\\b"')
+        self.assertEqual(s("{x}"), '"\\123x\\125"')
+        self.assertEqual(s("\n1"), '"\\0101"')  # 3-digit escape, so the following digit is not absorbed
+        self.assertEqual(s("ü"), '"\\195\\188"')
+
+
+class TestFiuLoadCompatibility(unittest.TestCase):
+    """Deadline's Fiu VM fails to load functions spanning > 255 lines (see tools/check_fiu_compat.py)."""
+
+    def setUp(self):
+        self.compiler = check_fiu_compat.find_compiler()
+        if not self.compiler:
+            self.skipTest("luau-compile not found (set LUAU_COMPILE or add it to luau_bin/)")
+
+    def test_game_loaded_files_are_fiu_safe(self):
+        res = subprocess.run([sys.executable, str(ROOT / "tools" / "check_fiu_compat.py")],
+                             cwd=str(ROOT), capture_output=True, text=True)
+        self.assertEqual(res.returncode, 0, f"check_fiu_compat.py failed:\n{res.stdout}\n{res.stderr}")
+
+    def test_names_module_is_checked(self):
+        self.assertIn(ATTACHMENT_NAMES_LUAU, check_fiu_compat.game_loaded_files())
+
+    def test_checker_flags_long_functions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "bad.luau"
+            bad.write_text("local s = [[\n" + "x\n" * 300 + "]]\nprint(s)\n", encoding="utf-8")
+            self.assertTrue(check_fiu_compat.check_file(self.compiler, bad))
+            good = Path(tmp) / "good.luau"
+            good.write_text('local s = "x"\nprint(s)\n', encoding="utf-8")
+            self.assertEqual(check_fiu_compat.check_file(self.compiler, good), [])
 
 
 class TestToolsExecution(unittest.TestCase):

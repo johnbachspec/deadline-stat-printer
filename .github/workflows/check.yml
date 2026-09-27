@@ -1,0 +1,30 @@
+# Fails any push or pull request that would stop the scripts from loading in
+# Deadline's Fiu VM (see tools/check_fiu_compat.py) or that breaks the tests.
+name: Check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install luau-compile
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/luau.zip" https://github.com/luau-lang/luau/releases/latest/download/luau-ubuntu.zip
+          unzip -q "$RUNNER_TEMP/luau.zip" -d "$RUNNER_TEMP/luau"
+          chmod +x "$RUNNER_TEMP/luau/luau-compile"
+          echo "LUAU_COMPILE=$RUNNER_TEMP/luau/luau-compile" >> "$GITHUB_ENV"
+
+      - name: Fiu load check
+        run: python tools/check_fiu_compat.py
+
+      - name: Tests
+        run: python tests/test_suite.py

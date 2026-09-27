@@ -12,7 +12,7 @@ Checks:
      - vector_9mm_bolt (511) + vector_45acp_bolt (194) -> kalis_scalar_std_bcg (705, top Vector),
      - plus historical merges from renames.csv (super_scar_trigger, smr_mk16 urgi, qbz95 handle),
   3. every canonical id whose total combines 2+ distinct log rows is listed,
-  4. the compact Luau CSV strings match renames.csv verbatim,
+  4. the embedded Luau alias table matches renames.csv verbatim,
   5. structural sanity of the Luau files (balanced braces, no tabs).
 """
 import csv
@@ -72,17 +72,16 @@ def main():
     aliases = load_aliases()
     check(bool(aliases), f"loaded {len(aliases)} alias pairs from {CSV_PATH.name}")
 
-    # 4. Compact CSV string in sync with renames.csv?
+    # 4. Embedded alias table in sync with renames.csv?
     text = LUAU_PATH.read_text(encoding="utf-8")
-    block = re.search(r"-- BEGIN ATTACHMENT_ALIASES.*?local ALIASES_CSV = \[\[(.*?)\]\].*?-- END ATTACHMENT_ALIASES", text, re.S)
+    block = re.search(r"-- BEGIN ATTACHMENT_ALIASES(.*?)-- END ATTACHMENT_ALIASES", text, re.S)
     luau_pairs = []
     if block:
-        luau_pairs = [tuple(line.strip().split(",", 1)) for line in block.group(1).splitlines()
-                      if line.strip() and "," in line]
+        luau_pairs = re.findall(r'\["([^"]+)"\]\s*=\s*"([^"]+)"', block.group(1))
     check(len(luau_pairs) == len(aliases),
-          f"Luau compact alias data has {len(luau_pairs)} entries, {CSV_PATH.name} has {len(aliases)}")
+          f"Luau alias table has {len(luau_pairs)} entries, {CSV_PATH.name} has {len(aliases)}")
     check(set(luau_pairs) == set(aliases.items()),
-          f"Luau compact alias data identical to {CSV_PATH.name}")
+          f"Luau alias table identical to {CSV_PATH.name}")
 
     # 5. structural sanity
     check(text.count("{") == text.count("}"), "Luau braces balanced")

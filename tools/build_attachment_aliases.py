@@ -1,20 +1,30 @@
-"""Regenerate / verify the compact ATTACHMENT_ALIASES CSV string in
+"""Regenerate / verify the embedded ATTACHMENT_ALIASES table in
 modules/attachment_data.luau, print_attachment_stats.luau, and
-print_attachment_stats_delimited.luau from deadline-balancing renames.csv
-(tracked in this repo as renames.csv).
+print_attachment_stats_delimited.luau from renames.csv.
+
+renames.csv is deadline-balancing's rename list plus renames added by hand
+here (historical ids upstream never listed). --fetch merges the upstream list
+into it (upstream wins on conflicts) and never drops the hand-added rows.
 
 Usage:
     python tools/build_attachment_aliases.py           # rewrite the tables in place
-    python tools/build_attachment_aliases.py --fetch   # download latest renames.csv then rewrite
+    python tools/build_attachment_aliases.py --fetch   # merge latest upstream renames.csv, then rewrite
     python tools/build_attachment_aliases.py --check   # exit 0 if tables match CSV, 1 on drift
 
-The Luau file must contain the marker lines:
+Each Luau file must contain the marker lines:
     -- BEGIN ATTACHMENT_ALIASES ...
     -- END ATTACHMENT_ALIASES
 Only the lines between the markers are replaced; all hand-written
 logic in the file is left untouched.
+
+The table is packed several entries per line so it takes about ALIAS_LINES
+lines however many renames there are: Deadline's Fiu VM fails to load a
+function whose code spans more than 255 source lines (see
+tools/check_fiu_compat.py).
 """
 import csv
+import io
+import math
 import sys
 import urllib.request
 from collections import Counter
@@ -22,7 +32,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "renames.csv"
-LUAU_PATH = ROOT / "print_attachment_stats.luau"
 TARGET_FILES = [
     ROOT / "modules" / "attachment_data.luau",
     ROOT / "print_attachment_stats.luau",
@@ -30,67 +39,86 @@ TARGET_FILES = [
 ]
 BEGIN = "-- BEGIN ATTACHMENT_ALIASES"
 END = "-- END ATTACHMENT_ALIASES"
+ALIAS_LINES = 24
 
-UPSTREAM_URLS = [
-    "https://raw.githubusercontent.com/recoil-studio/deadline-balancing/main/renames.csv",
-    "https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/renames.csv",
-]
+UPSTREAM_URL = "https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/renames.csv"
 
 
-def fetch_upstream():
-    """Download the latest renames.csv from upstream repository."""
-    for url in UPSTREAM_URLS:
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                data = resp.read()
-                if len(data) > 500:
-                    CSV_PATH.write_bytes(data)
-                    print(f"Fetched latest renames.csv from {url} ({len(data)} bytes)")
-                    return True
-        except Exception:
-            continue
-    print("Warning: Failed to fetch upstream renames.csv, using existing local copy.")
-    return False
-
-
-def load_pairs(path=None):
-    """Read and validate the rename list; returns pairs sorted by old name."""
-    if path is None:
-        path = CSV_PATH
-    with open(path, encoding="utf-8") as f:
-        rows = list(csv.reader(f))
-    name = Path(path).name
-    if not rows or rows[0][:2] != ["old_name", "new_name"]:
+def parse_pairs(text, name):
+    """Parse and validate rename rows; returns pairs sorted by old name."""
+    rows = list(csv.reader(io.StringIO(text)))
+    if not rows or [c.strip() for c in rows[0][:2]] != ["old_name", "new_name"]:
         raise SystemExit(f"unexpected header in {name}: {rows[0] if rows else None}")
-    data = rows[1:]
+    data = [r for r in rows[1:] if any(c.strip() for c in r)]
     pairs = [(r[0].strip(), r[1].strip()) for r in data
              if len(r) == 2 and r[0].strip() and r[1].strip()]
     if len(pairs) != len(data):
         raise SystemExit(f"malformed (non old,new) rows in {name}")
     if len({o for o, _ in pairs}) != len(pairs):
         dupes = sorted(k for k, c in Counter(o for o, _ in pairs).items() if c > 1)
-        raise SystemExit(f"duplicate old_name entries: {dupes}")
+        raise SystemExit(f"duplicate old_name entries in {name}: {dupes}")
     for o, n in pairs:
         if '"' in o or '"' in n or "\\" in o or "\\" in n:
             raise SystemExit(f"id needs Luau escaping: {o!r} -> {n!r}")
     return sorted(pairs, key=lambda p: p[0].lower())
 
 
+def load_pairs(path=None):
+    path = Path(path or CSV_PATH)
+    return parse_pairs(path.read_text(encoding="utf-8-sig"), path.name)
+
+
+def write_pairs(pairs, path=None):
+    lines = ["old_name,new_name"] + [f"{o},{n}" for o, n in pairs]
+    Path(path or CSV_PATH).write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+
+
+def merge_pairs(local_pairs, upstream_pairs):
+    """Upstream wins on conflicts; local-only rows are kept. Returns (sorted pairs, added ids, changed ids)."""
+    merged, upstream = dict(local_pairs), dict(upstream_pairs)
+    added = sorted(o for o in upstream if o not in merged)
+    changed = sorted(o for o in upstream if o in merged and merged[o] != upstream[o])
+    merged.update(upstream)
+    return sorted(merged.items(), key=lambda p: p[0].lower()), added, changed
+
+
+def fetch_upstream():
+    """Merge the latest upstream renames.csv into the local one. Returns False if the download failed."""
+    try:
+        req = urllib.request.Request(UPSTREAM_URL, headers={"User-Agent": "deadline-stat-printer"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            text = resp.read().decode("utf-8-sig")
+    except Exception as exc:
+        print(f"Warning: could not fetch {UPSTREAM_URL} ({exc}); using the local renames.csv.")
+        return False
+    upstream = dict(parse_pairs(text, "upstream renames.csv"))
+    merged, added, changed = merge_pairs(load_pairs(), upstream.items())
+    if added or changed:
+        write_pairs(merged)
+    print(f"Merged {len(upstream)} upstream renames: {len(added)} new, {len(changed)} retargeted, "
+          f"{len(merged) - len(upstream)} kept from local-only rows.")
+    for o in added:
+        print(f"  new: {o} -> {upstream[o]}")
+    for o in changed:
+        print(f"  retargeted: {o} -> {upstream[o]}")
+    return True
+
+
 def render(pairs):
-    return "\n".join(f"{o},{n}" for o, n in pairs)
+    per_line = max(1, math.ceil(len(pairs) / ALIAS_LINES))
+    entries = [f'["{o}"] = "{n}",' for o, n in pairs]
+    rows = [" ".join(entries[i:i + per_line]) for i in range(0, len(entries), per_line)]
+    return "\n".join(["local ATTACHMENT_ALIASES = {"] + ["    " + r for r in rows] + ["}"])
 
 
-def split_markers(text):
+def split_markers(text, name):
     if BEGIN not in text:
-        raise SystemExit("BEGIN marker not found in Luau file")
+        raise SystemExit(f"BEGIN marker not found in {name}")
     if END not in text:
-        raise SystemExit("END marker not found in Luau file")
-    end_pos = text.index(END)
-    csv_start = text.index("local ALIASES_CSV = [[", text.index(BEGIN))
-    body_start = text.index("\n", csv_start) + 1
-    body_end = text.index("]]", body_start, end_pos)
-    return text[:body_start], text[body_end:]
+        raise SystemExit(f"END marker not found in {name}")
+    body_start = text.index("\n", text.index(BEGIN)) + 1
+    body_end = text.index(END)
+    return text[:body_start], text[body_start:body_end], text[body_end:]
 
 
 def report_stats(pairs):
@@ -107,17 +135,16 @@ def report_stats(pairs):
 
 def sync_table(path, pairs, check_only=False):
     text = path.read_text(encoding="utf-8")
-    head, tail = split_markers(text)
-    body_lines = text[len(head):len(text) - len(tail)].strip("\r\n")
-    expected = render(pairs)
-    if body_lines.replace("\r\n", "\n").strip() == expected.strip():
-        print(f"Compact alias data in {path.name} is in sync with renames.csv.")
+    head, body, tail = split_markers(text, path.name)
+    expected = render(pairs) + "\n"
+    if body.replace("\r\n", "\n") == expected:
+        print(f"ATTACHMENT_ALIASES in {path.name} is in sync with renames.csv.")
         return 0
     if check_only:
-        print(f"DRIFT: compact alias data in {path.name} does not match renames.csv. Run without --check to regenerate.")
+        print(f"DRIFT: ATTACHMENT_ALIASES in {path.name} does not match renames.csv. Run without --check to regenerate.")
         return 1
-    path.write_text(head + expected + "\n" + tail, encoding="utf-8", newline="\n")
-    print(f"rewrote compact ATTACHMENT_ALIASES in {path.name} ({len(pairs)} entries).")
+    path.write_text(head + expected + tail, encoding="utf-8", newline="\n")
+    print(f"rewrote ATTACHMENT_ALIASES in {path.name} ({len(pairs)} entries).")
     return 0
 
 

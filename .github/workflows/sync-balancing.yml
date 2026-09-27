@@ -1,0 +1,61 @@
+# Pulls the latest balancing.csv and renames.csv from recoil-group/deadline-balancing,
+# regenerates modules/attachment_names.luau and the embedded alias tables, and
+# commits the result to main. print_attachment_stats.luau downloads the names module
+# from main at run time, so new attachments get their in-game names without anyone
+# re-pasting the script.
+#
+# Nothing is committed unless the regenerated files pass the Fiu load check and the
+# test suite, so a bad upstream change can never reach players.
+name: Sync deadline-balancing
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-balancing
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install luau-compile
+        run: |
+          curl -sSfL -o "$RUNNER_TEMP/luau.zip" https://github.com/luau-lang/luau/releases/latest/download/luau-ubuntu.zip
+          unzip -q "$RUNNER_TEMP/luau.zip" -d "$RUNNER_TEMP/luau"
+          chmod +x "$RUNNER_TEMP/luau/luau-compile"
+          echo "LUAU_COMPILE=$RUNNER_TEMP/luau/luau-compile" >> "$GITHUB_ENV"
+
+      - name: Fetch upstream and regenerate
+        run: |
+          python tools/build_attachment_aliases.py --fetch
+          python tools/build_attachment_names.py --fetch
+
+      - name: Fiu load check
+        run: python tools/check_fiu_compat.py
+
+      - name: Tests
+        run: python tests/test_suite.py
+
+      - name: Commit if anything changed
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add renames.csv balancing.csv modules/attachment_names.luau modules/attachment_data.luau \
+            print_attachment_stats.luau print_attachment_stats_delimited.luau
+          git commit -m "Sync attachment names and renames from deadline-balancing"
+          git push
