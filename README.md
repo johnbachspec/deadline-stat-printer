@@ -8,7 +8,7 @@ Prints detailed account and per-weapon statistics for Deadline (Roblox) players 
 2. Run:
 
    ```lua
-   require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")
+   require("https://raw.githubusercontent.com/refact0r/deadline-stat-printer/main/print_player_stats.luau")
    ```
 
    Or paste the contents of `print_player_stats.luau` into the console. Edit the config block at the top first if you want a filter:

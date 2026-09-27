@@ -9,6 +9,7 @@
 
 local AttachmentData = {}
 
+-- BEGIN ATTACHMENT_ALIASES (generated from deadline-balancing renames.csv - do not edit by hand; use build_attachment_aliases.py)
 AttachmentData.ALIASES = {
     ["45acp_kriss_magex2_pf940"] = "kalis_kosch_45acp_17r_magex2",
     ["5.56x45_winchester_m855_62gr_fmj"] = "5.56x45_appalachian_m855_62gr_fmj",
@@ -264,6 +265,7 @@ AttachmentData.ALIASES = {
     ["whitner_defense_true_zero_acro_mount"] = "whitner_defense_true_zero_ecro_mount",
     ["zvetech_pf940_slide_cover"] = "zvetech_kosch_slide_cover",
 }
+-- END ATTACHMENT_ALIASES
 
 -- Follows the alias chain to the current canonical id (cycle-safe).
 function AttachmentData.resolve(att_id)
@@ -285,6 +287,51 @@ end
 -- Returns the full table of attachment aliases.
 function AttachmentData.all_aliases()
     return AttachmentData.ALIASES
+end
+
+local sync_status = "embedded snapshot (253 aliases)"
+
+function AttachmentData.get_sync_status()
+    return sync_status
+end
+
+-- Fetches latest renames from recoil-group/deadline-balancing upstream via HttpService if available
+function AttachmentData.sync_latest_renames()
+    local ok, http = pcall(function() return game:GetService("HttpService") end)
+    if not ok or not http then
+        sync_status = "offline (HttpService unavailable)"
+        return false, sync_status
+    end
+
+    local urls = {
+        "https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/renames.csv",
+        "https://raw.githubusercontent.com/recoil-studio/deadline-balancing/main/renames.csv",
+    }
+    local body = nil
+    for _, url in ipairs(urls) do
+        local fetch_ok, res = pcall(function() return http:GetAsync(url, true) end)
+        if fetch_ok and type(res) == "string" and #res > 0 then
+            body = res
+            break
+        end
+    end
+
+    if not body then
+        sync_status = "offline (fetch failed)"
+        return false, sync_status
+    end
+
+    local count = 0
+    for line in body:gmatch("[^\r\n]+") do
+        local old_id, new_id = line:match("^%s*([^,]+)%s*,%s*([^,%s]+)%s*$")
+        if old_id and new_id and old_id ~= "old_name" and new_id ~= "new_name" then
+            AttachmentData.ALIASES[old_id] = new_id
+            count = count + 1
+        end
+    end
+
+    sync_status = string.format("live synced (%d aliases from recoil-group/deadline-balancing)", count)
+    return true, sync_status
 end
 
 return AttachmentData
