@@ -16,12 +16,17 @@
 -- BEGIN ATTACHMENT_ALIASES (generated from deadline-balancing renames.csv - do not edit by hand; use build_attachment_aliases.py)
 local ATTACHMENT_ALIASES = {
     ["45acp_kriss_magex2_pf940"] = "kalis_kosch_45acp_17r_magex2",
+    ["5.56x45_winchester_m855_62gr_fmj"] = "5.56x45_appalachian_m855_62gr_fmj",
     ["5.8x42_sanxian_dfv18_76gr_hp"] = "5.8x42_sanxian_dvf18_76gr_hp",
     ["7.62x54r_norilsk_7t2_149gr_green_tracer"] = "7.62x54r_norilsk_7t2m_149gr_green_tracer",
     ["7.62x54r_zim_rifle_150gr_spbt"] = "7.62x54r_pga_rifle_150gr_spbt",
+    ["9x18_norilsk_57t181_56gr_red_tracer"] = "9x18_novosibirsk_57_t_181_56gr_red_tracer",
+    ["9x19_ammocor_usa_147gr_subsonic"] = "9x19_zfm_luger_154gr_fmjfp_subsonic",
     ["9x19_kriss_magex2_glock"] = "kalis_kosch_9x19_23r_magex2",
     ["9x19_pf940_std_17r_vector"] = "kosch_9x19_17r_magazine",
     ["9x19_sgmt_drum50r_vector"] = "fst_kosch_9x19_50r_drum_magazine",
+    ["9x19_traviata_mle_94gr_rht_frangible"] = "9x19_appalachian_mk254_mod0_90gr_frangible",
+    ["9x19_winchester_m822_124gr_fmj"] = "9x19_appalachian_m882_124gr_fmj",
     ["aeroknox_ae01_muzzle_brake"] = "equinox_ae01_muzzle_brake",
     ["aeroknox_ax15_10.5inch_handguard"] = "equinox_ex15_10.5inch_handguard",
     ["aeroknox_ax15_endplate"] = "equinox_ex15_endplate",
@@ -68,6 +73,8 @@ local ATTACHMENT_ALIASES = {
     ["corvus_defensio_aug_enhanced_release_button"] = "aquila_defensio_aug_enhanced_release_button",
     ["corvus_defensio_aug_forward_accessory_rail"] = "aquila_defensio_aug_forward_accessory_rail",
     ["corvus_defension_m1_aug_receiver_rail"] = "aquila_defension_m1_aug_receiver_rail",
+    ["dd_enhanced_mvg"] = "ad_enhanced_mvg",
+    ["dd_mk18_fsp_ris_2_9.55_handguard"] = "ad_mk18_fsp_raf_2_9.55_handguard",
     ["fn_fal_7.62x51_belgian_flash_hider"] = "af_far_7.62x51_belgian_flash_hider",
     ["fn_fal_austrian_7.62x51_stg58_flash_hider"] = "af_far_austrian_7.62x51_stg58_flash_hider",
     ["fn_fal_long_carry_handle"] = "af_far_long_carry_handle",
@@ -75,18 +82,33 @@ local ATTACHMENT_ALIASES = {
     ["fnb_precision_fal_crosshair_front_sight"] = "fnb_precision_far_crosshair_front_sight",
     ["fnb_precision_fal_duplex_front_sight"] = "fnb_precision_far_duplex_front_sight",
     ["glock17_auto_sear"] = "kosch_metal_auto_sear",
+    ["glock17_gen5_mag_release"] = "kosch_default_mag_release",
+    ["glock17_gen5_trigger_safety"] = "kosch_default_trigger_safety",
+    ["glock17_slide_backplate"] = "kosch_default_slide_backplate",
+    ["glock17_std_mag_bottom_plate"] = "kosch_default_small_mag_plate",
+    ["glock20_std_mag_bottom_plate"] = "kosch_default_large_mag_plate",
     ["holosun_he510c-gr_sight"] = "holostar_hx510c_gr_reflex",
     ["holosun_hs510c_sight"] = "holostar_hx510c_reflex",
+    ["holotec_ogl_lens_caps"] = "holotec_owl_lens_caps",
     ["kosch_default_10mm_mag_plate"] = "kosch_default_large_mag_plate",
     ["kosch_default_9x19_mag_plate"] = "kosch_default_small_mag_plate",
     ["kriss_vector_gen2_folding_stock"] = "kalis_scalar_gen1_fsbl00_hinged_folding_stock",
     ["kriss_vector_non_folding_stock_adapter"] = "kalis_scalar_gen1_sabl00_hinged_buffer_tube_adapter",
     ["lowenhurz_aug_hbar_620mm_heavy_barrel"] = "lowenherz_aug_hbar_620mm_heavy_barrel",
     ["lowenhurz_aug_hbar_folding_bipod"] = "lowenherz_aug_hbar_folding_bipod",
+    ["magtap_moe_a_frame_fixed_ak_stock"] = "magtap_moa_a_frame_fixed_ak_stock",
+    ["magtap_moe_a_frame_stock_buttpad"] = "magtap_moa_a_frame_stock_buttpad",
+    ["magtap_moe_ar15_pistol_grip"] = "magtap_moa_ar15_pistol_grip",
     ["magtap_moe_butt_pad"] = "magtap_moa_butt_pad",
     ["magtap_moe_carbine_stock"] = "magtap_moa_carbine_stock",
+    ["magtap_moe_k2_ak_pistol_grip"] = "magtap_moa_k2_ak_pistol_grip",
+    ["magtap_moe_k2_ar15_pistol_grip"] = "magtap_moa_k2_ar15_pistol_grip",
+    ["magtap_moe_k2_scar_pistol_grip"] = "magtap_moa_k2_scar_pistol_grip",
+    ["magtap_moe_scar_pistol_grip"] = "magtap_moa_scar_pistol_grip",
     ["magtap_moe_sl_k_carbine_stock"] = "magtap_moa_sl_k_carbine_stock",
     ["magtap_moe_sl_k_carbine_stock_buttpad"] = "magtap_moa_sl_k_carbine_stock_buttpad",
+    ["mcs_tac21_gen2_15inch_r700_mlok_handguard"] = "mcs_rev21_gen2_15inch_r700_mlok_handguard",
+    ["mcs_tac21_gen2_r700_lower_receiver"] = "mcs_rev21_gen2_r700_lower_receiver",
     ["nm_fal_polymer_mag_20r"] = "nm_far_polymer_mag_20r",
     ["nowa_gen3_ar15_upper_receiver"] = "novacek_gen3_ar15_upper_receiver",
     ["nowa_love_ar15_charging_handle"] = "novacek_love_ar15_charging_handle",
@@ -94,9 +116,14 @@ local ATTACHMENT_ALIASES = {
     ["nowa_n4_gen3_ar15_lower_receiver"] = "novacek_n4_gen3_ar15_lower_receiver",
     ["nowa_n4_gen3_ar15_lower_receiver_ar9"] = "novacek_n4_gen3_ar15_lower_receiver_ar9",
     ["nowa_n4_nsr_gen3_handguard_9.15inch"] = "novacek_n4_nsr_gen3_handguard_9.15inch",
+    ["pf940_9x19_stick_31r_magazine"] = "kosch_9x19_31r_stick_magazine",
     ["pf940_std_13r_vector_remodel"] = "kosch_45acp_13r_magazine",
     ["pmm_bcm_gunfighter_mod3_scar_pistol_grip"] = "pww_ecm_gunslinger_mod3_scar_pistol_grip",
+    ["primary_arms_slx_1.53inch_straight_spacer_alt"] = "paramount_arms_slx_1.53inch_straight_spacer_alt",
+    ["primary_arms_slx_1x_microprism_acss_g2_scope_alt"] = "paramount_arms_slx_1x_microprism_acss_g2_scope_alt",
     ["protac_ergonomic_ag_fal_pistol_grip"] = "protac_ergonomic_ag_far_pistol_grip",
+    ["radian_weapons_glock17_afterburner_micro_compensator"] = "ardian_weapons_glock17_afterburner_micro_compensator",
+    ["radian_weapons_glock17_ramjet_barrel"] = "ardian_weapons_glock17_ramjet_barrel",
     ["romeo4t_folded_lens_caps"] = "scipio4t_folded_lens_caps",
     ["romeo4t_lens_caps"] = "scipio4t_lens_caps",
     ["rsa_sa58_210mm_premium_pistol_barrel"] = "rsa_sg58_210mm_premium_pistol_barrel",
@@ -150,6 +177,14 @@ local ATTACHMENT_ALIASES = {
     ["sa58_type1_upper_receiver"] = "sg58_type1_upper_receiver",
     ["sa58_type1_upper_receiver_with_carry_handle"] = "sg58_type1_upper_receiver_with_carry_handle",
     ["sa58_wood_stock_buttpad"] = "sg58_wood_stock_buttpad",
+    ["schmidt_smr_mk16_mlok_urg_i_10.5inch"] = "vallais_mfh_mk16_mlok_urgi_10.5inch",
+    ["schmidt_smr_mk16_mlok_urg_i_13.5inch"] = "vallais_mfh_mk16_mlok_urgi_13.5inch",
+    ["schmidt_smr_mk16_mlok_urg_i_15inch"] = "vallais_mfh_mk16_mlok_urgi_15inch",
+    ["schmidt_smr_mk16_mlok_urg_i_9.3inch"] = "vallais_mfh_mk16_mlok_urgi_9.3inch",
+    ["schmidt_super_scar_trigger"] = "vallais_super_fang_trigger",
+    ["schneider_defense_qbz95_long_bow_mlok_carry_handle"] = "qingyuan_defense_qbz95_long_bow_mlok_carry_handle",
+    ["schneider_defense_qbz95_long_bow_picatinny_carry_handle"] = "qingyuan_defense_qbz95_long_bow_picatinny_carry_handle",
+    ["sgm_tactical_pf940_9x19_50r_drum_magazine"] = "fst_kosch_9x19_50r_drum_magazine",
     ["sig_sauer_romeo4b_sight"] = "sic_sturmer_scipio4b_sight",
     ["sig_sauer_romeo4t_sight"] = "sic_sturmer_scipio4t_sight",
     ["sig_sauer_romeo5_1x20_sight"] = "sic_sturmer_scipio5_sight",
@@ -160,6 +195,7 @@ local ATTACHMENT_ALIASES = {
     ["steyr_aug_a3_nato_stock"] = "lowenherz_aug_a3_nato_stock",
     ["steyr_aug_a3_para_9x19_stock"] = "lowenherz_aug_a3_para_9x19_stock",
     ["steyr_aug_a3_sa_receiver"] = "lowenherz_aug_a3_sa_receiver",
+    ["steyr_aug_hbar_620mm_heavy_barrel"] = "lowenherz_aug_hbar_620mm_heavy_barrel",
     ["steyr_breezer_ums_5.56x45_aug_suppressor"] = "lowenherz_breezer_ums_5.56x45_aug_suppressor",
     ["swampfox_picatinny_rmr_footprint_mount"] = "swampfox_picatinny_drd_footprint_mount",
     ["troy_battlesight_picatinny_base"] = "talvern_battlesight_picatinny_base",
@@ -176,6 +212,7 @@ local ATTACHMENT_ALIASES = {
     ["troy_rear_battlesight"] = "talvern_rear_battlesight",
     ["troy_rear_battlesight_folded"] = "talvern_rear_battlesight_folded",
     ["tyler_freelance_hart_smg_10r_mag_extension"] = "dante_freelance_hart_smg_10r_mag_extension",
+    ["um_tactical_um_3_mount"] = "whitner_defense_um3_mount",
     ["unity_fast_lpvo_30mm_mount"] = "harmony_fast_lpvo_30mm_mount",
     ["unity_fast_micro_mount"] = "harmony_fast_micro_mount",
     ["unity_fast_offset_optic_base"] = "harmony_fast_offset_optic_base",
@@ -186,6 +223,7 @@ local ATTACHMENT_ALIASES = {
     ["vallais_smr_mk16_mlok_urg_i_15inch"] = "vallais_mfh_mk16_mlok_urgi_15inch",
     ["vallais_smr_mk16_mlok_urg_i_9.3inch"] = "vallais_mfh_mk16_mlok_urgi_9.3inch",
     ["vallais_smr_mk4_federal_mlok_10inch"] = "vallais_mfh_mk4_federal_mlok_10inch",
+    ["vector_17r_plate"] = "kosch_default_small_mag_plate",
     ["vector_45acp_140mm_barrel"] = "kalis_scalar_140mm_45acp_threaded_barrel",
     ["vector_45acp_170mm_barrel"] = "kalis_scalar_165mm_45acp_threaded_barrel",
     ["vector_45acp_bolt"] = "kalis_scalar_std_bcg",
@@ -229,318 +267,67 @@ local ATTACHMENT_ALIASES = {
     ["virticon_srs02"] = "virticon_sps02",
     ["whitehouse_compm_30mm_mount"] = "whitehouse_duty_30mm_mount",
     ["whitner_defense_true_zero_acro_mount"] = "whitner_defense_true_zero_ecro_mount",
+    ["zvetech_pf940_slide_cover"] = "zvetech_kosch_slide_cover",
 }
 -- END ATTACHMENT_ALIASES
 
--- Follows the alias chain to the current id (cycle-safe).
-local function resolve_attachment_id(att_id)
-    local seen = {}
-    local current = att_id
-    while ATTACHMENT_ALIASES[current] and not seen[current] do
-        seen[current] = true
-        current = ATTACHMENT_ALIASES[current]
+local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
+
+-- Resolves module locally if present in the Roblox hierarchy, falling back to remote URL.
+local function load_module(module_name)
+    local current_script = script
+    if current_script and current_script.Parent then
+        local modules_folder = current_script.Parent:FindFirstChild("modules")
+        local local_mod = modules_folder and modules_folder:FindFirstChild(module_name)
+        if local_mod then
+            return require(local_mod)
+        end
     end
-    return current
+    return require(REPO_BASE .. module_name .. ".luau")
 end
 
-local WEAPON_ALIASES = {
-    HK416A5 = "KF416",
-    AK74N   = "AK_545",
-    AKMN    = "AK_762",
-    PP19    = "AK_9",
-    UMP45   = "UMP",
-    Glock17 = "KOSCH",
-    Glock20 = "KOSCH",
-}
-
-local WEAPON_DISPLAY_NAMES = {
-    SCARH             = "SCAR-H",
-    AK_762            = "AKM",
-    AUG_A3            = "AUG A3",
-    Remington700      = "R700",
-    SCAR47            = "SCAR-47",
-    AK_545            = "AK-74",
-    AK308             = "AK-308",
-    SCARL             = "SCAR-L",
-    QBZ95             = "QBZ-95",
-    EDC_X9            = "EDC X9",
-    AK12              = "AK-12",
-    Remington870      = "R870",
-    AK_545_Carbine    = "AKS-74U",
-    MosinNagant       = "Mosin-Nagant",
-    AK_9              = "AK-9",
-    KOSCH             = "Kosch",
-    M11_EOD           = "M11 EOD",
-    MP133             = "MP-133",
-    IZHEVSK_AKM_TYPE1 = "AKM Type1",
-    IZHEVSK_AKM_TYPE2 = "AKM Type2",
-    F1                = "F-1",
-    M8HC              = "M8",
-    RGD2              = "RGD-2",
-    RPG7              = "RPG-7",
-    Zarya3            = "Zarya-3",
-    PlacingTool       = "Placing Tool",
-}
-
-local ATTACHMENT_ACRONYMS = {
-    acog    = "ACOG",
-    rmr     = "RMR",
-    sro     = "SRO",
-    eod     = "EOD",
-    cqc     = "CQC",
-    oem     = "OEM",
-    pepr    = "P.E.P.R.",
-    spr     = "SPR",
-    ddg     = "DDG",
-    hdd     = "HDD",
-    ap      = "AP",
-    fmj     = "FMJ",
-    otm     = "OTM",
-    hp      = "HP",
-    jsp     = "JSP",
-    ps      = "PS",
-    sat     = "SAT",
-    mvg     = "MVG",
-    afg     = "AFG",
-    lss     = "LSS",
-    nv      = "NV",
-    ir      = "IR",
-    rsb     = "RSB",
-    vg      = "VG",
-    pt      = "PT",
-    fcu     = "FCU",
-    fsp     = "FSP",
-    raf     = "RAF",
-    tac     = "TAC",
-    sdmr    = "SDMR",
-    bdc     = "BDC",
-    srx     = "SRX",
-    urgi    = "URG-I",
-    akm     = "AKM",
-    ak74    = "AK-74",
-    ak74m   = "AK-74M",
-    ak12    = "AK-12",
-    ak308   = "AK-308",
-    ak      = "AK",
-    ar15    = "AR-15",
-    ar9     = "AR-9",
-    m4      = "M4",
-    m4a1    = "M4A1",
-    m16     = "M16",
-    fal     = "FAL",
-    sa58    = "SA58",
-    g3      = "G3",
-    scar    = "SCAR",
-    scarh   = "SCAR-H",
-    scarl   = "SCAR-L",
-    scar20  = "SCAR-20",
-    scar47  = "SCAR-47",
-    mp5     = "MP5",
-    mp5k    = "MP5K",
-    aug     = "AUG",
-    psg1    = "PSG-1",
-    hk      = "HK",
-    fn      = "FN",
-    atg     = "ATG",
-    pbs     = "PBS",
-    rpk     = "RPK",
-    rpk16   = "RPK-16",
-    bcg     = "BCG",
-    bcm     = "BCM",
-    qd      = "QD",
-    kag     = "KAG",
-    mlok    = "M-LOK",
-    pmag    = "PMAG",
-    pmm     = "PMM",
-    xl      = "XL",
-    mre     = "MRE",
-    cmmg    = "CMMG",
-    aics    = "AICS",
-    pdw     = "PDW",
-    prs     = "PRS",
-    ubr     = "UBR",
-    moe     = "MOE",
-    moa     = "MOA",
-    aft     = "AFT",
-    gdr     = "GDR",
-    zvn     = "ZVN",
-    std     = "Std",
-    socom   = "SOCOM",
-    gen1    = "Gen 1",
-    gen2    = "Gen 2",
-    gen3    = "Gen 3",
-    gen4    = "Gen 4",
-    gen5    = "Gen 5",
-    acr     = "ACR",
-    sas     = "SAS",
-    rsa     = "RSA",
-    sig     = "SIG",
-    sauer   = "Sauer",
-    okp     = "OKP",
-    pso     = "PSO",
-    pkas    = "PK-AS",
-    edc     = "EDC",
-    x9      = "X9",
-    qbz95   = "QBZ-95",
-    m855    = "M855",
-    m855a1  = "M855A1",
-    m118lr  = "M118LR",
-    m993    = "M993",
-    m995    = "M995",
-    xm193   = "XM193",
-    l7awm   = "L7AWM",
-}
-
-local item_display_cache = {}
-
-local function get_game_item_display_name(id)
-    if item_display_cache[id] then
-        return item_display_cache[id]
-    end
-
-    local ok, name = pcall(function()
-        if not game then return nil end
-        local rs = game:GetService("ReplicatedStorage")
-        if not rs then return nil end
-        local data = rs:FindFirstChild("data")
-        local item_folder = data and data:FindFirstChild("item")
-        if not item_folder then return nil end
-        local obj = item_folder:FindFirstChild(id)
-        if not obj then return nil end
-
-        -- Check attributes
-        local attr = obj:GetAttribute("display_name")
-            or obj:GetAttribute("DisplayName")
-            or obj:GetAttribute("title")
-        if attr and type(attr) == "string" and #attr > 0 then
-            return attr
-        end
-
-        -- Check StringValue children
-        local val = obj:FindFirstChild("display_name")
-            or obj:FindFirstChild("DisplayName")
-            or obj:FindFirstChild("title")
-        if val and val:IsA("StringValue") and #val.Value > 0 then
-            return val.Value
-        end
-
-        -- Check ModuleScript return
-        if obj:IsA("ModuleScript") then
-            local mod = require(obj)
-            if type(mod) == "table" then
-                local dname = mod.display_name or mod.DisplayName or mod.title or mod.name
-                if dname and type(dname) == "string" and #dname > 0 then
-                    return dname
-                end
+-- Resolve modular dependencies (with fallback for standalone console execution)
+local ok_data, AttachmentData = pcall(function() return load_module("attachment_data") end)
+if not ok_data or not AttachmentData then
+    AttachmentData = {
+        ALIASES = ATTACHMENT_ALIASES,
+        resolve = function(att_id)
+            if not att_id then return nil end
+            local seen = {}
+            local current = att_id
+            while ATTACHMENT_ALIASES[current] and not seen[current] do
+                seen[current] = true
+                current = ATTACHMENT_ALIASES[current]
             end
-        end
-
-        return nil
-    end)
-
-    if ok and name then
-        item_display_cache[id] = name
-        return name
-    end
-    return nil
+            return current
+        end,
+        sync_latest_renames = function() return false, "embedded snapshot" end,
+        get_sync_status = function() return "embedded snapshot" end,
+    }
 end
 
-local function polish_attachment_word(w)
-    local low = string.lower(w)
-    if ATTACHMENT_ACRONYMS[low] then
-        return ATTACHMENT_ACRONYMS[low]
-    end
-    -- Caliber pattern: 7.62x51, 5.56x45, 9x19, 7.62x54r, 5.8x42, etc.
-    if string.match(low, "^%d+%.?%d*x%d+%a*$") then
-        return low
-    end
-    -- Bullet grain: 175gr, 62gr, etc.
-    if string.match(low, "^%d+gr$") then
-        return low
-    end
-    -- Magazine capacity: 30r, 20r, 50r -> 30R, 20R, 50R
-    if string.match(low, "^%d+r$") then
-        return string.upper(low)
-    end
-    -- Length in millimeters: 406mm, 457mm, etc.
-    if string.match(low, "^%d+mm$") then
-        return low
-    end
-    -- Length in inches: 10.5inch, 11.5i, etc.
-    local inch_num = string.match(low, "^(%d+%.?%d*)inch$")
-    if inch_num then
-        return inch_num .. " Inch"
-    end
-    local i_num = string.match(low, "^(%d+%.?%d*)i$")
-    if i_num then
-        return i_num .. " Inch"
-    end
-    -- Alphanumeric model code: a3 -> A3, m1 -> M1, v5 -> V5
-    if string.match(low, "^%a%d+%a?$") then
-        return string.upper(low)
-    end
+local ok_wdata, WeaponData = pcall(function() return load_module("weapon_data") end)
+local ok_fmt, AttachmentFormatter = pcall(function() return load_module("attachment_formatter") end)
+local ok_agg, AttachmentAggregator = pcall(function() return load_module("attachment_aggregator") end)
+local ok_rnd, AttachmentRenderer = pcall(function() return load_module("attachment_renderer") end)
 
-    -- Title-case hyphenated parts: e.g. "semi-auto" -> "Semi-Auto"
-    local parts = {}
-    for part in string.gmatch(low, "[^%-]+") do
-        local cap = string.upper(string.sub(part, 1, 1)) .. string.sub(part, 2)
-        table.insert(parts, cap)
-    end
-    return table.concat(parts, "-")
-end
-
-local function polish_attachment_name(tech_id)
-    local words = {}
-    for w in string.gmatch(tech_id, "[^_]+") do
-        table.insert(words, polish_attachment_word(w))
-    end
-    return table.concat(words, " ")
-end
-
-local function resolve_attachment_display_name(canonical_id)
-    -- 1. Try querying in-game ReplicatedStorage item definition
-    local game_name = get_game_item_display_name(canonical_id)
-    if game_name and #game_name > 0 then
-        return game_name
-    end
-
-    -- 2. Fall back to intelligent heuristic polisher
-    return polish_attachment_name(canonical_id)
-end
-
-local function resolve_weapon_display_name(raw_gun_id)
-    if not raw_gun_id or raw_gun_id == "N/A" then
-        return "N/A"
-    end
-    -- Try in-game item lookup first
-    local game_name = get_game_item_display_name(raw_gun_id)
-    if game_name and #game_name > 0 then
-        return game_name
-    end
-
-    local canonical = WEAPON_ALIASES[raw_gun_id] or raw_gun_id
-    if WEAPON_DISPLAY_NAMES[canonical] then
-        return WEAPON_DISPLAY_NAMES[canonical]
-    end
-    if WEAPON_DISPLAY_NAMES[raw_gun_id] then
-        return WEAPON_DISPLAY_NAMES[raw_gun_id]
-    end
-    return canonical
-end
+local formatter = (ok_fmt and AttachmentFormatter and AttachmentFormatter.new({ weapon_data = ok_wdata and WeaponData or nil }))
+local renderer = (ok_rnd and AttachmentRenderer and AttachmentRenderer.new({ formatter = formatter }))
 
 local function print_attachment_stats(target_player)
+    -- 1. Synchronize latest upstream renames via AttachmentData (SRP)
+    if AttachmentData.sync_latest_renames then
+        AttachmentData.sync_latest_renames()
+    end
+
+    -- 2. Locate target human player
     local my_player = target_player
-    if not my_player then
+    if not my_player and players and type(players.get_all) == "function" then
         for _, plr in ipairs(players.get_all()) do
             local is_bot = false
             if type(plr.is_bot) == "function" then
                 local ok, res = pcall(function() return plr.is_bot() end)
-                if ok then
-                    is_bot = res
-                else
-                    local ok2, res2 = pcall(function() return plr:is_bot() end)
-                    if ok2 then is_bot = res2 end
-                end
+                if ok then is_bot = res end
             end
             if not is_bot then
                 my_player = plr
@@ -551,127 +338,58 @@ local function print_attachment_stats(target_player)
 
     if my_player and type(my_player.get_profile_stats) == "function" then
         local stats = my_player.get_profile_stats() or {}
-        local weapons_table = stats.weapon or {}
 
-        -- Aggregator: [canonical_id] = { kills = X, weapons = { [gun_id] = kills }, legacy = { [old_id] = true } }
-        local attachment_totals = {}
-        local legacy_merged = 0 -- distinct legacy ids folded into a canonical id
-
-        for weapon_id, weapon_data in pairs(weapons_table) do
-            local att_stats = weapon_data.attachment_stats or {}
-            
-            for att_id, data in pairs(att_stats) do
-                local kills = 0
-                if type(data) == "table" then
-                    kills = tonumber(data.kills or data.kill_count or 0) or 0
-                elseif type(data) == "number" then
-                    kills = data
-                end
-
-                if kills > 0 then
-                    local canonical_id = resolve_attachment_id(att_id)
-                    local bucket = attachment_totals[canonical_id]
-                    if not bucket then
-                        bucket = { kills = 0, weapons = {}, legacy = {} }
-                        attachment_totals[canonical_id] = bucket
-                    end
-                    if canonical_id ~= att_id and not bucket.legacy[att_id] then
-                        bucket.legacy[att_id] = true
-                        legacy_merged = legacy_merged + 1
-                    end
-                    bucket.kills = bucket.kills + kills
-                    local canonical_gun = WEAPON_ALIASES[weapon_id] or weapon_id
-                    bucket.weapons[canonical_gun] = (bucket.weapons[canonical_gun] or 0) + kills
-                end
-            end
-        end
-
-        -- Convert to sorted array
-        local sorted = {}
-        for att_id, info in pairs(attachment_totals) do
-            local top_gun = "N/A"
-            local top_gun_kills = 0
-            for g_id, g_kills in pairs(info.weapons) do
-                -- Ties break toward the lexicographically smallest gun so output is deterministic.
-                if g_kills > top_gun_kills or (g_kills == top_gun_kills and g_id < top_gun) then
-                    top_gun = g_id
-                    top_gun_kills = g_kills
-                end
-            end
-
-            table.insert(sorted, {
-                id = att_id,
-                display_name = resolve_attachment_display_name(att_id),
-                kills = info.kills,
-                top_gun = top_gun,
-                top_gun_display = resolve_weapon_display_name(top_gun),
-                top_gun_kills = top_gun_kills
-            })
-        end
-
-        table.sort(sorted, function(a, b)
-            if a.kills ~= b.kills then
-                return a.kills > b.kills
-            end
-            return a.display_name < b.display_name
-        end)
-
-        -- All attachments found are displayed (no 500 cap)
-        local limit = #sorted
-        local rank_width = math.max(#tostring(math.max(limit, 1)), 3)
-        local name_width = 32
-        local kills_width = 6
-        local gun_width = #("Top Gun")
-        for i = 1, limit do
-            local item = sorted[i]
-            if #item.display_name > name_width then
-                name_width = #item.display_name
-            end
-            local digits = #tostring(item.kills)
-            if digits > kills_width then
-                kills_width = digits
-            end
-            if #item.top_gun_display > gun_width then
-                gun_width = #item.top_gun_display
-            end
-        end
-
-        local function pad_right(text, width)
-            text = tostring(text)
-            if #text < width then
-                return text .. string.rep(" ", width - #text)
-            end
-            return text
-        end
-
-        print(string.format("\n================ ALL %d ATTACHMENTS BY KILLS ================", limit))
-        if legacy_merged > 0 then
-            print(string.format("-- ALIASES MERGED: %d legacy attachment ids folded into current ids (renames.csv)", legacy_merged))
-        end
-
-        if limit == 0 then
-            print("No attachment kills found across any weapons.")
+        -- 3. Delegate aggregation to AttachmentAggregator (SRP: stats extraction & kill folding)
+        local aggregated = nil
+        if ok_agg and AttachmentAggregator then
+            aggregated = AttachmentAggregator.aggregate(stats, AttachmentData, ok_wdata and WeaponData or nil)
         else
-            print("Total Unique Attachments Found: " .. #sorted)
-            print("Displaying all " .. limit .. " attachments...\n")
-
-            -- Batch printing to avoid console buffer overflow
-            for i = 1, limit do
-                local item = sorted[i]
-                print("#" .. pad_right(tostring(i), rank_width)
-                    .. " " .. pad_right(item.display_name, name_width)
-                    .. " | Kills: " .. pad_right(tostring(item.kills), kills_width)
-                    .. " | Top Gun: " .. pad_right(item.top_gun_display, gun_width)
-                    .. " (" .. tostring(item.top_gun_kills) .. ")")
-
-                -- Pause briefly every 50 entries to keep the log rendering cleanly
-                if i % 50 == 0 and task and task.wait then
-                    task.wait(0.05)
+            -- Embedded fallback aggregator if module not available
+            local raw_weapons = stats.weapon or {}
+            local totals = {}
+            local legacy_cnt = 0
+            for w_id, w_data in pairs(raw_weapons) do
+                local att_stats = (type(w_data) == "table" and w_data.attachment_stats) or {}
+                for att_id, data in pairs(att_stats) do
+                    local kills = (type(data) == "table" and tonumber(data.kills or data.kill_count or 0)) or (type(data) == "number" and data) or 0
+                    if kills > 0 then
+                        local canon = AttachmentData.resolve(att_id)
+                        if canon ~= att_id then legacy_cnt = legacy_cnt + 1 end
+                        local b = totals[canon] or { kills = 0, weapons = {} }
+                        totals[canon] = b
+                        b.kills = b.kills + kills
+                        b.weapons[w_id] = (b.weapons[w_id] or 0) + kills
+                    end
                 end
             end
+            local sorted = {}
+            for att_id, info in pairs(totals) do
+                local top_gun, top_kills = "N/A", 0
+                for g_id, g_k in pairs(info.weapons) do
+                    if g_k > top_kills or (g_k == top_kills and g_id < top_gun) then
+                        top_gun, top_kills = g_id, g_k
+                    end
+                end
+                table.insert(sorted, { id = att_id, kills = info.kills, top_gun = top_gun, top_gun_kills = top_kills })
+            end
+            table.sort(sorted, function(a, b) return a.kills > b.kills end)
+            aggregated = { items = sorted, legacy_merged = legacy_cnt, total_attachments = #sorted }
         end
-        print("==============================================================")
-        return sorted
+
+        local player_name = my_player.name or "Player"
+        local sync_status = (AttachmentData.get_sync_status and AttachmentData.get_sync_status()) or "embedded snapshot"
+
+        -- 4. Delegate presentation to AttachmentRenderer (SRP: layout and printing)
+        if renderer then
+            renderer:render_table(aggregated, player_name, { sync_status = sync_status })
+        else
+            print(string.format("\n================ ALL %d ATTACHMENTS BY KILLS ================", #aggregated.items))
+            for i, it in ipairs(aggregated.items) do
+                print(string.format("#%-3d %-32s | Kills: %-6d | Top Gun: %s (%d)", i, it.id, it.kills, it.top_gun, it.top_gun_kills))
+            end
+        end
+
+        return aggregated.items
     else
         print("Could not retrieve player profile stats.")
     end

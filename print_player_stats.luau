@@ -61,7 +61,16 @@ local function print_player_stats(player, options_or_filter, target_override, so
         if sort_override ~= nil then sort_by = tostring(sort_override) end
     end
 
-    local stats = player.get_profile_stats() or {}
+    local target_p = player
+    if type(target_p) == "string" and players and type(players.get) == "function" then
+        target_p = players.get(target_p)
+    end
+    if not target_p or type(target_p.get_profile_stats) ~= "function" then
+        print(string.format("Player '%s' not found or has no profile stats.", tostring(player)))
+        return nil
+    end
+
+    local stats = target_p.get_profile_stats() or {}
     local player_stats = stats.player or {}
 
     local combined = Aggregator.combine_weapon_stats(stats, WeaponData)
