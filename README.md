@@ -34,14 +34,12 @@ shared.print_player_stats(players.get("SomeName"), { filter = "SMG", sort_by = "
 
 The reports can also open as windows built with [Iris](https://sirmallard.github.io/Iris/), the UI library Deadline includes. Iris only runs in the **client** console, but profile stats only exist on the server, so this uses both consoles:
 
-1. In the **Luau client console** (the tab that says "This tab runs code for the client"), paste the whole of `iris_viewer.luau` and run it. A small "Stat printer" window opens. The client console has no `require`: a `require(...)` line there fails with `attempt to call a nil value`. You only paste it once per session. After that, `shared.iris_viewer.show()` in the client console reopens any windows you closed.
+1. In the **Luau client console**, paste the whole of `iris_viewer.luau` and run it (the client console has no `require`). A small "Stat printer" window opens.
 2. In the server console, run `print_player_stats.luau`, `print_attachment_stats.luau` or `cap_announcer.luau` as usual.
 
-Each report opens in its own window, with collapsible sections. Long tables get a filter box and Prev / Next pages. The **Refresh** button asks the server for a fresh copy. The "Stat printer" window lists every report received, and its **Show** button reopens a window you closed. `shared.iris_viewer.show()` reopens them all.
+Each report opens in its own window, with collapsible sections, filterable and paged tables, and a **Refresh** button. By default the scripts still print to the console as well; set `SHOW_IN` at the top of a script to `"iris"` for windows only or `"console"` for none. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
 
-The server sends each report to every human in the server, but only players running the viewer see it. By default the scripts still print to the console as well. Set `SHOW_IN = "iris"` at the top of `print_player_stats.luau` or `print_attachment_stats.luau` for windows only, or `"console"` for no windows. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
-
-`iris_viewer.luau` works with both table styles Iris has used (before and after Iris 2.4), and its ready message says which one it found. It has to stay under 255 lines because it is pasted in one piece (see [the Fiu limit](#the-fiu-255-line-limit)).
+**[IRIS_VIEWER.md](IRIS_VIEWER.md)** has the full guide: every control and setting, how the server and client talk, why the viewer is written the way it is under Fiu, troubleshooting, and how to change it.
 
 ### Attachment Stats
 
@@ -106,6 +104,7 @@ print_attachment_stats_delimited.luau <- attachment data as Lua-table lines, to 
 cap_announcer.luau                    <- announces who captured a point; live Captures window
 explore_console.luau                  <- read-only survey of what the console API returns
 iris_viewer.luau                      <- CLIENT console: shows the reports above in Iris windows
+IRIS_VIEWER.md                        <- guide and maintenance notes for iris_viewer.luau
 modules/                                 downloaded by the entry points at run time
   iris_report.luau           <- builds reports for iris_viewer and sends them (fire_client); Refresh
   weapon_data.luau           <- gun ids: legacy aliases, display names, types (shared by both reports)
@@ -162,6 +161,6 @@ The tests run the console scripts themselves, so they need the `luau` and `luau-
 
 ### The Fiu 255-line limit
 
-Deadline's console runs scripts in an old build of the Fiu VM with a line-info bug: it fails to load any function whose code spans more than 255 source lines, before a single line runs, with `Fiu:494: attempt to perform arithmetic (add) on nil and number`. Every function counts, including a file's top level, long `[[...]]` strings and big comment blocks inside it. That is why the generated tables are packed several entries per line. A script's top level runs from its first line to its last, and wrapping the code in a function does not change that, so a script pasted in one piece, like `iris_viewer.luau`, must be 255 lines or fewer in total. `python tools/check_fiu_compat.py` checks every file the game loads, and CI runs it on every push.
+Deadline's console runs scripts in an old build of the Fiu VM with a line-info bug: it fails to load any function whose code spans more than 255 source lines, before a single line runs, with `Fiu:494: attempt to perform arithmetic (add) on nil and number`. Every function counts, including a file's top level, long `[[...]]` strings and big comment blocks inside it. That is why the generated tables are packed several entries per line. A script's top level runs from its first line to its last, and wrapping the code in a function does not change that, so a script pasted in one piece, like `iris_viewer.luau`, must be 255 lines or fewer in total ([IRIS_VIEWER.md](IRIS_VIEWER.md#the-255-line-limit) has how it stays under). `python tools/check_fiu_compat.py` checks every file the game loads, and CI runs it on every push.
 
 Weapon ids are the exact (case-sensitive) model names under `ReplicatedStorage.data.item` in the game. To add or retype a weapon, edit the tables in `modules/weapon_data.luau`.

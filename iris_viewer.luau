@@ -1,11 +1,6 @@
--- iris_viewer.luau
--- Shows the stat printer's reports in Iris windows. Iris only exists in the CLIENT
--- console and profile stats only on the server, so the server scripts send reports here:
---   1. Paste this whole file into the client Luau console and run it (the client has no require).
---   2. Run print_player_stats, print_attachment_stats or cap_announcer in the server console.
--- Each report gets its own window; Refresh asks the server for a fresh copy. The viewer
--- stays running all session. It only sends the server Refresh requests.
--- Keep this file under 255 lines (no blank lines): Fiu cannot load a longer chunk.
+-- iris_viewer.luau: shows the stat printer's reports in Iris windows. Paste it whole into the
+-- CLIENT Luau console (there is no require there). How it works and how to change it: IRIS_VIEWER.md.
+-- Must stay 255 lines or fewer (Fiu load limit), so notes go in IRIS_VIEWER.md, not in comments here.
 local PAGE_ROWS = 25   -- table rows per page; longer tables get Prev / Next buttons
 local FILTER_ROWS = 12 -- tables with more rows than this get a filter box
 local WINDOW_SIZES = { stats = { 1180, 640 }, attachments = { 820, 640 }, caps = { 380, 320 } }
@@ -14,14 +9,12 @@ if not (iris and on_server_event and shared) then
     print("[viewer] iris, on_server_event or shared is missing: run this in the client Luau console")
     return
 end
--- Iris 2.4+ tables move to the next cell after drawing one; older ones before it.
-local NEW_TABLES = iris.NextHeaderColumn ~= nil
-local set_id = iris.SetNextWidgetID or function() end
+local NEW_TABLES = iris.NextHeaderColumn ~= nil -- Iris 2.4+ table API (see IRIS_VIEWER.md)
+local set_id = iris.SetNextWidgetID or function() end -- every widget needs an explicit id (see IRIS_VIEWER.md)
 local viewer = shared.iris_viewer
 if not viewer then
     viewer = { reports = {}, order = {}, parts = {} }
     shared.iris_viewer = viewer
-    -- Connected once per session; running this file again swaps receive and draw.
     on_server_event:Connect(function(message)
         if viewer.receive then pcall(viewer.receive, message) end
     end)
@@ -29,7 +22,6 @@ if not viewer then
         if viewer.draw then viewer.draw() end
     end)
 end
--- ===== Reading reports (format: modules/iris_report.luau) =====
 local UNESCAPE = { ["\\"] = "\\", t = "\t", n = "\n" }
 local RICH_ESCAPES = { ["<"] = "&lt;", [">"] = "&gt;", ["&"] = "&amp;" }
 local EMPTY = { "" }
@@ -40,8 +32,6 @@ local function fields(line)
     end
     return out
 end
--- Cells are kept as ready-made iris.Text arguments, so drawing allocates nothing.
--- Iris 2.4+ styles the header row itself; older tables get bold rich text.
 local function header_args(name)
     if NEW_TABLES then return { name } end
     return { "<b>" .. name:gsub("[<>&]", RICH_ESCAPES) .. "</b>", nil, nil, true }
@@ -60,7 +50,8 @@ local function parse(text)
             container = { title = f[1], open = f[2] == "1", blocks = {}, key = report.key .. ":" .. count }
             table.insert(report.sections, container)
         elseif kind == "text" then
-            table.insert(container.blocks, { text = { f[1] or "", true } })
+            count = count + 1
+            table.insert(container.blocks, { text = { f[1] or "", true }, key = report.key .. ":" .. count })
         elseif kind == "columns" then
             count = count + 1
             current = { columns = f, rows = {}, slots = {}, header = table.concat(f) ~= "", header_args = {},
@@ -75,8 +66,7 @@ local function parse(text)
     end
     return report
 end
--- One message per part: "dsp1|<id>|<part>|<parts>|<text>".
-viewer.receive = function(message)
+viewer.receive = function(message) -- one message per part: "dsp1|<id>|<part>|<parts>|<text>"
     viewer.messages = (viewer.messages or 0) + 1 -- shown in the hub while no report has arrived
     if type(message) == "table" then message = message[1] or message.args end
     local id, part, parts, text = tostring(message):match("^dsp1|([^|]*)|(%d+)|(%d+)|(.*)$")
@@ -96,7 +86,6 @@ viewer.receive = function(message)
     report.received = got_time and tostring(time_text) or "?"
     viewer.reports[report.id] = report
 end
--- ===== Drawing =====
 local depth = 0 -- open Iris containers, so an error can close them again
 local function open(widget) depth = depth + 1; return widget end
 local function close() depth = depth - 1; iris.End() end
@@ -134,12 +123,12 @@ local function draw_table(tbl, ui)
     local pages = math.max(1, math.ceil(#rows / PAGE_ROWS))
     local page = math.min(ui.pages[tbl.key] or 1, pages)
     if pages > 1 then
-        open(iris.SameLine())
+        set_id(tbl.key .. ":pager"); open(iris.SameLine())
         set_id(tbl.key .. ":prev")
         if iris.SmallButton({ "< Prev" }).clicked() and page > 1 then page = page - 1 end
         set_id(tbl.key .. ":next")
         if iris.SmallButton({ "Next >" }).clicked() and page < pages then page = page + 1 end
-        iris.Text({ string.format("rows %d-%d of %d", (page - 1) * PAGE_ROWS + 1, math.min(page * PAGE_ROWS, #rows), #rows) })
+        set_id(tbl.key .. ":rows"); iris.Text({ string.format("rows %d-%d of %d", (page - 1) * PAGE_ROWS + 1, math.min(page * PAGE_ROWS, #rows), #rows) })
         close()
     end
     ui.pages[tbl.key] = page
@@ -164,7 +153,7 @@ local function draw_table(tbl, ui)
 end
 local function draw_blocks(blocks, ui)
     for _, block in ipairs(blocks) do
-        if block.text then iris.Text(block.text) else draw_table(block, ui) end
+        if block.text then set_id(block.key); iris.Text(block.text) else draw_table(block, ui) end
     end
 end
 local function draw_report(report, index)
@@ -181,14 +170,14 @@ local function draw_report(report, index)
     end
     if report.popup then report.popup = false; window.state.isOpened:set(true) end
     if window.state.isOpened.value and window.state.isUncollapsed.value then
-        open(iris.SameLine())
+        set_id(report.key .. ":bar"); open(iris.SameLine())
         if report.refresh ~= "" then
             set_id(report.key .. ":refresh")
             if iris.SmallButton({ "Refresh" }).clicked() and fire_server then
                 pcall(fire_server, "dsp1|refresh|" .. report.refresh)
             end
         end
-        iris.Text({ "updated " .. report.received })
+        set_id(report.key .. ":updated"); iris.Text({ "updated " .. report.received })
         close()
         draw_blocks(report.blocks, ui)
         for _, section in ipairs(report.sections) do
@@ -208,29 +197,27 @@ local function draw_hub()
     if viewer.show_hub then viewer.show_hub = false; hub.state.isOpened:set(true) end
     if hub.state.isOpened.value and hub.state.isUncollapsed.value then
         if #viewer.order == 0 then
-            iris.Text({ string.format("Waiting for reports: run print_player_stats, print_attachment_stats or "
+            set_id("dsp:hub:waiting"); iris.Text({ string.format("Waiting for reports: run print_player_stats, print_attachment_stats or "
                 .. "cap_announcer in the server console. Messages received: %d%s", viewer.messages or 0,
                 viewer.other and (", last one not a report: " .. viewer.other) or ""), true })
         end
         for _, id in ipairs(viewer.order) do
             local report = viewer.reports[id]
-            open(iris.SameLine())
+            set_id(report.key .. ":hubrow"); open(iris.SameLine())
             set_id(report.key .. ":show")
             if iris.SmallButton({ "Show" }).clicked() then report.popup = true end
-            iris.Text({ report.title .. "  (" .. report.received .. ")" })
+            set_id(report.key .. ":hubtitle"); iris.Text({ report.title .. "  (" .. report.received .. ")" })
             close()
         end
         if #viewer.order > 0 then
             set_id("dsp:hub:clear")
             if iris.SmallButton({ "Clear all" }).clicked() then viewer.reports, viewer.order = {}, {} end
         end
-        if viewer.error then iris.Text({ "Error: " .. viewer.error, true }) end
+        if viewer.error then set_id("dsp:hub:error"); iris.Text({ "Error: " .. viewer.error, true }) end
     end
     close()
 end
--- An error in one window closes what it left open and is reported once,
--- instead of breaking every Iris window each frame.
-local function guarded(draw, ...)
+local function guarded(draw, ...) -- closes what a failing window left open; reports the error once
     local base = depth
     local ok, err = pcall(draw, ...)
     while depth > base do depth = depth - 1; pcall(iris.End) end
@@ -246,8 +233,7 @@ viewer.draw = function()
         guarded(draw_report, viewer.reports[id], i)
     end
 end
--- shared.iris_viewer.show() in the client console reopens every window without pasting again.
-viewer.show = function() viewer.show_hub = true; for _, r in pairs(viewer.reports) do r.popup = true end end
+viewer.show = function() viewer.show_hub = true; for _, r in pairs(viewer.reports) do r.popup = true end end -- shared.iris_viewer.show()
 viewer.error = nil; viewer.show()
 print(string.format("[viewer] ready (Iris %s tables), %d reports so far. Run a stat script in the server console;"
     .. " shared.iris_viewer.show() reopens closed windows.", NEW_TABLES and "2.4+" or "pre-2.4", #viewer.order))

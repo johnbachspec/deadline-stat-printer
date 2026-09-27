@@ -320,12 +320,13 @@ shared.stop_cap_announcer(); __caps.Bob = 5; __tick(); __say("!caps")
 IRIS_MOCKS = r"""
 local __new_tables = __NEW_TABLES__
 local __widgets, __stack, __next_id, __frame_fn, __clicks = {}, {}, nil, nil, {}
-local __drawn, __grids, __sent = {}, {}, 0
+local __drawn, __grids, __sent, __auto_ids = {}, {}, 0, {}
 local function __state(v) return { value = v, set = function(self, x) self.value = x end } end
 local function __esc(s) return (tostring(s):gsub("\t", "<TAB>"):gsub("\n", "<NL>")) end
 local function __make(kind, container)
   return function(args)
     local id = __next_id or (kind .. "#" .. #__drawn); __next_id = nil
+    if id == kind .. "#" .. #__drawn then table.insert(__auto_ids, id .. " " .. __esc(args and args[1])) end
     local w = __widgets[id]
     if not w then
       w = { kind = kind, state = { isOpened = __state(true), isUncollapsed = __state(kind == "Window"),
@@ -369,6 +370,9 @@ local function __frame()
   __drawn, __grids = {}, {}
   __frame_fn()
   assert(#__stack == 0, "a frame left " .. #__stack .. " widgets open")
+  -- Under Fiu, Iris's automatic ids are draw order, so any widget without an explicit id can
+  -- take over another one's state (or kind) when a report changes.
+  assert(#__auto_ids == 0, "drawn without an explicit id: " .. table.concat(__auto_ids, "; "))
   __clicks = {}
 end
 local function __click(id) assert(__widgets[id], "no widget " .. id); __clicks[id] = true end
