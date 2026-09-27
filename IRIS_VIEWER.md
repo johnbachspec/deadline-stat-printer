@@ -67,27 +67,24 @@ At the top of `iris_viewer.luau`:
 | --- | --- | --- |
 | `COLORS` | `"dark"` | `"dark"` or `"light"`: Iris's two color sets. `nil` leaves colors alone. |
 | `SPACING` | `nil` | `"clear"` (roomier, bigger padding) or `"default"` (compact). |
-| `FONT` | `nil` (Iris's font, Code) | Font for the tables: a Roblox font name, e.g. `"RobotoMono"`, `"BuilderSans"`, `"Ubuntu"`, `"Arial"` (`"?"` prints every name), or a Creator Store font's asset id (the number in its store link), e.g. `12187365977` for [Rubik](https://create.roblox.com/store/asset/12187365977/Rubik), the font Deadline's own menus appear to use. |
-| `FONT_WEIGHT` | `nil` | `"Thin"`, `"ExtraLight"`, `"Light"`, `"Regular"`, `"Medium"`, `"SemiBold"`, `"Bold"`, `"ExtraBold"` or `"Heavy"`, for fonts that have that weight. |
+| `FONT` | `12187365977` (Rubik) | Font for the tables (`nil` for Iris's font, Code): a Roblox font name, e.g. `"RobotoMono"`, `"BuilderSans"`, `"Ubuntu"`, `"Arial"` (`"?"` prints every name), or a Creator Store font's asset id (the number in its store link), e.g. `12187365977` for [Rubik](https://create.roblox.com/store/asset/12187365977/Rubik), the font Deadline's own menus appear to use. |
+| `FONT_WEIGHT` | `"Medium"` | `"Thin"`, `"ExtraLight"`, `"Light"`, `"Regular"`, `"Medium"`, `"SemiBold"`, `"Bold"`, `"ExtraBold"` or `"Heavy"`, for fonts that have that weight. |
 | `TEXT_SIZE` | `14` | Text size in pixels, for everything. |
-| `NUMBER_FONT` | `nil` (same as `FONT`) | A second font, by name or asset id like `FONT`, for table cells that are only a number: `12,345`, `3.721`, `61.28%`, `$1,234`, `2h 3m 20s`, `7,305 st`. |
+| `CONSOLE_FONT` | `"Ubuntu"` | Font of every Iris window: the client Luau console itself, plus the stat printer's titles, buttons and section headers. Only `"Ubuntu"` or `"Code"` in Deadline's client console; `nil` leaves it alone. |
+| `NUMBER_FONT` | `"RobotoMono"` (`nil` = same as `FONT`) | A second font, by name or asset id like `FONT`, for table cells that are only a number: `12,345`, `3.721`, `61.28%`, `$1,234`, `2h 3m 20s`, `7,305 st`. |
 | `NUMBER_WEIGHT` | `nil` | Weight for `NUMBER_FONT`, like `FONT_WEIGHT`. |
 | `EXTRA` | `{}` | Any other [Iris style key](https://github.com/SirMallard/Iris/blob/main/lib/config.lua), e.g. `WindowBgTransparency = 0.2`. Keys that need Roblox types (`Color3`, `Vector2`) only work if the console has them. |
 
-Set everything to `nil` and paste it again to go back to Iris's normal look. A good pairing is Deadline's Rubik for text and a monospaced font for numbers, so numbers in each column line up:
-
-```lua
-local FONT = 12187365977          -- Rubik
-local FONT_WEIGHT = "Medium"
-local NUMBER_FONT = "RobotoMono"
-```
+The defaults pair Deadline's own font, Rubik, for text with a monospaced font for numbers, so numbers in each column line up. Font names and weights are text, so they need quotes (`"RobotoMono"`); without them Lua reads a variable that doesn't exist and the setting is silently off. Set everything to `nil` and paste it again to go back to Iris's normal look.
 
 #### What the font reaches
 
 Deadline's client console has **no `Font` type**, and Iris's own font setting only takes a `Font` object (Deadline's Iris is 2.1 or later, so it sets `FontFace`; an `Enum.Font` makes it fail with `Font expected, got EnumItem`). So the font is applied in two ways:
 
 - **Table cells and table headers** (most of the text) get it through Roblox rich text: the viewer wraps each cell in `<font face="...">`, or `<font family="rbxassetid://...">` for an asset id, with `weight="500"` style weights. This needs no `Font` type, works for any font, and is cached when a report arrives, so it costs nothing per frame. `NUMBER_FONT` picks the tag for cells that are only a number; a cell mixing words and a number, like `SCAR-H (29045)`, uses `FONT`.
-- **Window titles, buttons, section headers, the filter box and plain text lines** use Iris's own font. Iris's presets hold two `Font` objects, Code and Ubuntu, so `FONT = "Ubuntu"` (or `"Code"`) changes these too; any other font leaves them in Iris's font. The `[theme] applied` line says which (`titles and buttons: ...`). In a console that does have `Font`, any font and weight works here as well.
+- **Window titles, buttons, section headers, the filter box and plain text lines** use Iris's own font, and so does the **client Luau console** window itself (it is an Iris window too). Iris's presets hold two `Font` objects, Code and Ubuntu, so those two work here. `CONSOLE_FONT` sets it for every Iris window through `iris.UpdateGlobalConfig` (the default makes the console and these parts Ubuntu); `FONT = "Ubuntu"` or `"Code"` would also set it for the stat printer's windows only. The `[theme] applied` line says what each got (`titles and buttons: ...; console: ...`). In a console that does have `Font`, any font and weight works here as well.
+
+`CONSOLE_FONT` changes Iris's global setting for the rest of the session, so it also reaches any other Iris window, such as the Iris demo. Set it to `"Code"` and paste again to go back.
 
 The rich-text tags are not checked: a font name Roblox doesn't know just draws in the normal font, with no message. Asset ids in rich text (`rbxassetid://...`) are the least certain part; if Rubik doesn't show, use a font name.
 
