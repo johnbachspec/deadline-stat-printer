@@ -614,6 +614,28 @@ local Font = {
         self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=nil color=white",
                                              "Window Stat printer"])
 
+    def test_reports_from_an_older_viewer_still_draw(self):
+        # Pasting a new viewer keeps the reports the old one parsed, which lack newer fields.
+        after = """
+for _, report in pairs(shared.iris_viewer.reports) do
+  for _, section in ipairs(report.sections) do
+    for _, block in ipairs(section.blocks) do
+      block.head = nil
+      for _, row in ipairs(block.rows or {}) do row.number = nil end
+    end
+  end
+end
+__frame(); __dump()"""
+        extra = self.theme_source(FONT="12187365977", NUMBER_FONT='"RobotoMono"')
+        output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
+                            prelude=viewer_prelude(False, extra=extra), after=after)
+        self.assertNotIn("[viewer] Fiu", output)
+        self.assertFalse(any(line.startswith("Text Error") for line in drawn(output)))
+        text = '<font family="rbxassetid://12187365977">'
+        weapons = only_table(output, 13)
+        self.assertEqual(weapons[0][0], f"{text}weapon</font>")
+        self.assertIn([f"{text}Vector</font>", f"{text}950</font>"], [row[:2] for row in weapons])
+
     def test_a_theme_iris_rejects_is_turned_off(self):
         after = """shared.iris_viewer_theme = { reject = true }
 __frame(); print("-- after " .. tostring(shared.iris_viewer_theme)); __frame(); __dump()"""
