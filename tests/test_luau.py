@@ -373,6 +373,11 @@ local iris = {
     sizeDefault = { TextFont = "Enum.Font.Code", TextSize = 13 }, sizeClear = { TextFont = "Enum.Font.Ubuntu", TextSize = 15 } },
 }
 local Enum = { Font = { Code = "Enum.Font.Code", Ubuntu = "Enum.Font.Ubuntu" } }
+local __font_mt = { __tostring = function(f) return "Font(" .. f.Family .. ")" end }
+local Font = { fromEnum = function(item)
+  assert(item, "invalid font")
+  return setmetatable({ Family = item, Style = "Normal" }, __font_mt)
+end }
 if __new_tables then
   iris.NextHeaderColumn = function() end
   iris.SetHeaderColumnIndex = function(i) local t = __stack[#__stack]; t.row = 0; t.col = i end
@@ -519,7 +524,7 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
 
     def test_theme_snippet_styles_only_the_viewer_windows(self):
         theme = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
-        for font, expected, warning in (('"Ubuntu"', "Enum.Font.Ubuntu", False), ('"Comic"', "nil", True)):
+        for font, expected, warning in (('"Ubuntu"', "Font(Enum.Font.Ubuntu)", False), ('"Comic"', "nil", True)):
             with self.subTest(font=font):
                 source = theme.replace('local FONT = "Code"', f"local FONT = {font}")
                 with tempfile.TemporaryDirectory() as tmp:
@@ -586,8 +591,15 @@ local Font = {
                             after="__frame(); __dump()")
         self.assertIn("[theme] applied", output)
         self.assertIn("[viewer] ready", output)
-        self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=Enum.Font.Code color=white",
+        self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=Font(Enum.Font.Code) color=white",
                                              "Window Stat printer"])
+
+    def test_theme_without_a_font_type_keeps_the_font(self):
+        # Deadline's Iris only takes Font objects, so without Font the theme must not send an Enum.Font.
+        output = run_script("iris_theme.luau", "nil", prelude=viewer_prelude(extra="local Font = nil"),
+                            after="__frame(); __dump()")
+        self.assertIn("this console has no Font type", output)
+        self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=nil color=white")
 
     def test_a_theme_iris_rejects_is_turned_off(self):
         after = """shared.iris_viewer_theme = { reject = true }

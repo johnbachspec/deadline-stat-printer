@@ -30,16 +30,6 @@ if not iris then
     return
 end
 local templates = iris.TemplateConfig or {}
-
--- Iris 2.1+ sets FontFace, which takes a Font object (any family, weight); Iris 2.0 and
--- older set Font, which takes an Enum.Font item. A Font object has .Family (checked
--- that way because typeof may not exist in the console).
-local function uses_font_objects()
-    local current = (templates.sizeDefault or {}).TextFont
-    if current == nil then return Font ~= nil end
-    local ok, family = pcall(function() return current.Family end)
-    return ok and family ~= nil
-end
 local theme = {}
 
 local function copy(template)
@@ -60,16 +50,12 @@ if FONT == "?" then
         print("[theme] could not list fonts here: " .. tostring(items))
     end
 elseif FONT then
+    -- Deadline's Iris (2.1+) sets FontFace, which only takes a Font object, never an Enum.Font.
     local ok, font = pcall(function()
-        local objects = uses_font_objects()
+        assert(Font, "this console has no Font type, so fonts can't be changed here")
         local weight = FONT_WEIGHT and Enum.FontWeight[FONT_WEIGHT]
-        if type(FONT) == "number" then
-            assert(objects, "this Iris only takes built-in font names")
-            return Font.fromId(FONT, weight)
-        end
-        local item = Enum.Font[FONT]
-        if not objects then return item end
-        local face = Font.fromEnum(item)
+        if type(FONT) == "number" then return Font.fromId(FONT, weight) end
+        local face = Font.fromEnum(Enum.Font[FONT])
         return weight and Font.new(face.Family, weight, face.Style) or face
     end)
     if ok and font ~= nil then
