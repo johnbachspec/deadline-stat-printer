@@ -34,7 +34,7 @@ shared.print_player_stats(players.get("SomeName"), { filter = "SMG", sort_by = "
 
 The reports can also open as windows built with [Iris](https://sirmallard.github.io/Iris/), the UI library Deadline includes. Iris only runs in the **client** console, but profile stats only exist on the server, so this uses both consoles:
 
-1. In the **Luau client console**, paste the whole of `iris_viewer.luau` and run it (the client console has no `require`). A small "Stat printer" window opens.
+1. In the **Luau client console**, paste the whole of `iris_viewer.luau` and run it (the client console has no `require`). A small "Stat printer" window opens. To never paste it again, put it in the **Client Autorun** tab instead ([details](IRIS_VIEWER.md#starting-it-automatically-client-autorun)).
 2. In the server console, run `print_player_stats.luau`, `print_attachment_stats.luau` or `cap_announcer.luau` as usual.
 
 Each report opens in its own window, with collapsible sections, filterable and paged tables, and a **Refresh** button. By default the scripts still print to the console as well; set `SHOW_IN` at the top of a script to `"iris"` for windows only or `"console"` for none. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.

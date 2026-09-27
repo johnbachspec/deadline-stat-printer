@@ -17,6 +17,18 @@ Iris only runs in the **client** console, but profile stats only exist on the **
 
 The client console has no `require`, so step 1 has to be a paste; `require(...)` there fails with `attempt to call a nil value`. You only paste it once per session.
 
+### Starting it automatically (Client Autorun)
+
+To skip step 1 for good, paste `iris_viewer.luau` into the **Client Autorun** tab of the console instead. Deadline runs the client autorun on each player's client ("the client autorun runs per-client"), so the viewer starts by itself when you join.
+
+That means every player on your server gets the viewer. To keep it to yourself, list your name in `ONLY_FOR` at the top of the file before pasting it:
+
+```lua
+local ONLY_FOR = { "bachancuc123" } -- only these players get the viewer; {} = everyone
+```
+
+After you change `iris_viewer.luau`, paste the new version into Client Autorun again; the autorun keeps whatever was pasted last, not the file in this repo.
+
 | Report | Sent by | Window |
 | --- | --- | --- |
 | Stat panel | `print_player_stats.luau` | "Stats: *name*": account recap, averages, weapon table |
@@ -43,6 +55,7 @@ At the top of `iris_viewer.luau`:
 | `FILTER_ROWS` | 12 | Tables with more rows than this get a filter box. |
 | `WINDOW_SIZES` | per report kind | Initial window size in pixels, by the part of the report id before `:`. |
 | `DEFAULT_SIZE` | 700 x 500 | Initial size for any other report. |
+| `ONLY_FOR` | `{}` (everyone) | Player names the viewer runs for; for Client Autorun, so guests don't get it. |
 
 On the server side, `SHOW_IN` at the top of `print_player_stats.luau` and `print_attachment_stats.luau` is `"both"` (console text and windows), `"iris"` (windows only) or `"console"` (no windows). `cap_announcer.luau` has `SEND_TO_IRIS`.
 
@@ -84,7 +97,8 @@ The game's Fiu build fails to load any function spanning more than 255 source li
 
 | What you see | Meaning | What to do |
 | --- | --- | --- |
-| `Fiu VM Error ... Line: 1 ... CALL ... attempt to call a nil value` in the client console | `require` does not exist on the client | Paste the file instead |
+| `Fiu VM Error ... Line: 1 ... CALL ... attempt to call a nil value` in the client console | `require` does not exist on the client | Paste the file instead, or put it in Client Autorun |
+| Nothing happens after pasting, not even `[viewer] ready` | Your name is not in `ONLY_FOR` | Add it (exact spelling) or set `ONLY_FOR = {}` |
 | `[viewer] iris, on_server_event or shared is missing` | Pasted into the server console | Use the client console |
 | No window opens; server says `sent ... to 0 of N players (fire_client failed: ...)` | The server could not send | Send the error text along with a bug report |
 | No window opens; the hub says `Messages received: 0` | Nothing reached the client | Paste the viewer **before** running the server script; reports are sent once |
