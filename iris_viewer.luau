@@ -1,10 +1,10 @@
 -- iris_viewer.luau
 -- Shows the stat printer's reports in Iris windows. Iris only exists in the CLIENT
 -- console and profile stats only on the server, so the server scripts send reports here:
---   1. Paste this file into the client Luau console and run it; a "Stat printer" window opens.
+--   1. Paste this whole file into the client Luau console and run it (the client has no require).
 --   2. Run print_player_stats, print_attachment_stats or cap_announcer in the server console.
--- Each report gets its own window; Refresh asks the server for a fresh copy. Run this
--- again to reopen closed windows. It only sends the server Refresh requests.
+-- Each report gets its own window; Refresh asks the server for a fresh copy. The viewer
+-- stays running all session. It only sends the server Refresh requests.
 -- Keep this file under 255 lines (no blank lines): Fiu cannot load a longer chunk.
 local PAGE_ROWS = 25   -- table rows per page; longer tables get Prev / Next buttons
 local FILTER_ROWS = 12 -- tables with more rows than this get a filter box
@@ -247,7 +247,9 @@ viewer.draw = function()
         guarded(draw_report, viewer.reports[id], i)
     end
 end
-viewer.show_hub, viewer.error = true, nil
-for _, report in pairs(viewer.reports) do report.popup = true end
-print(string.format("[viewer] ready (Iris %s tables), %d reports so far. Now run a stat script in the server console.",
-    NEW_TABLES and "2.4+" or "pre-2.4", #viewer.order))
+-- shared.iris_viewer.show() in the client console reopens every window without pasting again.
+viewer.show = function() viewer.show_hub = true; for _, r in pairs(viewer.reports) do r.popup = true end end
+viewer.error = nil
+viewer.show()
+print(string.format("[viewer] ready (Iris %s tables), %d reports so far. Run a stat script in the server console;"
+    .. " shared.iris_viewer.show() reopens closed windows.", NEW_TABLES and "2.4+" or "pre-2.4", #viewer.order))
