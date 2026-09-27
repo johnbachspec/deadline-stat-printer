@@ -34,10 +34,10 @@ shared.print_player_stats(players.get("SomeName"), { filter = "SMG", sort_by = "
 
 The reports can also open as windows built with [Iris](https://sirmallard.github.io/Iris/), the UI library Deadline includes. Iris only runs in the **client** console, but profile stats only exist on the server, so this uses both consoles:
 
-1. In the **Luau client console** (the tab that says "This tab runs code for the client"), paste the contents of `iris_viewer.luau` and run it. A small "Stat printer" window opens.
+1. In the **Luau client console** (the tab that says "This tab runs code for the client"), paste the whole of `iris_viewer.luau` and run it. A small "Stat printer" window opens. The client console has no `require`: a `require(...)` line there fails with `attempt to call a nil value`. You only paste it once per session. After that, `shared.iris_viewer.show()` in the client console reopens any windows you closed.
 2. In the server console, run `print_player_stats.luau`, `print_attachment_stats.luau` or `cap_announcer.luau` as usual.
 
-Each report opens in its own window, with collapsible sections. Long tables get a filter box and Prev / Next pages. The **Refresh** button asks the server for a fresh copy. The "Stat printer" window lists every report received, and its **Show** button reopens a window you closed. Running `iris_viewer.luau` again reopens them all.
+Each report opens in its own window, with collapsible sections. Long tables get a filter box and Prev / Next pages. The **Refresh** button asks the server for a fresh copy. The "Stat printer" window lists every report received, and its **Show** button reopens a window you closed. `shared.iris_viewer.show()` reopens them all.
 
 The server sends each report to every human in the server, but only players running the viewer see it. By default the scripts still print to the console as well. Set `SHOW_IN = "iris"` at the top of `print_player_stats.luau` or `print_attachment_stats.luau` for windows only, or `"console"` for no windows. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
 
