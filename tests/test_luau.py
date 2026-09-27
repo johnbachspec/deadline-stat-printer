@@ -12,6 +12,7 @@ from support import (LUAU_COMPILE, ROOT, dd, fixture_profile_lua, lua_string, ne
 
 import build_attachment_names as names_builder  # noqa: E402
 import check_fiu_compat  # noqa: E402
+import build_client_autorun as client_autorun  # noqa: E402
 
 TABLE_ROW = re.compile(r"^#\d+\s+(.*?)\s*\| Kills: (\d+)\s*\| Top Gun: (.*) \((\d+)\)$")
 
@@ -577,6 +578,16 @@ local Font = {
                 self.assertEqual(recap[1][:2], ["Kills:", f"{tag}3,000</font>"])
                 self.assertEqual(only_table(output, 13)[0][1], "kills")  # headers too
 
+    def test_client_autorun_file_runs_theme_and_viewer(self):
+        self.assertEqual((ROOT / "client_autorun.txt").read_text(encoding="utf-8"), client_autorun.build(),
+                         "client_autorun.txt is out of date: run python tools/build_client_autorun.py")
+        output = run_script("client_autorun.txt", "nil", prelude=IRIS_MOCKS.replace("__NEW_TABLES__", "true"),
+                            after="__frame(); __dump()")
+        self.assertIn("[theme] applied", output)
+        self.assertIn("[viewer] ready", output)
+        self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=Enum.Font.Code color=white",
+                                             "Window Stat printer"])
+
     def test_a_failing_window_is_closed_and_reported_once(self):
         after = r"""
 local R = require("x/modules/iris_report.luau")
@@ -619,6 +630,10 @@ class TestFiuLoadCompatibility(unittest.TestCase):
                        "attachment_data.luau", "player_lookup.luau", "weapon_data.luau", "renderer.luau",
                        "iris_report.luau"]:
             self.assertIn(module, checked)
+
+    def test_client_autorun_file_is_fiu_safe(self):
+        # Pasted as one chunk, so it is checked on its own (it is not a .luau the scripts load).
+        self.assertEqual(check_fiu_compat.check_file(LUAU_COMPILE, ROOT / "client_autorun.txt"), [])
 
     def test_checker_flags_long_functions(self):
         with tempfile.TemporaryDirectory() as tmp:

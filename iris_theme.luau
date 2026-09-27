@@ -7,7 +7,7 @@
 
 local COLORS = "dark"   -- "dark" or "light" (Iris's two color sets), or nil to leave colors alone
 local SPACING = nil     -- "clear" (roomier), "default" (compact), or nil to leave spacing alone
-local FONT = 12187365977 -- a Roblox font name, e.g. "Code", "RobotoMono", "BuilderSans", "Ubuntu", "Arial";
+local FONT = "Code"     -- a Roblox font name, e.g. "Code", "RobotoMono", "BuilderSans", "Ubuntu", "Arial";
                         -- or a Creator Store font's asset id, e.g. 12187365977 (Rubik, Deadline's UI font);
                         -- "?" prints every font name; nil leaves it alone
 local FONT_WEIGHT = nil -- nil, or "Light", "Regular", "Medium", "SemiBold", "Bold", "ExtraBold", "Heavy", ...
@@ -15,7 +15,7 @@ local TEXT_SIZE = 14    -- text size in pixels, or nil to leave it alone
 
 -- A second font for table cells that are only a number ("12,345", "3.721", "61.28%",
 -- "$1,234", "2h 3m 20s"), e.g. a monospaced one so numbers line up while names use FONT.
-local NUMBER_FONT = "RobotoMono"   -- a font name ("RobotoMono", "Code") or asset id, like FONT; nil = same as FONT
+local NUMBER_FONT = nil   -- a font name ("RobotoMono", "Code") or asset id, like FONT; nil = same as FONT
 local NUMBER_WEIGHT = nil -- like FONT_WEIGHT
 
 -- Any other Iris style key, applied last. Needs Roblox types, e.g.

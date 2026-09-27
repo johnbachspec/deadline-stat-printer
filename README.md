@@ -1,4 +1,4 @@
-# deadline-stat-printer
+I# deadline-stat-printer
 
 Prints detailed account and per-weapon statistics for Deadline (Roblox) players from the in-game Luau server console, as console text or as in-game [Iris windows](#iris-windows). Original script and inspiration from [@LegitACarWithAGun](https://github.com/LegitACarWithAGun); modular version by [@johnbachspec](https://github.com/johnbachspec); contribution by [@refact0r](https://github.com/refact0r) and [GabeeCoding](https://github.com/GabeeCoding)
 
@@ -34,7 +34,7 @@ shared.print_player_stats(players.get("SomeName"), { filter = "SMG", sort_by = "
 
 The reports can also open as windows built with [Iris](https://sirmallard.github.io/Iris/), the UI library Deadline includes. Iris only runs in the **client** console, but profile stats only exist on the server, so this uses both consoles:
 
-1. In the **Luau client console**, paste the whole of `iris_viewer.luau` and run it (the client console has no `require`). A small "Stat printer" window opens. To never paste it again, put it in the **Client Autorun** tab instead ([details](IRIS_VIEWER.md#starting-it-automatically-client-autorun)).
+1. In the **Luau client console**, paste the whole of `iris_viewer.luau` and run it (the client console has no `require`). A small "Stat printer" window opens. To never paste it again, copy `client_autorun.txt` (viewer and theme together) into the **Client Autorun** tab instead ([details](IRIS_VIEWER.md#starting-it-automatically-client-autorun)).
 2. In the server console, run `print_player_stats.luau`, `print_attachment_stats.luau` or `cap_announcer.luau` as usual.
 
 Each report opens in its own window, with collapsible sections, filterable and paged tables, and a **Refresh** button. By default the scripts still print to the console as well; set `SHOW_IN` at the top of a script to `"iris"` for windows only or `"console"` for none. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
@@ -107,6 +107,7 @@ cap_announcer.luau                    <- announces who captured a point; live Ca
 explore_console.luau                  <- read-only survey of what the console API returns
 iris_viewer.luau                      <- CLIENT console: shows the reports above in Iris windows
 iris_theme.luau                       <- CLIENT console: colors, spacing, font and text size for those windows
+client_autorun.txt                    <- GENERATED: theme + viewer in one piece for the Client Autorun tab
 IRIS_VIEWER.md                        <- guide and maintenance notes for iris_viewer.luau
 modules/                                 downloaded by the entry points at run time
   iris_report.luau           <- builds reports for iris_viewer and sends them (fire_client); Refresh
@@ -131,6 +132,7 @@ tools/
   check_fiu_compat.py         <- fails any script the game's Fiu VM would refuse to load
   build_attachment_names.py   <- regenerates modules/attachment_names.luau
   build_attachment_aliases.py <- regenerates / verifies the alias table in modules/attachment_data.luau
+  build_client_autorun.py     <- regenerates client_autorun.txt from iris_theme.luau + iris_viewer.luau
   verify_attachment_merge.py  <- replays the merge over a saved output and checks the totals
   rename.py                   <- applies data/renames.csv to the name column of CSV/Excel balancing sheets
 tests/                           python -m unittest discover -s tests
