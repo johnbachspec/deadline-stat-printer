@@ -1,17 +1,14 @@
-"""Comprehensive test suite for deadline-stat-printer.
+"""Comprehensive Test Suite for Deadline Stat Printer
+Runs unit tests, validation checks, and regression tests across:
+  - Fiu VM compatibility (no Luau type annotations `::`, no tabs `\t`, balanced braces)
+  - SRP modular architecture (modules/ integrity and responsibility boundaries)
+  - Attachment renames & synchronization (renames.csv, balancing.csv, and embedded tables)
+  - Live dynamic GitHub syncing protection (HttpService pcall guards)
+  - Log aggregation and mathematical kill conservation (1,717,503 kills fixture)
+  - Execution of tool scripts (verify_attachment_merge.py, build_attachment_aliases.py, build_attachment_names.py)
 
-Covers:
-  1. Alias integrity: renames.csv validity, 253 pairs, cycle freedom.
-  2. Luau structural integrity: balanced braces, tab-free formatting, no Luau type annotations (Fiu VM).
-  3. SRP modular architecture: dedicated modules for data, aggregation, formatting, and rendering.
-  4. Table synchronization: print_attachment_stats.luau, print_attachment_stats_delimited.luau, and modules/attachment_data.luau.
-  5. Live dynamic sync logic: safe pcall, correct upstream URL.
-  6. Merge & kill conservation: exact 1,717,503 kill conservation and multi-source merge validation.
-  7. Tool verification: verify_attachment_merge.py and build_attachment_aliases.py execution.
-
-Run with:
+Usage:
   python tests/test_suite.py
-  or:
   python -m unittest tests/test_suite.py
 """
 import csv
@@ -24,6 +21,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 RENAMES_CSV = ROOT / "renames.csv"
+BALANCING_CSV = ROOT / "balancing.csv"
 PRINT_ATTACHMENT_LUAU = ROOT / "print_attachment_stats.luau"
 DELIMITED_LUAU = ROOT / "print_attachment_stats_delimited.luau"
 PRINT_PLAYER_LUAU = ROOT / "print_player_stats.luau"
@@ -43,36 +41,50 @@ RENDERER_LUAU = MODULES_DIR / "renderer.luau"
 LOG_FIXTURE = ROOT / "tests" / "attachment logs output.txt"
 
 
-def load_csv_aliases(path: Path) -> dict:
+def load_csv_aliases(path):
     with open(path, encoding="utf-8") as f:
-        rows = list(csv.reader(f))
-    return {r[0].strip(): r[1].strip() for r in rows[1:] if len(r) == 2 and r[0].strip() and r[1].strip()}
+        r = csv.reader(f)
+        rows = list(r)
+    aliases = {}
+    for row in rows[1:]:
+        if len(row) >= 2 and row[0].strip() and row[1].strip():
+            aliases[row[0].strip()] = row[1].strip()
+    return aliases
 
 
-def extract_luau_table_aliases(file_path: Path) -> dict:
-    text = file_path.read_text(encoding="utf-8")
-    pairs = re.findall(r'^\s*\["([^"]+)"\] = "([^"]+)",\s*$', text, re.M)
-    return dict(pairs)
+def extract_luau_table_aliases(path):
+    text = path.read_text(encoding="utf-8")
+    m = re.search(r"-- BEGIN ATTACHMENT_ALIASES.*?\{([^}]+)\}.*?-- END ATTACHMENT_ALIASES", text, re.DOTALL)
+    if not m:
+        raise ValueError(f"Could not find ATTACHMENT_ALIASES block in {path}")
+    block = m.group(1)
+    table = {}
+    for line in block.splitlines():
+        line = line.strip()
+        pair_match = re.match(r'\["([^"]+)"\]\s*=\s*"([^"]+)"', line)
+        if pair_match:
+            table[pair_match.group(1)] = pair_match.group(2)
+    return table
 
 
-def resolve_alias(att_id: str, aliases: dict) -> str:
+def resolve_alias(att_id, aliases):
     seen = set()
-    current = att_id
-    while current in aliases and current not in seen:
-        seen.add(current)
-        current = aliases[current]
-    return current
+    curr = att_id
+    while curr in aliases and curr not in seen:
+        seen.add(curr)
+        curr = aliases[curr]
+    return curr
 
 
 class TestRenamesIntegrity(unittest.TestCase):
     def test_renames_csv_exists_and_has_full_count(self):
-        self.assertTrue(RENAMES_CSV.is_file(), "renames.csv must exist as the single canonical alias file")
+        self.assertTrue(RENAMES_CSV.is_file(), "renames.csv must exist in repo root")
         aliases = load_csv_aliases(RENAMES_CSV)
-        self.assertEqual(len(aliases), 253, f"renames.csv should have exactly 253 pairs, found {len(aliases)}")
+        self.assertEqual(len(aliases), 253, f"Expected 253 aliases in renames.csv, found {len(aliases)}")
 
     def test_no_redundant_full_file(self):
         full_csv = ROOT / "renames_full.csv"
-        self.assertFalse(full_csv.is_file(), "renames_full.csv should be consolidated into renames.csv")
+        self.assertFalse(full_csv.is_file(), "renames_full.csv should be removed in favor of single renames.csv")
 
     def test_no_cycles_in_aliases(self):
         aliases = load_csv_aliases(RENAMES_CSV)
@@ -138,6 +150,7 @@ class TestSRPModularArchitecture(unittest.TestCase):
         content = ATTACHMENT_FORMATTER_LUAU.read_text(encoding="utf-8")
         self.assertIn("function AttachmentFormatter:resolve_attachment_display_name(", content)
         self.assertIn("function AttachmentFormatter:resolve_weapon_display_name(", content)
+        self.assertIn("function AttachmentFormatter:sync_balancing_names(", content)
 
     def test_attachment_renderer_module(self):
         self.assertTrue(ATTACHMENT_RENDERER_LUAU.is_file(), "modules/attachment_renderer.luau must exist")
@@ -238,6 +251,30 @@ class TestLogAggregationAndKillConservation(unittest.TestCase):
             self.assertTrue(exp_srcs <= sources[canon], f"{canon} missing contributing sources")
 
 
+class TestBeautifiedNamesAndBalancing(unittest.TestCase):
+    def test_balancing_csv_exists_and_loaded(self):
+        self.assertTrue(BALANCING_CSV.is_file(), "balancing.csv must exist in repo root")
+        with open(BALANCING_CSV, encoding="utf-8", errors="replace") as f:
+            r = csv.reader(f)
+            names = {row[2].strip(): row[3].strip() for row in r if len(row) > 3 and row[2].strip()}
+        self.assertGreaterEqual(len(names), 2400, "balancing.csv should have >= 2400 attachment names")
+
+    def test_attachment_formatter_sync_and_beautified_names(self):
+        content = ATTACHMENT_FORMATTER_LUAU.read_text(encoding="utf-8")
+        self.assertIn("function AttachmentFormatter:sync_balancing_names(", content)
+        self.assertIn("recoil-studio/deadline-balancing", content)
+        self.assertIn("recoil-group/deadline-balancing", content)
+        self.assertIn("AttachmentFormatter.BEAUTIFIED_NAMES = {", content)
+
+    def test_sample_beautified_names(self):
+        content = ATTACHMENT_FORMATTER_LUAU.read_text(encoding="utf-8")
+        self.assertIn('["kalis_scalar_std_bcg"] = "KALIS Scalar Standard",', content)
+        self.assertIn('["vallais_super_fang_trigger"] = "Vallais Super FANG",', content)
+        self.assertIn('["paramount_arms_slx_1.1inch_mount"] = "Paramount Arms SLx 1.1\"",', content)
+        self.assertIn('["virticon_arcs_ta01_4x_scope"] = "Virticon ACOG TA01 4x Scope",', content)
+        self.assertIn('["azimuth_duty2_sight"] = "Azimuth DutyM2",', content)
+
+
 class TestToolsExecution(unittest.TestCase):
     def test_verify_attachment_merge_script(self):
         res = subprocess.run(
@@ -256,6 +293,15 @@ class TestToolsExecution(unittest.TestCase):
             text=True
         )
         self.assertEqual(res.returncode, 0, f"build_attachment_aliases.py --check failed:\n{res.stdout}\n{res.stderr}")
+
+    def test_build_attachment_names_script_check_mode(self):
+        res = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "build_attachment_names.py"), "--check"],
+            cwd=str(ROOT),
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(res.returncode, 0, f"build_attachment_names.py --check failed:\n{res.stdout}\n{res.stderr}")
 
 
 if __name__ == "__main__":
