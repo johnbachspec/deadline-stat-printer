@@ -28,10 +28,6 @@ local function fields(line)
     end
     return out
 end
-local function header_args(name)
-    if NEW_TABLES then return { name } end
-    return { "<b>" .. name:gsub("[<>&]", RICH_ESCAPES) .. "</b>", nil, nil, true }
-end
 local function parse(text)
     local report = { blocks = {}, sections = {} }
     local container, current, count = report, nil, 0
@@ -50,9 +46,9 @@ local function parse(text)
             table.insert(container.blocks, { text = { f[1] or "", true }, key = report.key .. ":" .. count })
         elseif kind == "columns" then
             count = count + 1
-            current = { columns = f, rows = {}, slots = {}, header = table.concat(f) ~= "", header_args = {},
-                key = report.key .. ":" .. count .. ":" .. #f }
-            for c, name in ipairs(f) do current.header_args[c] = header_args(name) end
+            current = { columns = f, rows = {}, slots = {}, header = table.concat(f) ~= "", key = report.key .. ":" .. count .. ":" .. #f,
+                head = { number = {}, bold = not NEW_TABLES } } -- Iris 2.4+ styles its header row; older ones get bold
+            for c, name in ipairs(f) do current.head[c] = { name } end
             table.insert(container.blocks, current)
         elseif kind == "row" and current then
             local cells = { search = string.lower(table.concat(f, " ")), number = {} } -- number: cells that are only a number
@@ -100,9 +96,15 @@ local function cell(id, args)
     iris.Text(args)
     if NEW_TABLES then iris.NextColumn() end
 end
-local function number_args(row, c, tag) -- a number cell as rich text in the number font; cached until the font changes
-    if not row.rich or row.rich.tag ~= tag then row.rich = { tag = tag } end
-    row.rich[c] = row.rich[c] or { tag .. row[c][1] .. "</font>", nil, nil, true }
+local function styled(row, c, fonts) -- a cell's iris.Text args: rich text in its font (iris_theme.luau), bold for old headers
+    local tag = fonts and (row.number[c] and fonts.number or fonts.text)
+    if not (tag or row.bold) then return row[c] end
+    if row.rich_for ~= (fonts or row) then row.rich, row.rich_for = {}, fonts or row end -- cached until the fonts change
+    if not row.rich[c] then
+        local text = row[c][1]:gsub("[<>&]", RICH_ESCAPES)
+        text = row.bold and "<b>" .. text .. "</b>" or text
+        row.rich[c] = { tag and tag .. text .. "</font>" or text, nil, nil, true }
+    end
     return row.rich[c]
 end
 local function visible_rows(tbl, ui)
@@ -150,12 +152,12 @@ local function draw_table(tbl, ui)
     end
     if tbl.header then
         local ids = slot_ids(tbl, 0)
-        for c = 1, n do cell(ids[c], tbl.header_args[c]) end
+        for c = 1, n do cell(ids[c], styled(tbl.head, c, shared.iris_viewer_fonts)) end
     end
-    local first, tag = (page - 1) * per_page, shared.iris_viewer_number_font
+    local first, fonts = (page - 1) * per_page, shared.iris_viewer_fonts
     for slot = 1, math.min(per_page, #rows - first) do
         local row, ids = rows[first + slot], slot_ids(tbl, slot)
-        for c = 1, n do cell(ids[c], tag and row.number[c] and number_args(row, c, tag) or row[c] or EMPTY) end
+        for c = 1, n do cell(ids[c], row[c] and styled(row, c, fonts) or EMPTY) end
     end
     close()
 end

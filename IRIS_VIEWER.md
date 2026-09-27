@@ -61,18 +61,18 @@ At the top of `iris_viewer.luau`:
 
 ### Theme: colors, spacing, font and text size
 
-`iris_theme.luau` is a separate snippet for how the windows look. It styles only the stat printer's windows, not the Iris demo or any other mod's windows. Paste it into the client console after the viewer (or into Client Autorun, below the viewer). To change the look, edit the values at its top and paste it again.
+`iris_theme.luau` is a separate snippet for how the windows look. It styles only the stat printer's windows, not the Iris demo or any other mod's windows. Paste it into the client console after the viewer (or use `client_autorun.txt`, which has both). To change the look, edit the values at its top and paste it again.
 
 | Setting | Default | Options |
 | --- | --- | --- |
 | `COLORS` | `"dark"` | `"dark"` or `"light"`: Iris's two color sets. `nil` leaves colors alone. |
 | `SPACING` | `nil` | `"clear"` (roomier, bigger padding) or `"default"` (compact). |
-| `FONT` | `"Code"` | A Roblox font name, e.g. `"Code"` (monospace, Iris's default), `"RobotoMono"`, `"BuilderSans"`, `"Ubuntu"`, `"Arial"`; `"?"` prints every name available. Or a Creator Store font's asset id (the number in its store link), e.g. `12187365977` for [Rubik](https://create.roblox.com/store/asset/12187365977/Rubik), the font Deadline's own menus appear to use. |
+| `FONT` | `nil` (Iris's font, Code) | Font for the tables: a Roblox font name, e.g. `"RobotoMono"`, `"BuilderSans"`, `"Ubuntu"`, `"Arial"` (`"?"` prints every name), or a Creator Store font's asset id (the number in its store link), e.g. `12187365977` for [Rubik](https://create.roblox.com/store/asset/12187365977/Rubik), the font Deadline's own menus appear to use. |
 | `FONT_WEIGHT` | `nil` | `"Thin"`, `"ExtraLight"`, `"Light"`, `"Regular"`, `"Medium"`, `"SemiBold"`, `"Bold"`, `"ExtraBold"` or `"Heavy"`, for fonts that have that weight. |
-| `TEXT_SIZE` | `14` | Text size in pixels. |
-| `NUMBER_FONT` | `nil` (same as `FONT`) | A second font, by name or asset id like `FONT`, for table cells that are only a number: `12,345`, `3.721`, `61.28%`, `$1,234`, `2h 3m 20s`, `7,305 st`. Names, labels and headers keep `FONT`. |
+| `TEXT_SIZE` | `14` | Text size in pixels, for everything. |
+| `NUMBER_FONT` | `nil` (same as `FONT`) | A second font, by name or asset id like `FONT`, for table cells that are only a number: `12,345`, `3.721`, `61.28%`, `$1,234`, `2h 3m 20s`, `7,305 st`. |
 | `NUMBER_WEIGHT` | `nil` | Weight for `NUMBER_FONT`, like `FONT_WEIGHT`. |
-| `EXTRA` | `{}` | Any other [Iris style key](https://github.com/SirMallard/Iris/blob/main/lib/config.lua), e.g. `WindowBgTransparency = 0.2` or `TextColor = Color3.fromRGB(230, 230, 230)`. |
+| `EXTRA` | `{}` | Any other [Iris style key](https://github.com/SirMallard/Iris/blob/main/lib/config.lua), e.g. `WindowBgTransparency = 0.2`. Keys that need Roblox types (`Color3`, `Vector2`) only work if the console has them. |
 
 Set everything to `nil` and paste it again to go back to Iris's normal look. A good pairing is Deadline's Rubik for text and a monospaced font for numbers, so numbers in each column line up:
 
@@ -82,11 +82,16 @@ local FONT_WEIGHT = "Medium"
 local NUMBER_FONT = "RobotoMono"
 ```
 
-Iris has one font setting, so the number font works through Roblox rich text: the viewer wraps number cells in `<font face="...">` (or `<font family="rbxassetid://...">` for an asset id) and caches the result, so it costs nothing per frame. A cell with a number and words, like `SCAR-H (29045)`, stays in `FONT`. An unknown number font is not checked by the snippet; Roblox just draws those cells in the main font.
+#### What the font reaches
 
-An unknown font prints `[theme] font ... not available` and keeps the current font. For Deadline's look, try `FONT = 12187365977` with `FONT_WEIGHT = "Medium"`; for stats tables a monospaced font (`"RobotoMono"`, `"Code"`) keeps numbers in columns aligned.
+Deadline's client console has **no `Font` type**, and Iris's own font setting only takes a `Font` object (Deadline's Iris is 2.1 or later, so it sets `FontFace`; an `Enum.Font` makes it fail with `Font expected, got EnumItem`). So the font is applied in two ways:
 
-The snippet stores the theme in `shared.iris_viewer_theme`. Each frame the viewer wraps its windows in `iris.PushConfig(theme)` / `iris.PopConfig()`, and Iris re-styles them when the theme changes. Deadline's Iris (2.1 or later, since it sets `FontFace`) only takes a Roblox `Font` object, never an `Enum.Font`; that is also what makes asset ids and weights possible. The snippet builds one with `Font.fromEnum` / `Font.fromId`, and if the console has no `Font` type it leaves the font alone and says so, rather than sending something Iris rejects. It lives in its own file so it doesn't use up the viewer's [255 lines](#the-255-line-limit).
+- **Table cells and table headers** (most of the text) get it through Roblox rich text: the viewer wraps each cell in `<font face="...">`, or `<font family="rbxassetid://...">` for an asset id, with `weight="500"` style weights. This needs no `Font` type, works for any font, and is cached when a report arrives, so it costs nothing per frame. `NUMBER_FONT` picks the tag for cells that are only a number; a cell mixing words and a number, like `SCAR-H (29045)`, uses `FONT`.
+- **Window titles, buttons, section headers, the filter box and plain text lines** use Iris's own font. Iris's presets hold two `Font` objects, Code and Ubuntu, so `FONT = "Ubuntu"` (or `"Code"`) changes these too; any other font leaves them in Iris's font. The `[theme] applied` line says which (`titles and buttons: ...`). In a console that does have `Font`, any font and weight works here as well.
+
+The rich-text tags are not checked: a font name Roblox doesn't know just draws in the normal font, with no message. Asset ids in rich text (`rbxassetid://...`) are the least certain part; if Rubik doesn't show, use a font name.
+
+The snippet stores the theme in `shared.iris_viewer_theme` (Iris style keys) and the table fonts in `shared.iris_viewer_fonts`. Each frame the viewer wraps its windows in `iris.PushConfig(theme)` / `iris.PopConfig()`, and Iris re-styles them when the theme changes. If Iris rejects a theme value, the viewer turns the theme off so the windows keep working. The snippet lives in its own file so it doesn't use up the viewer's [255 lines](#the-255-line-limit).
 
 On the server side, `SHOW_IN` at the top of `print_player_stats.luau` and `print_attachment_stats.luau` is `"both"` (console text and windows), `"iris"` (windows only) or `"console"` (no windows). `cap_announcer.luau` has `SEND_TO_IRIS`.
 
@@ -137,7 +142,7 @@ The game's Fiu build fails to load any function spanning more than 255 source li
 | The hub says `Messages received: N, last one not a report: ...` | Messages arrive in an unexpected shape | Report the text shown after "last one not a report" |
 | `Error: ...` in the hub | A window failed to draw | Report the text; the other windows keep working |
 | A table looks scrambled | Possibly the wrong table style for this Iris | Report the "Iris ... tables" part of the ready message |
-| `[theme] font ... not available (...)` | Not a font name here, or (with `no Font type`) the console can't make fonts at all | Set `FONT = "?"` and paste to list the names; check the asset id in the store link |
+| The table font changed but titles and buttons didn't | The console has no `Font` type, so only `"Code"` and `"Ubuntu"` reach them | Expected; see [What the font reaches](#what-the-font-reaches) |
 | `[viewer] theme turned off, Iris rejected it: ...` (e.g. `Font expected, got EnumItem`) | A theme value this Iris can't use; the viewer dropped the theme so the windows keep working | Send the message; paste the theme again after a fix |
 | Theme pasted but nothing changed | Pasted before the viewer, or the viewer is from before themes existed | Paste the current `iris_viewer.luau`, then the theme |
 | Frame rate drops with a window open | Too many cells drawn per frame | Press **Pages** instead of Show all, lower `PAGE_ROWS`, or collapse sections you are not reading |
