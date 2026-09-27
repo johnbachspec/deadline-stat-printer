@@ -26,7 +26,7 @@ The client console has no `require`, so step 1 has to be a paste; `require(...)`
 In the windows:
 
 - Sections collapse and expand; what you open or close is kept when the report refreshes.
-- Tables with more than 12 rows get a filter box (matches any cell, case-insensitive). Tables with more than 25 rows get **< Prev** / **Next >** pages.
+- Tables with more than 12 rows get a filter box (matches any cell, case-insensitive). Tables with more than 50 rows get **< Prev** / **Next >** pages and a **Show all** button that puts every row on one page (**Pages** switches back). Show all on a very long table, like 1,000+ attachments, can cost frame rate, because every visible cell is drawn each frame.
 - **Refresh** asks the server for a fresh copy of that report.
 - The "Stat printer" window lists every report received. **Show** reopens a closed window and **Clear all** forgets them all.
 - `shared.iris_viewer.show()` in the client console reopens every window. Pasting the file again does the same and also loads any changes to the viewer, keeping the reports it has.
@@ -39,7 +39,7 @@ At the top of `iris_viewer.luau`:
 
 | Setting | Default | What it does |
 | --- | --- | --- |
-| `PAGE_ROWS` | 25 | Table rows per page. Lower it if a big window costs frame rate. |
+| `PAGE_ROWS` | 50 | Table rows per page; longer tables also get Show all. Lower it if a big window costs frame rate. |
 | `FILTER_ROWS` | 12 | Tables with more rows than this get a filter box. |
 | `WINDOW_SIZES` | per report kind | Initial window size in pixels, by the part of the report id before `:`. |
 | `DEFAULT_SIZE` | 700 x 500 | Initial size for any other report. |
@@ -68,7 +68,7 @@ The consoles run scripts in Fiu, a Luau interpreter written in Luau. Iris itself
 
 - **Every widget needs an explicit id.** Iris normally identifies a widget by the source lines of the call stack that created it. From Fiu, every call comes from the same interpreter line, so Iris's automatic ids are just draw order. When the content changes (a report arrives, a page turns, a section opens), widgets swap identities: a pager showed up in the wrong window, and a row container was handed a text label, which failed with `UIListLayout is not a valid member of TextLabel`. So every widget call is preceded by `set_id(...)` (`iris.SetNextWidgetID`), with ids that start with `dsp:` and are built from the report id. The tests fail if any widget is drawn without one.
 - **Two table APIs.** Iris 2.4 rewrote tables: from 2.4 you draw a cell and then call `NextColumn()`, and the header row is placed with `SetHeaderColumnIndex(1)`; before 2.4 you call `NextColumn()` before each cell, the first row is drawn as the header, and a column count may never change for the same table id. The viewer picks the style with `iris.NextHeaderColumn ~= nil` and reports it in its ready message ("2.4+" or "pre-2.4"). Table ids include the column count so a changed count gets a new table.
-- **Cost per frame.** The draw function runs every frame through the interpreter. To keep that cheap, collapsed sections and closed windows are skipped, tables are paged, cell arguments and widget ids are built once when a report arrives, and a filter result is cached until the filter text or report changes.
+- **Cost per frame.** The draw function runs every frame through the interpreter. To keep that cheap, collapsed sections and closed windows are skipped, tables are paged (Show all is opt-in per table), cell arguments and widget ids are built once when a report arrives, and a filter result is cached until the filter text or report changes.
 - **Errors.** Each window is drawn inside `pcall`. If one fails, the viewer closes whatever it left open (a broken open/`End()` balance would break every Iris window) and shows the error once in the "Stat printer" window.
 - **No `require`, no `Vector2` guarantee.** The client console has no `require`, so the viewer is one file with no dependencies. Setting window size and position is wrapped in `pcall` in case `Vector2` is missing.
 
@@ -91,7 +91,7 @@ The game's Fiu build fails to load any function spanning more than 255 source li
 | The hub says `Messages received: N, last one not a report: ...` | Messages arrive in an unexpected shape | Report the text shown after "last one not a report" |
 | `Error: ...` in the hub | A window failed to draw | Report the text; the other windows keep working |
 | A table looks scrambled | Possibly the wrong table style for this Iris | Report the "Iris ... tables" part of the ready message |
-| Frame rate drops with a window open | Too many cells drawn per frame | Lower `PAGE_ROWS`, or collapse sections you are not reading |
+| Frame rate drops with a window open | Too many cells drawn per frame | Press **Pages** instead of Show all, lower `PAGE_ROWS`, or collapse sections you are not reading |
 
 To check the connection without the stat scripts, run in the server console:
 

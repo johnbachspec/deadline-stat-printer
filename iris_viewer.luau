@@ -1,7 +1,7 @@
 -- iris_viewer.luau: shows the stat printer's reports in Iris windows. Paste it whole into the
 -- CLIENT Luau console (there is no require there). How it works and how to change it: IRIS_VIEWER.md.
 -- Must stay 255 lines or fewer (Fiu load limit), so notes go in IRIS_VIEWER.md, not in comments here.
-local PAGE_ROWS = 25   -- table rows per page; longer tables get Prev / Next buttons
+local PAGE_ROWS = 50   -- table rows per page; longer tables get Prev / Next and Show all buttons
 local FILTER_ROWS = 12 -- tables with more rows than this get a filter box
 local WINDOW_SIZES = { stats = { 1180, 640 }, attachments = { 820, 640 }, caps = { 380, 320 } }
 local DEFAULT_SIZE = { 700, 500 }
@@ -120,15 +120,22 @@ local function visible_rows(tbl, ui)
 end
 local function draw_table(tbl, ui)
     local rows = visible_rows(tbl, ui)
-    local pages = math.max(1, math.ceil(#rows / PAGE_ROWS))
+    local all = ui.pages[tbl.key .. ":all"] -- "Show all": one page with every row (costs frame rate on big tables)
+    local per_page = all and math.max(#rows, 1) or PAGE_ROWS
+    local pages = math.max(1, math.ceil(#rows / per_page))
     local page = math.min(ui.pages[tbl.key] or 1, pages)
-    if pages > 1 then
+    if #rows > PAGE_ROWS then
         set_id(tbl.key .. ":pager"); open(iris.SameLine())
-        set_id(tbl.key .. ":prev")
-        if iris.SmallButton({ "< Prev" }).clicked() and page > 1 then page = page - 1 end
-        set_id(tbl.key .. ":next")
-        if iris.SmallButton({ "Next >" }).clicked() and page < pages then page = page + 1 end
-        set_id(tbl.key .. ":rows"); iris.Text({ string.format("rows %d-%d of %d", (page - 1) * PAGE_ROWS + 1, math.min(page * PAGE_ROWS, #rows), #rows) })
+        if not all then
+            set_id(tbl.key .. ":prev")
+            if iris.SmallButton({ "< Prev" }).clicked() and page > 1 then page = page - 1 end
+            set_id(tbl.key .. ":next")
+            if iris.SmallButton({ "Next >" }).clicked() and page < pages then page = page + 1 end
+        end
+        set_id(tbl.key .. ":all")
+        if iris.SmallButton({ all and "Pages" or "Show all" }).clicked() then ui.pages[tbl.key .. ":all"] = not all end
+        set_id(tbl.key .. ":rows"); iris.Text({ all and string.format("all %d rows", #rows) or string.format("rows %d-%d of %d",
+            (page - 1) * per_page + 1, math.min(page * per_page, #rows), #rows) })
         close()
     end
     ui.pages[tbl.key] = page
@@ -144,8 +151,8 @@ local function draw_table(tbl, ui)
         local ids = slot_ids(tbl, 0)
         for c = 1, n do cell(ids[c], tbl.header_args[c]) end
     end
-    local first = (page - 1) * PAGE_ROWS
-    for slot = 1, math.min(PAGE_ROWS, #rows - first) do
+    local first = (page - 1) * per_page
+    for slot = 1, math.min(per_page, #rows - first) do
         local row, ids = rows[first + slot], slot_ids(tbl, slot)
         for c = 1, n do cell(ids[c], row[c] or EMPTY) end
     end
