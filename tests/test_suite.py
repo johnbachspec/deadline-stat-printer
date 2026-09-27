@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import build_attachment_aliases  # noqa: E402
 import build_attachment_names  # noqa: E402
 import check_fiu_compat  # noqa: E402
+import verify_attachment_merge  # noqa: E402
 RENAMES_CSV = ROOT / "renames.csv"
 BALANCING_CSV = ROOT / "balancing.csv"
 PRINT_ATTACHMENT_LUAU = ROOT / "print_attachment_stats.luau"
@@ -254,13 +255,18 @@ class TestLogAggregationAndKillConservation(unittest.TestCase):
                     best, best_k = g, gk
             return best, best_k
 
-        expected_merges = {
+        expected_merges = verify_attachment_merge.load_expected_merges()
+        # Hand-checked anchors, so a regenerated expected_merges.csv cannot silently drift.
+        anchors = {
             "kalis_scalar_std_bcg": (705, "Vector", 705, {"vector_9mm_bolt", "vector_45acp_bolt"}),
             "vallais_super_fang_trigger": (13952, "SCARH", 13169, {"schmidt_super_scar_trigger", "vallais_super_fang_trigger"}),
             "vallais_mfh_mk16_mlok_urgi_9.3inch": (2285, "M4A1", 2285, {"schmidt_smr_mk16_mlok_urg_i_9.3inch", "vallais_smr_mk16_mlok_urg_i_9.3inch"}),
             "vallais_mfh_mk16_mlok_urgi_15inch": (159, "M4A1", 159, {"schmidt_smr_mk16_mlok_urg_i_15inch", "vallais_smr_mk16_mlok_urg_i_15inch"}),
             "qingyuan_defense_qbz95_long_bow_picatinny_carry_handle": (333, "QBZ95", 333, {"qingyuan_defense_qbz95_long_bow_picatinny_carry_handle", "schneider_defense_qbz95_long_bow_picatinny_carry_handle"}),
+            "aft_mk_17_bolt_carrier": (8082 + 31861, "SCARH", 8082 + 31861, {"aft_mk_17_bolt_carrier", "fn_scar_h_bolt_carrier"}),
         }
+        for canon, expected in anchors.items():
+            self.assertEqual(expected_merges.get(canon), expected, f"tests/expected_merges.csv row for {canon}")
 
         multi = {canon: srcs for canon, srcs in sources.items() if len(srcs) > 1}
         self.assertEqual(set(multi.keys()), set(expected_merges.keys()), "Multi-source merges set mismatch")
@@ -298,17 +304,48 @@ class TestBeautifiedNamesAndBalancing(unittest.TestCase):
 class TestDisplayNamesModule(unittest.TestCase):
     def test_module_in_sync_with_balancing_csv(self):
         self.assertTrue(ATTACHMENT_NAMES_LUAU.is_file(), "modules/attachment_names.luau must exist")
-        version, updated, names = build_attachment_names.load_names()
+        version, updated, names, _ = build_attachment_names.load_all_names()
         expected = build_attachment_names.render(version, updated, names)
         self.assertEqual(ATTACHMENT_NAMES_LUAU.read_text(encoding="utf-8").replace("\r\n", "\n"), expected,
                          "attachment_names.luau is stale; run python tools/build_attachment_names.py")
 
+    def test_every_fixture_attachment_has_an_in_game_name(self):
+        # Ids missing here print as a prettified id ("Fn SCAR Mk20 Gas Block"): add a rename to
+        # renames.csv if the part still exists under a new id, else a row to extra_display_names.csv.
+        _, _, names, _ = build_attachment_names.load_all_names()
+        aliases = load_csv_aliases(RENAMES_CSV)
+        ids = re.findall(r'\["([^"]+)"\]=\{kills=', LOG_FIXTURE.read_text(encoding="utf-8"))
+        unnamed = sorted({resolve_alias(i, aliases) for i in ids} - set(names))
+        self.assertEqual(unnamed, [])
+
+    def test_extra_names_never_override_balancing(self):
+        _, _, balancing = build_attachment_names.load_names()
+        _, _, merged, _ = build_attachment_names.load_all_names()
+        for name, pretty in balancing.items():
+            self.assertEqual(merged[name], pretty)
+        self.assertEqual(merged["hk_battle_pistol_grip"], "HK Battle Pistol Grip")
+
     def test_known_names_and_escapes(self):
         content = ATTACHMENT_NAMES_LUAU.read_text(encoding="utf-8")
-        self.assertIn('["kalis_scalar_std_bcg"] = "KALIS Scalar Standard",', content)
+        self.assertIn('["kalis_scalar_std_bcg"] = "KALIS Scalar Standard (BCG)",', content)
         self.assertIn('["SCARH"] = "AFT MK-17",', content)  # weapons are named too (Top Gun column)
         self.assertIn('["sig_sauer_bravo4_4x30"] = "Sic St\\195\\188rmer GAIUS4 4X30",', content)
         self.assertTrue(content.isascii(), "generated module must be plain ASCII")
+
+    def test_shared_names_get_part_labels(self):
+        _, _, names, _ = build_attachment_names.load_all_names()
+        shown = build_attachment_names.disambiguate(names)
+        attachment_names = [v for k, v in shown.items() if k == k.lower()]
+        self.assertEqual(len(attachment_names), len(set(attachment_names)), "two attachments would print the same name")
+        self.assertEqual(shown["aft_stock_cheek_piece"], "AFT (Cheek Piece)")
+        self.assertEqual(shown["aft_stock_connector"], "AFT (Connector)")
+        self.assertEqual(shown["aft_stock_shoulder_piece"], "AFT (Shoulder Piece)")
+        self.assertEqual(shown["kazarov_ak74_fire_selector"], "Kazarov AK-74 (Fire Selector)")  # model not repeated
+        self.assertEqual(shown["kf_416_a5_barrel_nut"], "KF416A5 (Barrel Nut)")
+        self.assertEqual(shown["hart_m4a1_castlenut"], "Hart M4A1 Castle Nut (Standard)")  # base part of its variants
+        self.assertEqual(shown["ak308_7.62x51_muzzle_brake"], "Kazarov Group AK-308 (7.62x51 Muzzle Brake)")
+        self.assertEqual(shown["AK308"], "Kazarov Group AK-308")  # guns keep their name
+        self.assertEqual(shown["dd_enhanced_mvg"], names["dd_enhanced_mvg"])  # unique names untouched
 
     def test_luau_string_escaping(self):
         s = build_attachment_names.luau_string
