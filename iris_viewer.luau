@@ -229,12 +229,17 @@ local function guarded(draw, ...) -- closes what a failing window left open; rep
     local ok, err = pcall(draw, ...)
     while depth > base do depth = depth - 1; pcall(iris.End) end
     if not ok and not viewer.error then viewer.error = tostring(err); print("[viewer] " .. viewer.error) end
+    return ok, err
 end
 viewer.draw = function()
     depth = 0
     local theme = type(shared.iris_viewer_theme) == "table" and iris.PushConfig and shared.iris_viewer_theme -- iris_theme.luau
     if theme then set_id("dsp:theme"); theme = pcall(iris.PushConfig, theme) end -- styles only these windows
-    guarded(draw_hub)
+    local hub_ok, hub_err = guarded(draw_hub)
+    if theme and not hub_ok then -- a theme value Iris rejects would break every window: drop the theme
+        shared.iris_viewer_theme, viewer.error = nil, "theme turned off, Iris rejected it: " .. tostring(hub_err)
+        print("[viewer] " .. viewer.error)
+    end
     for i, id in ipairs(viewer.order) do
         guarded(draw_report, viewer.reports[id], i)
     end
