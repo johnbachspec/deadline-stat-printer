@@ -86,7 +86,7 @@ Iris has one font setting, so the number font works through Roblox rich text: th
 
 An unknown font prints `[theme] font ... not available` and keeps the current font. For Deadline's look, try `FONT = 12187365977` with `FONT_WEIGHT = "Medium"`; for stats tables a monospaced font (`"RobotoMono"`, `"Code"`) keeps numbers in columns aligned.
 
-The snippet stores the theme in `shared.iris_viewer_theme`. Each frame the viewer wraps its windows in `iris.PushConfig(theme)` / `iris.PopConfig()`, and Iris re-styles them when the theme changes. Iris 2.1 and later take a `Font` object, which is what makes asset ids and weights possible; Iris 2.0 and older only take a built-in `Enum.Font`, so there the snippet uses the plain name and reports asset ids as not available. It lives in its own file so it doesn't use up the viewer's [255 lines](#the-255-line-limit).
+The snippet stores the theme in `shared.iris_viewer_theme`. Each frame the viewer wraps its windows in `iris.PushConfig(theme)` / `iris.PopConfig()`, and Iris re-styles them when the theme changes. Deadline's Iris (2.1 or later, since it sets `FontFace`) only takes a Roblox `Font` object, never an `Enum.Font`; that is also what makes asset ids and weights possible. The snippet builds one with `Font.fromEnum` / `Font.fromId`, and if the console has no `Font` type it leaves the font alone and says so, rather than sending something Iris rejects. It lives in its own file so it doesn't use up the viewer's [255 lines](#the-255-line-limit).
 
 On the server side, `SHOW_IN` at the top of `print_player_stats.luau` and `print_attachment_stats.luau` is `"both"` (console text and windows), `"iris"` (windows only) or `"console"` (no windows). `cap_announcer.luau` has `SEND_TO_IRIS`.
 
@@ -136,7 +136,7 @@ The game's Fiu build fails to load any function spanning more than 255 source li
 | The hub says `Messages received: N, last one not a report: ...` | Messages arrive in an unexpected shape | Report the text shown after "last one not a report" |
 | `Error: ...` in the hub | A window failed to draw | Report the text; the other windows keep working |
 | A table looks scrambled | Possibly the wrong table style for this Iris | Report the "Iris ... tables" part of the ready message |
-| `[theme] font ... not available` | Not a font name here, or an asset id on an Iris that only takes names | Set `FONT = "?"` and paste to list the names; check the asset id in the store link |
+| `[theme] font ... not available (...)` | Not a font name here, or (with `no Font type`) the console can't make fonts at all | Set `FONT = "?"` and paste to list the names; check the asset id in the store link |
 | `[viewer] theme turned off, Iris rejected it: ...` (e.g. `Font expected, got EnumItem`) | A theme value this Iris can't use; the viewer dropped the theme so the windows keep working | Send the message; paste the theme again after a fix |
 | Theme pasted but nothing changed | Pasted before the viewer, or the viewer is from before themes existed | Paste the current `iris_viewer.luau`, then the theme |
 | Frame rate drops with a window open | Too many cells drawn per frame | Press **Pages** instead of Show all, lower `PAGE_ROWS`, or collapse sections you are not reading |
