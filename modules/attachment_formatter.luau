@@ -201,50 +201,25 @@ local function safe_sub(s, i, j)
     return (string.sub)(s, i, j)
 end
 
--- Robust CSV line parser supporting double-quoted fields
-local function parse_csv_line(line)
-    local fields = {}
-    local pos = 1
-    local len = #line
-    while pos <= len do
-        local c = safe_sub(line, pos, pos)
-        if c == '"' then
-            local txt = ""
-            pos = pos + 1
-            while pos <= len do
-                local c2 = safe_sub(line, pos, pos)
-                if c2 == '"' then
-                    if pos + 1 <= len and safe_sub(line, pos + 1, pos + 1) == '"' then
-                        txt = txt .. '"'
-                        pos = pos + 2
-                    else
-                        pos = pos + 1
-                        break
-                    end
-                else
-                    txt = txt .. c2
-                    pos = pos + 1
-                end
-            end
-            table.insert(fields, txt)
-            while pos <= len and safe_sub(line, pos, pos) ~= "," do
-                pos = pos + 1
-            end
-            if pos <= len and safe_sub(line, pos, pos) == "," then
-                pos = pos + 1
-            end
-        else
-            local next_comma = string.find(line, ",", pos, true)
-            if next_comma then
-                table.insert(fields, safe_sub(line, pos, next_comma - 1))
-                pos = next_comma + 1
-            else
-                table.insert(fields, safe_sub(line, pos))
-                pos = len + 1
-            end
-        end
+-- The balancing CSV has name and pretty_name in columns 3 and 4.
+-- This avoids a mutable character cursor, which is unreliable in the game's
+-- older Fiu interpreter. Quoted fields may contain commas and doubled quotes.
+local function parse_balancing_row(line)
+    local tech_name, pretty_cell = line:match("^[^,]*,[^,]*,([^,]*),(.*)$")
+    if not tech_name or #tech_name == 0 then
+        return nil, nil
     end
-    return fields
+
+    local pretty_name
+    if pretty_cell:sub(1, 1) == '"' then
+        pretty_name = pretty_cell:match('^"(.*)"')
+        if pretty_name then
+            pretty_name = pretty_name:gsub('""', '"')
+        end
+    else
+        pretty_name = pretty_cell:match("^([^,]*)")
+    end
+    return tech_name, pretty_name
 end
 
 -- Pulls latest beautified names from recoil-studio/deadline-balancing/balancing.csv
@@ -281,34 +256,15 @@ function AttachmentFormatter:sync_balancing_names(custom_url)
         return false, self.sync_status
     end
 
-    local header_found = false
-    local name_col, pretty_col = 3, 4 -- 1-indexed for Luau
-    local count = 0
-
     for line in body:gmatch("[^\r\n]+") do
-        local fields = parse_csv_line(line)
-        if not header_found then
-            for idx, col in ipairs(fields) do
-                if col == "name" then name_col = idx end
-                if col == "pretty_name" then pretty_col = idx end
-            end
-            if name_col and pretty_col then
-                header_found = true
-            end
-        else
-            if #fields >= math.max(name_col, pretty_col) then
-                local tech_name = fields[name_col]
-                local pretty_name = fields[pretty_col]
-                if tech_name and pretty_name and #tech_name > 0 and #pretty_name > 0 and tech_name ~= "name" then
-                    self.beautified_names[tech_name] = pretty_name
-                    AttachmentFormatter.BEAUTIFIED_NAMES[tech_name] = pretty_name
-                    count = count + 1
-                end
-            end
+        local tech_name, pretty_name = parse_balancing_row(line)
+        if tech_name and pretty_name and tech_name ~= "name" and #pretty_name > 0 then
+            self.beautified_names[tech_name] = pretty_name
+            AttachmentFormatter.BEAUTIFIED_NAMES[tech_name] = pretty_name
         end
     end
 
-    self.sync_status = string.format("live synced (%d names from %s)", count, active_url)
+    self.sync_status = string.format("live synced from %s", active_url)
     return true, self.sync_status
 end
 
