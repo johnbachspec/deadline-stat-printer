@@ -1,141 +1,112 @@
 -- modules/attachment_renderer.luau
--- Console presentation and layout for attachment statistics.
--- Single Responsibility: Renders aggregated attachment data to the Luau console,
--- supporting both formatted tabular reports (with polished names) and delimited
--- chunks (for debugging and log fixture generation).
+-- Prints aggregated attachment rows (from attachment_aggregator): a readable
+-- table with in-game names, or Lua-table lines that tests/fixtures are made from.
 -- NOTE: Deadline's Luau console uses a Lua 5.x-style VM ('Fiu') that does not
 -- accept Luau type annotations, so this file intentionally has none.
 
 local AttachmentRenderer = {}
 AttachmentRenderer.__index = AttachmentRenderer
 
-local function default_pad_right(text, width)
-    local s = tostring(text)
-    if #s < width then
-        return s .. string.rep(" ", width - #s)
+local NAME_COLUMN_MAX = 72 -- longer names overflow their own row instead of widening every row
+
+-- Used for ids the names module does not know yet (or when it is not loaded).
+local ACRONYMS = {
+    acog = "ACOG", afg = "AFG", ak = "AK", ar = "AR", bcm = "BCM", bt = "B&T", cqb = "CQB", dd = "DD",
+    ecm = "ECM", eotech = "EOTech", fal = "FAL", fmj = "FMJ", fmjbt = "FMJBT", fn = "FN", g3 = "G3",
+    hk = "HK", hp = "HP", jsp = "JSP", kac = "KAC", kag = "KAG", m4 = "M4", m4a1 = "M4A1", m16 = "M16",
+    mlok = "M-LOK", moa = "MOA", moe = "MOE", mp5 = "MP5", mp5k = "MP5K", mvg = "MVG", oem = "OEM",
+    otm = "OTM", pdw = "PDW", pepr = "P.E.P.R.", pmag = "PMAG", prs = "PRS", ps = "PS", psrl = "PSRL",
+    qd = "QD", rmr = "RMR", sa58 = "SA58", sat = "SAT", sc = "SC", scar = "SCAR", scarh = "SCAR-H",
+    scarl = "SCAR-L", sf = "SF", smr = "SMR", spr = "SPR", sro = "SRO", ssr = "SSR", std = "Standard",
+    urgi = "URG-I",
+}
+
+local function prettify(id)
+    local words = {}
+    for part in string.gmatch(tostring(id or "Unknown"), "[^_]+") do
+        local lower = string.lower(part)
+        local word = ACRONYMS[lower]
+        if not word and string.find(lower, "%d[a-wyz]%d") then
+            word = string.upper(lower) -- model numbers: m855a1 -> M855A1, 7n6 -> 7N6 (5.56x45 stays)
+        elseif not word then
+            word = string.upper(string.match(lower, "^.") or "") .. string.sub(lower, 2)
+        end
+        table.insert(words, word)
     end
-    return s
+    return table.concat(words, " ")
 end
 
+-- Printed width in characters (some names contain multi-byte UTF-8 letters).
+local function text_width(s)
+    return (utf8 and utf8.len(s)) or #s
+end
+
+-- deps = { weapon_data = WeaponData, names = attachment_names module or nil }
 function AttachmentRenderer.new(deps)
-    local self = setmetatable({}, AttachmentRenderer)
-    self.formatter = deps and deps.formatter
-    self.formatters = deps and deps.formatters
-    return self
+    local names = deps.names
+    return setmetatable({
+        weapon_data = deps.weapon_data,
+        names = (names and names.NAMES) or {},
+        names_version = names and names.VERSION,
+    }, AttachmentRenderer)
 end
 
-function AttachmentRenderer:pad(text, width)
-    if self.formatters and type(self.formatters.pad_right) == "function" then
-        return self.formatters.pad_right(text, width)
+function AttachmentRenderer:item_name(item)
+    if item.group then
+        return string.format("%s (%d pieces)", item.group, item.pieces)
     end
-    return default_pad_right(text, width)
+    return self.names[item.id] or prettify(item.id)
 end
 
--- Renders formatted tabular report with polished in-game names.
-function AttachmentRenderer:render_table(aggregated, player_name, options)
-    local items = (aggregated and aggregated.items) or {}
-    local limit = #items
-    local legacy_merged = (aggregated and aggregated.legacy_merged) or 0
-    local sync_status = (options and options.sync_status) or "embedded snapshot"
-    local p_name = player_name or "Player"
+-- Guns use the stat panel's names (weapon_data), so both reports agree.
+function AttachmentRenderer:gun_name(gun_id)
+    return self.weapon_data.display_name(gun_id)
+end
 
-    local display_items = {}
-    local rank_width = math.max(#tostring(math.max(limit, 1)), 3)
-    local name_width = 32
-    local kills_width = 6
-    local gun_width = #("Top Gun")
-
-    for i = 1, limit do
-        local it = items[i]
-        local dname = it.display_name
-        if not dname and self.formatter then
-            dname = self.formatter:resolve_attachment_display_name(it.id)
-        end
-        dname = dname or it.id
-
-        local gname = it.top_gun_display
-        if not gname and self.formatter then
-            gname = self.formatter:resolve_weapon_display_name(it.top_gun)
-        end
-        gname = gname or it.top_gun
-
-        if #dname > name_width then name_width = #dname end
-        local digits = #tostring(it.kills)
-        if digits > kills_width then kills_width = digits end
-        if #gname > gun_width then gun_width = #gname end
-
-        table.insert(display_items, {
-            id = it.id,
-            display_name = dname,
-            kills = it.kills,
-            top_gun = it.top_gun,
-            top_gun_display = gname,
-            top_gun_kills = it.top_gun_kills,
-        })
+function AttachmentRenderer:render_table(aggregated)
+    local items = aggregated.items
+    local names, width = {}, 0
+    for i, item in ipairs(items) do
+        names[i] = self:item_name(item)
+        width = math.min(math.max(width, text_width(names[i])), NAME_COLUMN_MAX)
     end
-
-    print(string.format("\n================ ALL %d ATTACHMENTS BY KILLS FOR %s ================", limit, tostring(p_name)))
-    print(string.format("-- ALIAS SOURCE: %s", sync_status))
-    if legacy_merged > 0 then
-        print(string.format("-- ALIASES MERGED: %d legacy attachment ids folded into current ids (renames.csv)", legacy_merged))
-    end
-
-    if limit == 0 then
-        print("No attachment kills found across any weapons.")
+    print(string.format("\n================ ALL %d ATTACHMENTS BY KILLS ================", #items))
+    if self.names_version then
+        print("-- names: deadline-balancing " .. tostring(self.names_version))
     else
-        print("Total Unique Attachments Found: " .. limit)
-        print("Displaying all " .. limit .. " attachments...\n")
-
-        for i = 1, limit do
-            local item = display_items[i]
-            print("#" .. self:pad(tostring(i), rank_width)
-                .. " " .. self:pad(item.display_name, name_width)
-                .. " | Kills: " .. self:pad(tostring(item.kills), kills_width)
-                .. " | Top Gun: " .. self:pad(item.top_gun_display, gun_width)
-                .. " (" .. tostring(item.top_gun_kills) .. ")")
-
-            if i % 100 == 0 and task and task.wait then
-                task.wait(0.05)
-            end
-        end
+        print("-- names: prettified ids (attachment_names module not loaded)")
     end
-
-    return display_items
+    for i, item in ipairs(items) do
+        print(string.format("#%-3d %s | Kills: %-6d | Top Gun: %s (%d)",
+            i,
+            names[i] .. string.rep(" ", math.max(0, width - text_width(names[i]))),
+            item.kills,
+            self:gun_name(item.top_gun),
+            item.top_gun_kills))
+    end
 end
 
--- Renders delimited Lua table chunks (100 attachments per line) for debug/fixture generation.
-function AttachmentRenderer:render_delimited(aggregated, player_name, options)
-    local items = (aggregated and aggregated.items) or {}
-    local legacy_merged = (aggregated and aggregated.legacy_merged) or 0
-    local sync_status = (options and options.sync_status) or "embedded snapshot"
-    local chunk_size = (options and options.chunk_size) or 100
-    local p_name = player_name or "Player"
-
-    print(string.format("-- TOTAL ATTACHMENTS FOR %s: %d (split into lines of %d)", tostring(p_name), #items, chunk_size))
-    print(string.format("-- ALIAS SOURCE: %s", sync_status))
-    if legacy_merged > 0 then
-        print(string.format("-- ALIASES MERGED: %d legacy attachment ids folded into current ids (renames.csv)", legacy_merged))
+-- Lua-table lines of raw ids, chunk_size entries per line; saved copies of this
+-- output are the fixtures tools/verify_attachment_merge.py and the tests replay.
+function AttachmentRenderer:render_delimited(aggregated, player_name, chunk_size)
+    local items = aggregated.items
+    chunk_size = chunk_size or 100
+    print(string.format("-- TOTAL ATTACHMENTS FOR %s: %d (split into lines of %d)", tostring(player_name), #items, chunk_size))
+    if aggregated.legacy_merged > 0 then
+        print(string.format("-- ALIASES MERGED: %d legacy attachment ids folded into current ids (renames.csv)", aggregated.legacy_merged))
     end
     print("ATTACHMENT_DATA = {")
-
     local line_items = {}
     for i, item in ipairs(items) do
         table.insert(line_items, string.format('["%s"]={kills=%d,top_gun="%s",top_gun_kills=%d}',
             item.id, item.kills, item.top_gun, item.top_gun_kills))
-
         if #line_items == chunk_size or i == #items then
-            local is_last = (i == #items)
-            local suffix = is_last and "" or ","
-            print(" " .. table.concat(line_items, ", ") .. suffix)
-            table.clear(line_items)
-            if task and task.wait then
-                task.wait(0.05)
-            end
+            print(" " .. table.concat(line_items, ", ") .. (i == #items and "" or ","))
+            line_items = {}
+            if task and task.wait then task.wait(0.05) end -- let long output stream
         end
     end
-
     print("}")
-    return items
 end
 
 return AttachmentRenderer

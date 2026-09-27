@@ -32,28 +32,31 @@ shared.print_player_stats(players.get("SomeName"), { filter = "SMG", sort_by = "
 
 ### Attachment Stats
 
-To view aggregated attachment statistics across all weapons, paste `print_attachment_stats.luau` into the Luau console or run:
+To view aggregated attachment statistics across all weapons, run (or paste `print_attachment_stats.luau`; either way it downloads its modules from this repo, like the stat panel):
 
 ```lua
 require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_attachment_stats.luau")
 ```
 
-Attachments and guns are listed by their in-game names. The game gives some different parts the same name (three parts are all just "AFT"), so those get the part in brackets, taken from the item id: `AFT (Cheek Piece)`, `AFT (Connector)`, `AFT (Shoulder Piece)`. Names are downloaded at run time from `modules/attachment_names.luau` (generated from deadline-balancing `balancing.csv`). An attachment too new to be in that file yet prints as a prettified id, and if the download fails the whole list does; the header line says which (`-- names: deadline-balancing 0.25.4`). Set `LOAD_NAMES = false` at the top of the script to skip the download.
+Attachments are listed by their in-game names; the "Top Gun" column uses the same gun names as the weapon table. The game gives some different parts the same name (three parts are all just "AFT"), so those get the part in brackets, taken from the item id: `AFT (Cheek Piece)`, `AFT (Connector)`, `AFT (Shoulder Piece)`. Products the game tracks as several pieces that are always equipped together are listed in `data/attachment_groups.csv` and print as one row, e.g. `AFT Stock (3 pieces)`; the row shows the kills once, since every piece is credited with the same kills. Leave a product out if one of its pieces can be swapped for an add-on (the Veles PT-1 takes a Tailhook adapter).
+
+Names come from `modules/attachment_names.luau` (generated from deadline-balancing `balancing.csv`). An attachment too new to be in that file yet prints as a prettified id, and if that module fails to download the whole list does; the header line says which (`-- names: deadline-balancing 0.25.4`). Set `LOAD_NAMES = false` at the top of the script to skip that download.
 
 After running once, `shared.print_attachment_stats` remains available:
 
 ```lua
-shared.print_attachment_stats()                      -- prints for the first human player found
-shared.print_attachment_stats(players.get("SomeName")) -- prints for a specific player
+shared.print_attachment_stats()                        -- the first human player found
+shared.print_attachment_stats(players.get("SomeName")) -- a specific player
+shared.print_attachment_stats("SomeName")              -- by name
 ```
 
 ## What It Shows
 
 **Account recap** — level, unofficial prestige, XP to next level, kills, deaths, KDR, headshot / wallbang / explosive kill percentages, matches played, objectives captured, rounds fired, money spent (split by attachments vs weapons), tester status, time alive, distance travelled, owned weapons / attachments / camos, and per-match / per-minute averages.
 
-**Weapon table** — one row per weapon: kills, deaths while carrying it, deaths caused by it, w-KDR, share of kills, rounds fired, kills per minute, rounds fired per kill, weapon XP, time used, share of time used, and type. Legacy weapon ids are merged into their current weapon (e.g. `HK416A5` → `KF416`, `AKMN` → `AK_762`, `Glock17`/`Glock20` → `KOSCH`).
+**Weapon table** — one row per weapon: kills, deaths while carrying it, deaths caused by it, w-KDR, share of kills, rounds fired, kills per minute, rounds fired per kill, weapon XP, time used, share of time used, and type. Legacy weapon ids are merged into their current weapon (e.g. `HK416A5` → `KF416`, `AKMN` → `AK_762`, `Glock17`/`Glock20` → `KOSCH`, `Vector` → `SCALAR` and `SA58` → `SG58`, which keep their old names "Vector" and "SA58").
 
-**Attachment stats** — per-attachment kills and top weapon across all guns, by in-game name. Legacy attachment ids are folded into their current ids (embedded snapshot of `deadline-balancing` `renames.csv` plus historical renames added here, tracked as `renames.csv`), so renamed or merged parts — e.g. `vector_9mm_bolt` + `vector_45acp_bolt` → `kalis_scalar_std_bcg` ("KALIS Scalar Standard") — report unified totals.
+**Attachment stats** — per-attachment kills and top weapon across all guns, by in-game name. Legacy attachment ids are folded into their current ids (`data/renames.csv`: deadline-balancing's rename list plus historical renames added here), and legacy gun ids into their current gun, so renamed or merged parts — e.g. `vector_9mm_bolt` + `vector_45acp_bolt` → `kalis_scalar_std_bcg` ("KALIS Scalar Standard (BCG)") — report unified totals.
 
 ### How to read the numbers
 
@@ -76,41 +79,50 @@ Career stats are not recorded in the lobby or in player-owned private servers, s
 ## Project Structure
 
 ```
-print_player_stats.luau               <- entry point and config; require()s the modules below
-print_attachment_stats.luau           <- attachment-kills printer (embedded aliases; downloads display names)
-print_attachment_stats_delimited.luau <- same data as Lua-table lines, used to capture test fixtures
-rename.py                   <- applies renames.csv to the name column of CSV/Excel balancing sheets
-renames.csv                 <- deadline-balancing rename list plus historical renames added here
-balancing.csv               <- deadline-balancing item sheet; source of display names
-extra_display_names.csv     <- hand-written names for old ids balancing.csv no longer lists
-modules/
-  weapon_data.luau         <- weapon ids: legacy aliases, display names, types
-  level_data.luau          <- XP thresholds and level calculation
-  formatters.luau          <- number / currency / time / padding helpers
-  stats_aggregator.luau    <- merges raw profile stats into one per-weapon table
-  filters_sorters.luau     <- filtering and sorting of the weapon list
-  renderer.luau            <- all console printing / layout
-  attachment_names.luau    <- GENERATED id -> in-game name table (attachments and guns)
-  attachment_data.luau     <- attachment aliases and resolver (used by the delimited printer)
-tests/
-  test_suite.py              <- python tests/test_suite.py
-  attachment logs output.txt <- saved printer output used as the verify_attachment_merge fixture
-  expected_merges.csv        <- which fixture rows each rename folds together, and the resulting totals
+print_player_stats.luau               <- weapon table entry point and config
+print_attachment_stats.luau           <- attachment table entry point
+print_attachment_stats_delimited.luau <- attachment data as Lua-table lines, to capture test fixtures
+modules/                                 downloaded by the entry points at run time
+  weapon_data.luau           <- gun ids: legacy aliases, display names, types (shared by both reports)
+  player_lookup.luau         <- finds the player a report is for (shared by all entry points)
+  level_data.luau            <- XP thresholds and level calculation
+  formatters.luau            <- number / currency / time / padding helpers
+  stats_aggregator.luau      <- merges raw profile stats into one per-weapon table
+  filters_sorters.luau       <- filtering and sorting of the weapon list
+  renderer.luau              <- weapon report printing / layout
+  attachment_data.luau       <- attachment aliases (GENERATED table) and resolver
+  attachment_aggregator.luau <- per-attachment kills, renames and groups applied
+  attachment_renderer.luau   <- attachment table and Lua-table output
+  attachment_names.luau      <- GENERATED attachment id -> in-game name, and GROUPS
+data/
+  balancing.csv              <- deadline-balancing item sheet; source of display names
+  renames.csv                <- deadline-balancing rename list plus historical renames added here
+  extra_display_names.csv    <- hand-written names for old ids balancing.csv no longer lists
+  attachment_groups.csv      <- pieces always equipped together, printed as one product row
 tools/
+  deadline_data.py            <- shared paths and helpers for the tools and tests
   check_fiu_compat.py         <- fails any script the game's Fiu VM would refuse to load
-  build_attachment_names.py   <- regenerates modules/attachment_names.luau from balancing.csv
-  build_attachment_aliases.py <- regenerates / verifies the embedded alias tables from renames.csv
-  verify_attachment_merge.py  <- replays the alias merge in Python and checks the totals
-.github/workflows/
-  sync-balancing.yml          <- daily: pull deadline-balancing, regenerate, check, commit
-  check.yml                   <- every push / PR: Fiu load check + tests
+  build_attachment_names.py   <- regenerates modules/attachment_names.luau
+  build_attachment_aliases.py <- regenerates / verifies the alias table in modules/attachment_data.luau
+  verify_attachment_merge.py  <- replays the merge over a saved output and checks the totals
+  rename.py                   <- applies data/renames.csv to the name column of CSV/Excel balancing sheets
+tests/                           python -m unittest discover -s tests
+  test_luau.py                <- runs the console scripts under the luau CLI with the console mocked
+  test_data.py                <- data files and generated Luau
+  test_tools.py               <- unit tests for tools/
+  fixtures/attachment_stats_output.txt <- saved print_attachment_stats_delimited output
+  fixtures/expected_merges.csv         <- which fixture rows each rename folds together, and the totals
+.github/
+  workflows/sync-balancing.yml <- daily: pull deadline-balancing, regenerate, check, commit
+  workflows/check.yml          <- every push / PR: Fiu load check + tests
+  actions/setup-luau/          <- installs luau / luau-compile for both workflows
 ```
 
 ### Keeping names and renames current
 
-`.github/workflows/sync-balancing.yml` runs daily (or on demand from the Actions tab). It downloads `balancing.csv` and `renames.csv` from `recoil-group/deadline-balancing`, regenerates `modules/attachment_names.luau` and the embedded alias tables, and commits to `main` only if the Fiu load check and the tests pass. Upstream renames are merged into `renames.csv`; rows added here by hand are never dropped. A new rename that changes the totals in the test fixture fails the tests on purpose, so review it and update `tests/expected_merges.csv`.
+`.github/workflows/sync-balancing.yml` runs daily (or on demand from the Actions tab). It downloads `balancing.csv` and `renames.csv` from `recoil-group/deadline-balancing`, regenerates `modules/attachment_names.luau` and the alias table in `modules/attachment_data.luau`, and commits to `main` only if the Fiu load check and the tests pass. Upstream renames are merged into `data/renames.csv`; rows added here by hand are never dropped. A new rename that folds together ids in the test fixture fails the tests on purpose: review the merges `python tools/verify_attachment_merge.py` prints, then run it with `--write-expected`.
 
-If the printer shows a prettified id instead of an in-game name (e.g. `Fn SCAR Mk20 Gas Block`), that id is missing from `balancing.csv`, usually because the game renamed the part. If the part still exists under a new id (here `aft_mk20_gas_block`), add `old,new` to `renames.csv` so its kills merge into the current part; otherwise add `id,Name` to `extra_display_names.csv`. Then run both build tools.
+If the printer shows a prettified id instead of an in-game name (e.g. `Fn SCAR Mk20 Gas Block`), that id is missing from `balancing.csv`, usually because the game renamed the part. If the part still exists under a new id (here `aft_mk20_gas_block`), add `old,new` to `data/renames.csv` so its kills merge into the current part; otherwise add `id,Name` to `data/extra_display_names.csv`. Then run both build tools.
 
 To do the same by hand:
 
@@ -118,11 +130,13 @@ To do the same by hand:
 python tools/build_attachment_aliases.py --fetch
 python tools/build_attachment_names.py --fetch
 python tools/check_fiu_compat.py
-python tests/test_suite.py
+python -m unittest discover -s tests
 ```
+
+The tests run the console scripts themselves, so they need the `luau` and `luau-compile` CLIs (from a [Luau release](https://github.com/luau-lang/luau/releases)) in `luau_bin/`, on `PATH`, or in the folder `$LUAU_BIN` points to; without them those tests are skipped. To refresh the fixture, run `print_attachment_stats_delimited.luau` in-game and save its output as `tests/fixtures/attachment_stats_output.txt`.
 
 ### The Fiu 255-line limit
 
-Deadline's console runs scripts in an old build of the Fiu VM with a line-info bug: it fails to load any function whose code spans more than 255 source lines, before a single line runs, with `Fiu:494: attempt to perform arithmetic (add) on nil and number`. Every function counts, including a file's top level, long `[[...]]` strings and big comment blocks inside it. That is why the generated tables are packed several entries per line. `python tools/check_fiu_compat.py` checks every file the game loads (it needs `luau-compile` in `luau_bin/`, on `PATH`, or in `$LUAU_COMPILE`), and CI runs it on every push.
+Deadline's console runs scripts in an old build of the Fiu VM with a line-info bug: it fails to load any function whose code spans more than 255 source lines, before a single line runs, with `Fiu:494: attempt to perform arithmetic (add) on nil and number`. Every function counts, including a file's top level, long `[[...]]` strings and big comment blocks inside it. That is why the generated tables are packed several entries per line. `python tools/check_fiu_compat.py` checks every file the game loads, and CI runs it on every push.
 
 Weapon ids are the exact (case-sensitive) model names under `ReplicatedStorage.data.item` in the game. To add or retype a weapon, edit the tables in `modules/weapon_data.luau`.

@@ -1,4 +1,4 @@
-"""Apply the rename list in renames.csv to the name column of CSV and Excel sheets."""
+"""Apply the rename list in data/renames.csv to the name column of CSV and Excel sheets."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ import sys
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
+
+from deadline_data import RENAMES_CSV
 
 HEADER_SEARCH_ROWS = 10
 NAME_COLUMN = "name"
@@ -31,7 +33,7 @@ def parse_arguments() -> argparse.Namespace:
     )
     parser.add_argument("targets", type=Path, nargs="+", help="Sheets to update.")
     parser.add_argument(
-        "--renames", type=Path, default=Path("renames.csv"), help="Rename list CSV."
+        "--renames", type=Path, default=RENAMES_CSV, help="Rename list CSV (default: data/renames.csv)."
     )
     parser.add_argument("--dry-run", action="store_true", help="Preview without writing.")
     return parser.parse_args()

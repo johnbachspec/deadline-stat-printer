@@ -17,6 +17,8 @@ WeaponData.ALIASES = {
     UMP45   = "UMP",
     Glock17 = "KOSCH",
     Glock20 = "KOSCH",
+    Vector  = "SCALAR", -- the game's KALIS Scalar Gen II; still displayed as "Vector"
+    SA58    = "SG58",   -- the game's RSA SG58; still displayed as "SA58"
 }
 
 -- Synthetic row for kills the game counts toward total_kills but never stored
@@ -41,6 +43,8 @@ WeaponData.DISPLAY_NAMES = {
     MosinNagant       = "Mosin-Nagant",
     AK_9              = "AK-9",
     KOSCH             = "Kosch",
+    SCALAR            = "Vector",
+    SG58              = "SA58",
     M11_EOD           = "M11 EOD",
     MP133             = "MP-133",
     IZHEVSK_AKM_TYPE1 = "AKM Type1",
@@ -55,13 +59,13 @@ WeaponData.DISPLAY_NAMES = {
 }
 
 WeaponData.TYPES = {
-    SCARH = "308", G3 = "308", SA58 = "308", AK308 = "308",
+    SCARH = "308", G3 = "308", SG58 = "308", AK308 = "308",
     Remington700 = "Bolt", MosinNagant = "Bolt",
     AK_762 = "762", SCAR47 = "762",
     M4A1 = "556", AUG_A3 = "556", KF416 = "556", SCARL = "556",
     AK_545 = "545", AK12 = "545", AK_545_Carbine = "545",
     QBZ95 = "58",
-    Vector = "SMG", UMP = "SMG", MP5 = "SMG", AK_9 = "SMG", MK9 = "SMG",
+    SCALAR = "SMG", UMP = "SMG", MP5 = "SMG", AK_9 = "SMG", MK9 = "SMG",
     TT33 = "Pistol", Makarov = "Pistol", KOSCH = "Pistol", EDC_X9 = "Pistol", P320 = "Pistol",
     Remington870 = "Shotgun", MP133 = "Shotgun",
     M9 = "Melee", M11_EOD = "Melee", IZHEVSK_AKM_TYPE1 = "Melee", IZHEVSK_AKM_TYPE2 = "Melee",

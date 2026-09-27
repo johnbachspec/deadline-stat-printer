@@ -1,52 +1,60 @@
-"""Generate modules/attachment_names.luau (id -> in-game display name) from
-recoil-group/deadline-balancing balancing.csv (tracked here as balancing.csv),
-plus extra_display_names.csv: hand-written names for old ids that still show
-up in profile stats but are gone from balancing.csv and have no current
-counterpart to rename them to (see renames.csv for the ones that do).
-balancing.csv wins when both name the same id.
+"""Generate modules/attachment_names.luau: attachment id -> in-game display name,
+plus the GROUPS table of products made of several pieces.
+
+Sources:
+  data/balancing.csv           recoil-group/deadline-balancing item sheet ("name" -> "pretty_name")
+  data/extra_display_names.csv hand-written names for old ids that still show up in
+                               profile stats but are gone from balancing.csv and have no
+                               current counterpart to rename them to (see data/renames.csv
+                               for the ones that do). balancing.csv wins when both name an id.
+  data/attachment_groups.csv   pieces always equipped together (the AFT SC stock is five);
+                               the printer shows one row per product.
+
+Only attachments are written. Guns are shown with the stat panel's names from
+modules/weapon_data.luau, so both panels agree.
 
 The game reuses one name for different parts (aft_stock_cheek_piece,
 aft_stock_connector and aft_stock_shoulder_piece are all "AFT"), so attachments
-sharing a name get the part appended from their id: "AFT (Cheek Piece)".
+sharing a name, with each other or with a gun, get the part appended from
+their id: "AFT (Cheek Piece)".
 
 print_attachment_stats.luau require()s the generated module from GitHub at
 run time, so names for newly added attachments reach players as soon as the
 regenerated module is pushed; ids it does not know fall back to a prettified id.
 
 Usage:
-    python tools/build_attachment_names.py           # regenerate the module from balancing.csv
+    python tools/build_attachment_names.py           # regenerate the module
     python tools/build_attachment_names.py --fetch   # download the latest balancing.csv first
     python tools/build_attachment_names.py --check   # exit 1 if the module is out of date
-
-The table is packed several entries per line so the module takes about
-NAME_LINES lines however many names there are: Deadline's Fiu VM fails to
-load a function whose code spans more than 255 source lines (see
-tools/check_fiu_compat.py). Non-ASCII characters are written as \\ddd byte
-escapes so the module is plain ASCII.
 """
 import csv
 import io
-import math
 import re
 import sys
-import urllib.request
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-CSV_PATH = ROOT / "balancing.csv"
-EXTRA_PATH = ROOT / "extra_display_names.csv"
-LUAU_PATH = ROOT / "modules" / "attachment_names.luau"
+import deadline_data as dd
+
 NAME_LINES = 200
 MIN_NAMES = 1000  # sanity floor for a downloaded balancing.csv
 
-UPSTREAM_URL = "https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/balancing.csv"
+LABEL_WORDS = {
+    "12oclock": "12 O'Clock", "ar9": "AR9", "bcg": "BCG", "castlenut": "Castle Nut", "dustcover": "Dust Cover",
+    "gasblock": "Gas Block", "hk": "HK", "ironsight": "Iron Sight", "mlok": "M-LOK", "qd": "QD",
+}
 
+
+def is_weapon(item_id):
+    """Gun and tool ids have capitals (SCARH, AK_762); attachment ids are lower case."""
+    return item_id != item_id.lower()
+
+
+# --- sources -----------------------------------------------------------------
 
 def parse_names(text):
     """Returns (version, updated, {name: pretty_name}) from balancing.csv text."""
     rows = list(csv.reader(io.StringIO(text)))
     header_idx = next((i for i, r in enumerate(rows[:5])
-                       if "name" in [c.strip() for c in r] and "pretty_name" in [c.strip() for c in r]), None)
+                       if {"name", "pretty_name"} <= {c.strip() for c in r}), None)
     if header_idx is None:
         raise ValueError("no header row with name and pretty_name columns")
     header = [c.strip() for c in rows[header_idx]]
@@ -63,23 +71,14 @@ def parse_names(text):
     return version, updated, names
 
 
-def load_names(path=None):
-    return parse_names(Path(path or CSV_PATH).read_text(encoding="utf-8-sig"))
+def load_names():
+    return parse_names(dd.BALANCING_CSV.read_text(encoding="utf-8-sig"))
 
 
-def load_extra_names(path=None):
-    """{name: pretty_name} from extra_display_names.csv (empty if the file is missing)."""
-    path = Path(path or EXTRA_PATH)
-    if not path.is_file():
+def load_extra_names():
+    if not dd.EXTRA_NAMES_CSV.is_file():
         return {}
-    rows = list(csv.reader(io.StringIO(path.read_text(encoding="utf-8-sig"))))
-    if not rows or [c.strip() for c in rows[0][:2]] != ["name", "pretty_name"]:
-        raise SystemExit(f"unexpected header in {path.name}: {rows[0] if rows else None}")
-    extra = {}
-    for row in rows[1:]:
-        if len(row) >= 2 and row[0].strip() and row[1].strip():
-            extra[row[0].strip()] = row[1].strip()
-    return extra
+    return {r[0]: r[1] for r in dd.read_table(dd.EXTRA_NAMES_CSV, ["name", "pretty_name"]) if len(r) >= 2 and r[1]}
 
 
 def load_all_names():
@@ -90,29 +89,47 @@ def load_all_names():
     return version, updated, {**extra, **names}, shadowed
 
 
+def load_groups(names, path=dd.GROUPS_CSV):
+    """{piece id: product name} from attachment_groups.csv, validated against the known ids."""
+    if not path.is_file():
+        return {}
+    renamed = dict(dd.load_renames())  # the printer groups ids after renames
+    groups, problems = {}, []
+    for row in dd.read_table(path, ["id", "group"]):
+        piece, product = row[0], row[1] if len(row) > 1 else ""
+        if piece in renamed:
+            problems.append(f"{piece} is renamed to {renamed[piece]}; list the current id")
+        elif piece not in names or is_weapon(piece):
+            problems.append(f"{piece} is not a known attachment id")
+        elif piece in groups:
+            problems.append(f"{piece} is listed twice")
+        groups[piece] = product
+    for product in sorted(set(groups.values())):
+        if list(groups.values()).count(product) < 2:
+            problems.append(f"group {product!r} has only one piece")
+    if problems:
+        raise SystemExit(f"{path.name}:\n  " + "\n  ".join(problems))
+    return groups
+
+
 def fetch_upstream():
     """Download balancing.csv, replacing the local copy only if it parses sensibly."""
+    raw = dd.fetch_upstream("balancing.csv")
+    if raw is None:
+        return
     try:
-        req = urllib.request.Request(UPSTREAM_URL, headers={"User-Agent": "deadline-stat-printer"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            data = resp.read()
-        version, _, names = parse_names(data.decode("utf-8-sig"))
-    except Exception as exc:
-        print(f"Warning: could not fetch {UPSTREAM_URL} ({exc}); using the local balancing.csv.")
-        return False
+        version, _, names = parse_names(raw.decode("utf-8-sig"))
+    except ValueError as exc:
+        print(f"Warning: upstream balancing.csv did not parse ({exc}); keeping the local copy.")
+        return
     if len(names) < MIN_NAMES:
         print(f"Warning: upstream balancing.csv has only {len(names)} names; keeping the local copy.")
-        return False
-    CSV_PATH.write_bytes(data)
-    print(f"Fetched balancing.csv {version} ({len(names)} names) from {UPSTREAM_URL}")
-    return True
+        return
+    dd.BALANCING_CSV.write_bytes(raw)
+    print(f"Fetched balancing.csv {version} ({len(names)} names).")
 
 
-LABEL_WORDS = {
-    "12oclock": "12 O'Clock", "ar9": "AR9", "bcg": "BCG", "castlenut": "Castle Nut", "dustcover": "Dust Cover",
-    "gasblock": "Gas Block", "hk": "HK", "ironsight": "Iron Sight", "mlok": "M-LOK", "qd": "QD",
-}
-
+# --- telling apart parts that share a name -------------------------------------
 
 def label_word(token):
     if token in LABEL_WORDS:
@@ -156,82 +173,74 @@ def part_labels(ids, pretty):
     return {i: " ".join(label_word(t) for t in toks) for i, toks in labels.items()}
 
 
-def disambiguate(names):
-    """Appends "(Part)" to attachment names shared by several ids. Weapon ids (they have capitals) keep their name."""
+def attachment_display_names(names):
+    """Attachment id -> printed name, with "(Part)" appended where a name is shared."""
     by_name = {}
     for item_id, pretty in names.items():
-        if item_id == item_id.lower():
+        if not is_weapon(item_id):
             by_name.setdefault(pretty, []).append(item_id)
-    weapon_names = {pretty for item_id, pretty in names.items() if item_id != item_id.lower()}
-    out = dict(names)
+    weapon_names = {pretty for item_id, pretty in names.items() if is_weapon(item_id)}
+    out = {}
     for pretty, ids in by_name.items():
         if len(ids) > 1 or pretty in weapon_names:
-            for item_id, label in part_labels(sorted(ids), pretty).items():
-                out[item_id] = f"{pretty} ({label})"
+            out.update({i: f"{pretty} ({label})" for i, label in part_labels(sorted(ids), pretty).items()})
+        else:
+            out[ids[0]] = pretty
     return out
 
 
-def luau_string(s):
-    """Double-quoted Luau literal; anything outside printable ASCII becomes \\ddd byte escapes."""
-    out = []
-    for b in s.encode("utf-8"):
-        c = chr(b)
-        if c in '"\\':
-            out.append("\\" + c)
-        elif 32 <= b < 127 and c not in "{}":  # braces escaped so brace-balance checks stay meaningful
-            out.append(c)
-        else:
-            out.append(f"\\{b:03d}")  # always 3 digits so a following digit is not absorbed
-    return '"' + "".join(out) + '"'
+# --- output ------------------------------------------------------------------
 
-
-def render(version, updated, names):
-    pairs = sorted(disambiguate(names).items(), key=lambda p: p[0].lower())
-    per_line = max(1, math.ceil(len(pairs) / NAME_LINES))
-    entries = [f"[{luau_string(k)}] = {luau_string(v)}," for k, v in pairs]
-    rows = [" ".join(entries[i:i + per_line]) for i in range(0, len(entries), per_line)]
+def render(version, updated, names, groups):
+    shown = sorted(attachment_display_names(names).items(), key=lambda p: p[0].lower())
     lines = [
         "-- modules/attachment_names.luau",
-        "-- GENERATED by tools/build_attachment_names.py from recoil-group/deadline-balancing",
-        "-- balancing.csv and extra_display_names.csv - do not edit by hand. Maps item ids (the",
-        "-- \"name\" column, attachments and weapons) to their in-game display names (\"pretty_name\").",
+        "-- GENERATED by tools/build_attachment_names.py from data/balancing.csv,",
+        "-- data/extra_display_names.csv and data/attachment_groups.csv - do not edit by hand.",
         "-- Entries are packed several per line on purpose: Deadline's Fiu VM fails to load any",
         "-- function spanning more than 255 source lines (see tools/check_fiu_compat.py).",
         "",
+        "-- attachment id -> in-game name",
         "local NAMES = {",
-    ] + ["    " + r for r in rows] + [
+    ] + dd.pack(dd.luau_entries(shown), NAME_LINES) + [
+        "}",
+        "",
+        "-- piece id -> product, for products made of pieces always equipped together",
+        "local GROUPS = {",
+    ] + dd.pack(dd.luau_entries(sorted(groups.items())), 8) + [
         "}",
         "",
         "return {",
-        f"    VERSION = {luau_string(version)},",
-        f"    UPDATED = {luau_string(updated)},",
-        f"    COUNT = {len(pairs)},",
+        f"    VERSION = {dd.luau_string(version)},",
+        f"    UPDATED = {dd.luau_string(updated)},",
+        f"    COUNT = {len(shown)},",
         "    NAMES = NAMES,",
+        "    GROUPS = GROUPS,",
         "}",
         "",
     ]
     return "\n".join(lines)
 
 
-def main(argv=None):
-    if argv is None:
-        argv = sys.argv
+def main(argv):
     if "--fetch" in argv:
         fetch_upstream()
     version, updated, names, shadowed = load_all_names()
-    print(f"{CSV_PATH.name} {version} + {EXTRA_PATH.name}: {len(names)} display names.")
     for k in shadowed:
-        print(f"  note: balancing.csv now names {k}; its row in {EXTRA_PATH.name} can be removed.")
-    expected = render(version, updated, names)
-    current = LUAU_PATH.read_text(encoding="utf-8") if LUAU_PATH.is_file() else None
-    if current is not None and current.replace("\r\n", "\n") == expected:
-        print(f"{LUAU_PATH.name} is in sync with {CSV_PATH.name}.")
+        print(f"  note: balancing.csv now names {k}; its row in {dd.EXTRA_NAMES_CSV.name} can be removed.")
+    groups = load_groups(names)
+    expected = render(version, updated, names, groups)
+    path = dd.ATTACHMENT_NAMES_LUAU
+    summary = f"balancing.csv {version}, {len(groups)} pieces in {len(set(groups.values()))} groups"
+    current = path.read_text(encoding="utf-8").replace("\r\n", "\n") if path.is_file() else None
+    if current == expected:
+        print(f"{path.name} is in sync ({summary}).")
         return 0
     if "--check" in argv:
-        print(f"DRIFT: {LUAU_PATH.name} does not match {CSV_PATH.name}. Run without --check to regenerate.")
+        print(f"DRIFT: {path.name} does not match its sources. Run without --check to regenerate.")
         return 1
-    LUAU_PATH.write_text(expected, encoding="utf-8", newline="\n")
-    print(f"wrote {LUAU_PATH.relative_to(ROOT)} ({len(names)} names).")
+    path.write_text(expected, encoding="utf-8", newline="\n")
+    print(f"wrote {path.relative_to(dd.ROOT)} ({summary}).")
     return 0
 
 
