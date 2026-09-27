@@ -77,9 +77,10 @@ local function parse(text)
 end
 -- One message per part: "dsp1|<id>|<part>|<parts>|<text>".
 viewer.receive = function(message)
-    if type(message) ~= "string" then return end
-    local id, part, parts, text = message:match("^dsp1|([^|]*)|(%d+)|(%d+)|(.*)$")
-    if not id then return end
+    viewer.messages = (viewer.messages or 0) + 1 -- shown in the hub while no report has arrived
+    if type(message) == "table" then message = message[1] or message.args end
+    local id, part, parts, text = tostring(message):match("^dsp1|([^|]*)|(%d+)|(%d+)|(.*)$")
+    if not id then viewer.other = type(message) .. " " .. tostring(message):sub(1, 60); return end
     part, parts = tonumber(part), tonumber(parts)
     local pending = viewer.parts[id]
     if part == 1 or not pending then pending = {}; viewer.parts[id] = pending end
@@ -87,10 +88,7 @@ viewer.receive = function(message)
     for i = 1, parts do if not pending[i] then return end end
     viewer.parts[id] = nil
     local ok, report = pcall(parse, table.concat(pending))
-    if not ok then
-        print("[viewer] could not read report " .. id .. ": " .. tostring(report))
-        return
-    end
+    if not ok then return print("[viewer] could not read report " .. id .. ": " .. tostring(report)) end
     local old = viewer.reports[report.id]
     if not old then table.insert(viewer.order, report.id) end
     report.ui = old and old.ui or { pages = {}, filters = {}, seen = {} } -- kept across refreshes
@@ -210,8 +208,9 @@ local function draw_hub()
     if viewer.show_hub then viewer.show_hub = false; hub.state.isOpened:set(true) end
     if hub.state.isOpened.value and hub.state.isUncollapsed.value then
         if #viewer.order == 0 then
-            iris.Text({ "Waiting for reports. In the server console, run print_player_stats, "
-                .. "print_attachment_stats or cap_announcer.", true })
+            iris.Text({ string.format("Waiting for reports: run print_player_stats, print_attachment_stats or "
+                .. "cap_announcer in the server console. Messages received: %d%s", viewer.messages or 0,
+                viewer.other and (", last one not a report: " .. viewer.other) or ""), true })
         end
         for _, id in ipairs(viewer.order) do
             local report = viewer.reports[id]
@@ -249,7 +248,6 @@ viewer.draw = function()
 end
 -- shared.iris_viewer.show() in the client console reopens every window without pasting again.
 viewer.show = function() viewer.show_hub = true; for _, r in pairs(viewer.reports) do r.popup = true end end
-viewer.error = nil
-viewer.show()
+viewer.error = nil; viewer.show()
 print(string.format("[viewer] ready (Iris %s tables), %d reports so far. Run a stat script in the server console;"
     .. " shared.iris_viewer.show() reopens closed windows.", NEW_TABLES and "2.4+" or "pre-2.4", #viewer.order))

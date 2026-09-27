@@ -74,10 +74,9 @@ local function print_attachment_stats(target_player)
         renderer:render_table(aggregated)
     end
     if SHOW_IN ~= "console" then
-        local sent = iris_report(player, aggregated):send(PlayerLookup.humans(players))
-        if SHOW_IN == "iris" then
-            print(string.format("Sent %s's attachments to %d players' Iris viewers", tostring(player.name), sent))
-        end
+        local humans = PlayerLookup.humans(players)
+        local sent, problem = iris_report(player, aggregated):send(humans)
+        print(IrisReport.sent_line(tostring(player.name) .. "'s attachments", sent, #humans, problem))
     end
     return aggregated.items
 end
