@@ -322,6 +322,9 @@ local function print_attachment_stats_delimited(target_player)
 
     -- 2. Locate target human player
     local my_player = target_player
+    if type(my_player) == "string" and players and type(players.get) == "function" then
+        my_player = players.get(my_player)
+    end
     if not my_player and players and type(players.get_all) == "function" then
         for _, plr in ipairs(players.get_all()) do
             local is_bot = false

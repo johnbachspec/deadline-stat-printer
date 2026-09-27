@@ -26,10 +26,20 @@ ROOT = Path(__file__).resolve().parent.parent
 RENAMES_CSV = ROOT / "renames.csv"
 PRINT_ATTACHMENT_LUAU = ROOT / "print_attachment_stats.luau"
 DELIMITED_LUAU = ROOT / "print_attachment_stats_delimited.luau"
-ATTACHMENT_DATA_LUAU = ROOT / "modules" / "attachment_data.luau"
-ATTACHMENT_AGGREGATOR_LUAU = ROOT / "modules" / "attachment_aggregator.luau"
-ATTACHMENT_FORMATTER_LUAU = ROOT / "modules" / "attachment_formatter.luau"
-ATTACHMENT_RENDERER_LUAU = ROOT / "modules" / "attachment_renderer.luau"
+PRINT_PLAYER_LUAU = ROOT / "print_player_stats.luau"
+
+MODULES_DIR = ROOT / "modules"
+ATTACHMENT_DATA_LUAU = MODULES_DIR / "attachment_data.luau"
+ATTACHMENT_AGGREGATOR_LUAU = MODULES_DIR / "attachment_aggregator.luau"
+ATTACHMENT_FORMATTER_LUAU = MODULES_DIR / "attachment_formatter.luau"
+ATTACHMENT_RENDERER_LUAU = MODULES_DIR / "attachment_renderer.luau"
+WEAPON_DATA_LUAU = MODULES_DIR / "weapon_data.luau"
+LEVEL_DATA_LUAU = MODULES_DIR / "level_data.luau"
+FORMATTERS_LUAU = MODULES_DIR / "formatters.luau"
+STATS_AGGREGATOR_LUAU = MODULES_DIR / "stats_aggregator.luau"
+FILTERS_SORTERS_LUAU = MODULES_DIR / "filters_sorters.luau"
+RENDERER_LUAU = MODULES_DIR / "renderer.luau"
+
 LOG_FIXTURE = ROOT / "tests" / "attachment logs output.txt"
 
 
@@ -86,14 +96,16 @@ class TestRenamesIntegrity(unittest.TestCase):
 
 class TestLuauStructuralIntegrity(unittest.TestCase):
     def setUp(self):
-        self.luau_files = list(ROOT.glob("*.luau")) + list((ROOT / "modules").glob("*.luau"))
+        self.luau_files = list(ROOT.glob("*.luau")) + list(MODULES_DIR.glob("*.luau"))
 
     def test_balanced_braces(self):
         for path in self.luau_files:
             text = path.read_text(encoding="utf-8")
+            open_b = text.count("{")
+            close_b = text.count("}")
             self.assertEqual(
-                text.count("{"), text.count("}"),
-                f"Unbalanced curly braces in {path.name}: {text.count('{')} '{' vs {text.count('}')} '}'"
+                open_b, close_b,
+                f"Unbalanced curly braces in {path.name}: {open_b} open vs {close_b} close"
             )
 
     def test_no_tabs(self):
@@ -132,6 +144,11 @@ class TestSRPModularArchitecture(unittest.TestCase):
         content = ATTACHMENT_RENDERER_LUAU.read_text(encoding="utf-8")
         self.assertIn("function AttachmentRenderer:render_table(", content)
         self.assertIn("function AttachmentRenderer:render_delimited(", content)
+
+    def test_weapon_modules_integrity(self):
+        for p in [WEAPON_DATA_LUAU, LEVEL_DATA_LUAU, FORMATTERS_LUAU, STATS_AGGREGATOR_LUAU, FILTERS_SORTERS_LUAU, RENDERER_LUAU]:
+            self.assertTrue(p.is_file(), f"{p.name} must exist")
+            self.assertGreater(len(p.read_text(encoding="utf-8").splitlines()), 20, f"{p.name} must not be empty")
 
 
 class TestTableSynchronization(unittest.TestCase):

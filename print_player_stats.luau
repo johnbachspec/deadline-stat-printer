@@ -79,7 +79,7 @@ local function print_player_stats(player, options_or_filter, target_override, so
     local weapon_list, table_totals = FilterSort.build_weapon_list(combined, WeaponData, filter, target)
     FilterSort.sort(weapon_list, sort_by)
 
-    renderer:print_report(player.name, player_stats, stats.spendings or {}, stats.achievements or {},
+    renderer:print_report(target_p.name, player_stats, stats.spendings or {}, stats.achievements or {},
         Aggregator.collection(stats), weapon_list, table_totals, account_totals)
     return weapon_list
 end
