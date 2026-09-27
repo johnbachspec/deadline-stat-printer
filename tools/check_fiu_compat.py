@@ -24,17 +24,17 @@ Usage:
     python tools/check_fiu_compat.py FILE...      # specific files
     python tools/check_fiu_compat.py -v           # also list passing functions
 
-The compiler is taken from $LUAU_COMPILE, then luau_bin/, then PATH.
+luau-compile is taken from $LUAU_BIN, then luau_bin/, then PATH.
 """
-import os
 import re
-import shutil
 import struct
 import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
+import deadline_data as dd
+
+ROOT = dd.ROOT
 MAX_LINEGAPLOG2 = 24
 MAX_SPAN = 255
 
@@ -51,14 +51,7 @@ def game_loaded_files():
 
 
 def find_compiler():
-    candidates = [os.environ.get("LUAU_COMPILE"),
-                  ROOT / "luau_bin" / "luau-compile.exe",
-                  ROOT / "luau_bin" / "luau-compile",
-                  shutil.which("luau-compile")]
-    for c in candidates:
-        if c and Path(c).is_file():
-            return str(c)
-    return None
+    return dd.find_luau_tool("luau-compile")
 
 
 class Reader:
@@ -201,7 +194,7 @@ def main(argv):
             print(f"not loaded by any entry script, skipped (use --all): {', '.join(skipped)}")
     compiler = find_compiler()
     if not compiler:
-        print("luau-compile not found: set LUAU_COMPILE or put it in luau_bin/ or on PATH")
+        print("luau-compile not found: set LUAU_BIN to its folder, or put it in luau_bin/ or on PATH")
         return 2
     failed = 0
     for path in files:

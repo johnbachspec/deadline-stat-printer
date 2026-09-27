@@ -24,6 +24,7 @@ local Formatters = load_module("formatters")
 local Aggregator = load_module("stats_aggregator")
 local FilterSort = load_module("filters_sorters")
 local Renderer   = load_module("renderer")
+local PlayerLookup = load_module("player_lookup")
 
 -- ===== User Config =====
 -- "" lists all weapons. Set to one weapon to show only that row: raw id
@@ -61,11 +62,8 @@ local function print_player_stats(player, options_or_filter, target_override, so
         if sort_override ~= nil then sort_by = tostring(sort_override) end
     end
 
-    local target_p = player
-    if type(target_p) == "string" and players and type(players.get) == "function" then
-        target_p = players.get(target_p)
-    end
-    if not target_p or type(target_p.get_profile_stats) ~= "function" then
+    local target_p = PlayerLookup.find(players, player)
+    if not target_p then
         print(string.format("Player '%s' not found or has no profile stats.", tostring(player)))
         return nil
     end
@@ -94,8 +92,8 @@ if shared then
 end
 
 -- Print a report for every human currently in the server.
-for _, player in ipairs(players.get_all()) do
-    if not player.is_bot() then print_player_stats(player) end
+for _, player in ipairs(PlayerLookup.humans(players)) do
+    print_player_stats(player)
 end
 
 return print_player_stats
