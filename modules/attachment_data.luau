@@ -1,20 +1,15 @@
--- print-attachment-stats-delimited.luau
--- Prints aggregated attachment statistics (kills and top weapon) across all weapons,
--- formatted as delimited Lua table chunks (100 attachments per line) for debugging
--- and log fixture generation.
--- Legacy attachment ids are folded into their current ids via ATTACHMENT_ALIASES
--- (snapshot of deadline-balancing renames.csv), so renamed or merged parts
--- (e.g. both Vector bolts -> kalis_scalar_std_bcg) report unified totals.
---
--- How to call in the Luau Server Console:
---   1. Paste the script contents or run:
---        require("https://raw.githubusercontent.com/<user>/deadline-stat-printer/main/print-attachment-stats-delimited.luau")
---   2. For subsequent calls in the same server session:
---        shared.print_attachment_stats()                      -- default (first human player)
---        shared.print_attachment_stats(players.get("Name"))   -- specific player
+-- modules/attachment_data.luau
+-- Comprehensive attachment aliases and canonical resolution for Deadline (Roblox).
+-- Covers all historical renames across versions (0.24.2, 0.25.2, 0.25.3, 0.25.4/current),
+-- brand migrations (Radian->Ardian, Magtap MOE->MOA, Valday->Volhov, Colt->Hart, etc.),
+-- and renames.csv from recoil-group/deadline-balancing.
+-- Ensures stats are correctly folded for other players who use different attachments.
+-- NOTE: Deadline's Luau console uses a Lua 5.x-style VM ('Fiu') that does not
+-- accept Luau type annotations, so this file intentionally has none.
 
--- BEGIN ATTACHMENT_ALIASES (generated from deadline-balancing renames.csv - do not edit by hand; use build_attachment_aliases.py)
-local ATTACHMENT_ALIASES = {
+local AttachmentData = {}
+
+AttachmentData.ALIASES = {
     ["45acp_kriss_magex2_pf940"] = "kalis_kosch_45acp_17r_magex2",
     ["5.56x45_winchester_m855_62gr_fmj"] = "5.56x45_appalachian_m855_62gr_fmj",
     ["5.8x42_sanxian_dfv18_76gr_hp"] = "5.8x42_sanxian_dvf18_76gr_hp",
@@ -269,147 +264,27 @@ local ATTACHMENT_ALIASES = {
     ["whitner_defense_true_zero_acro_mount"] = "whitner_defense_true_zero_ecro_mount",
     ["zvetech_pf940_slide_cover"] = "zvetech_kosch_slide_cover",
 }
--- END ATTACHMENT_ALIASES
 
-local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
-
--- Resolves module locally if present in the Roblox hierarchy, falling back to remote URL.
-local function load_module(module_name)
-    local current_script = script
-    if current_script and current_script.Parent then
-        local modules_folder = current_script.Parent:FindFirstChild("modules")
-        local local_mod = modules_folder and modules_folder:FindFirstChild(module_name)
-        if local_mod then
-            return require(local_mod)
-        end
+-- Follows the alias chain to the current canonical id (cycle-safe).
+function AttachmentData.resolve(att_id)
+    if not att_id then return nil end
+    local seen = {}
+    local current = att_id
+    while AttachmentData.ALIASES[current] and not seen[current] do
+        seen[current] = true
+        current = AttachmentData.ALIASES[current]
     end
-    return require(REPO_BASE .. module_name .. ".luau")
+    return current
 end
 
-local REMOTE_RENAMES_URL = "https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/renames.csv"
-
--- Resolve modular dependencies (with fallback for standalone console execution)
-local ok_data, AttachmentData = pcall(function() return load_module("attachment_data") end)
-if not ok_data or not AttachmentData then
-    AttachmentData = {
-        ALIASES = ATTACHMENT_ALIASES,
-        resolve = function(att_id)
-            if not att_id then return nil end
-            local seen = {}
-            local current = att_id
-            while ATTACHMENT_ALIASES[current] and not seen[current] do
-                seen[current] = true
-                current = ATTACHMENT_ALIASES[current]
-            end
-            return current
-        end,
-        sync_latest_renames = function() return false, "embedded snapshot" end,
-        get_sync_status = function() return "embedded snapshot" end,
-    }
+-- Returns true if the given id is a legacy/renamed attachment id.
+function AttachmentData.is_legacy(att_id)
+    return att_id ~= nil and AttachmentData.ALIASES[att_id] ~= nil
 end
 
-local ok_wdata, WeaponData = pcall(function() return load_module("weapon_data") end)
-local ok_agg, AttachmentAggregator = pcall(function() return load_module("attachment_aggregator") end)
-local ok_rnd, AttachmentRenderer = pcall(function() return load_module("attachment_renderer") end)
-
-local renderer = (ok_rnd and AttachmentRenderer and AttachmentRenderer.new())
-
-local function print_attachment_stats_delimited(target_player)
-    -- 1. Synchronize latest upstream renames via AttachmentData (SRP)
-    if AttachmentData.sync_latest_renames then
-        AttachmentData.sync_latest_renames()
-    end
-
-    -- 2. Locate target human player
-    local my_player = target_player
-    if not my_player and players and type(players.get_all) == "function" then
-        for _, plr in ipairs(players.get_all()) do
-            local is_bot = false
-            if type(plr.is_bot) == "function" then
-                local ok, res = pcall(function() return plr.is_bot() end)
-                if ok then is_bot = res end
-            end
-            if not is_bot then
-                my_player = plr
-                break
-            end
-        end
-    end
-
-    if my_player and type(my_player.get_profile_stats) == "function" then
-        local stats = my_player.get_profile_stats() or {}
-
-        -- 3. Delegate aggregation to AttachmentAggregator (SRP: stats extraction & kill folding)
-        local aggregated = nil
-        if ok_agg and AttachmentAggregator then
-            aggregated = AttachmentAggregator.aggregate(stats, AttachmentData, ok_wdata and WeaponData or nil)
-        else
-            -- Embedded fallback aggregator if module not available
-            local raw_weapons = stats.weapon or {}
-            local totals = {}
-            local legacy_cnt = 0
-            for w_id, w_data in pairs(raw_weapons) do
-                local att_stats = (type(w_data) == "table" and w_data.attachment_stats) or {}
-                for att_id, data in pairs(att_stats) do
-                    local kills = (type(data) == "table" and tonumber(data.kills or data.kill_count or 0)) or (type(data) == "number" and data) or 0
-                    if kills > 0 then
-                        local canon = AttachmentData.resolve(att_id)
-                        if canon ~= att_id then legacy_cnt = legacy_cnt + 1 end
-                        local b = totals[canon] or { kills = 0, weapons = {} }
-                        totals[canon] = b
-                        b.kills = b.kills + kills
-                        b.weapons[w_id] = (b.weapons[w_id] or 0) + kills
-                    end
-                end
-            end
-            local sorted = {}
-            for att_id, info in pairs(totals) do
-                local top_gun, top_kills = "N/A", 0
-                for g_id, g_k in pairs(info.weapons) do
-                    if g_k > top_kills or (g_k == top_kills and g_id < top_gun) then
-                        top_gun, top_kills = g_id, g_k
-                    end
-                end
-                table.insert(sorted, { id = att_id, kills = info.kills, top_gun = top_gun, top_gun_kills = top_kills })
-            end
-            table.sort(sorted, function(a, b) return a.kills > b.kills end)
-            aggregated = { items = sorted, legacy_merged = legacy_cnt, total_attachments = #sorted }
-        end
-
-        local player_name = my_player.name or "Player"
-        local sync_status = (AttachmentData.get_sync_status and AttachmentData.get_sync_status()) or "embedded snapshot"
-
-        -- 4. Delegate presentation to AttachmentRenderer (SRP: layout and printing chunks of 100)
-        if renderer then
-            renderer:render_delimited(aggregated, player_name, { sync_status = sync_status, chunk_size = 100 })
-        else
-            print(string.format("-- TOTAL ATTACHMENTS FOR %s: %d (split into lines of 100)", tostring(player_name), #aggregated.items))
-            print("ATTACHMENT_DATA = {")
-            local line_items = {}
-            for i, item in ipairs(aggregated.items) do
-                table.insert(line_items, string.format('["%s"]={kills=%d,top_gun="%s",top_gun_kills=%d}',
-                    item.id, item.kills, item.top_gun, item.top_gun_kills))
-                if #line_items == 100 or i == #aggregated.items then
-                    local is_last = (i == #aggregated.items)
-                    local suffix = is_last and "" or ","
-                    print(" " .. table.concat(line_items, ", ") .. suffix)
-                    table.clear(line_items)
-                end
-            end
-            print("}")
-        end
-
-        return aggregated.items
-    else
-        print("Could not retrieve player profile stats.")
-    end
+-- Returns the full table of attachment aliases.
+function AttachmentData.all_aliases()
+    return AttachmentData.ALIASES
 end
 
--- Persist in shared environment for subsequent console executions
-shared.print_attachment_stats_delimited = print_attachment_stats_delimited
-shared.print_attachment_stats = print_attachment_stats_delimited
-
--- Run immediately on execution
-print_attachment_stats_delimited()
-
-return print_attachment_stats_delimited
+return AttachmentData
