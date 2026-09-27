@@ -278,74 +278,57 @@ for line in ALIASES_CSV:gmatch("[^\n]+") do
     end
 end
 
-local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
-
--- Resolves module locally if present in the Roblox hierarchy, falling back to remote URL.
-local function load_module(module_name)
-    local current_script = script
-    if current_script and current_script.Parent then
-        local modules_folder = current_script.Parent:FindFirstChild("modules")
-        local local_mod = modules_folder and modules_folder:FindFirstChild(module_name)
-        if local_mod then
-            return require(local_mod)
+-- Keep this console entry point self-contained. Requiring child modules makes
+-- the game's older Fiu VM deserialize several more chunks before the fallback
+-- can run; some Fiu builds error during that step even inside pcall.
+local AttachmentData = {
+    ALIASES = ATTACHMENT_ALIASES,
+    resolve = function(att_id)
+        if not att_id then return nil end
+        local seen = {}
+        local current = att_id
+        while ATTACHMENT_ALIASES[current] and not seen[current] do
+            seen[current] = true
+            current = ATTACHMENT_ALIASES[current]
         end
+        return current
+    end,
+    get_sync_status = function() return "embedded alias snapshot" end,
+}
+
+local ok_wdata, WeaponData = false, nil
+local ok_agg, AttachmentAggregator = false, nil
+local ok_rnd, AttachmentRenderer = false, nil
+local formatter = nil
+local renderer = nil
+
+local DISPLAY_ACRONYMS = {
+    acog = "ACOG", afg = "AFG", ak = "AK", ar = "AR", bcm = "BCM",
+    cqb = "CQB", dd = "DD", ecm = "ECM", eotech = "EOTech", fal = "FAL",
+    fmj = "FMJ", g3 = "G3", hp = "HP", kag = "KAG", kac = "KAC",
+    m4 = "M4", m4a1 = "M4A1", m16 = "M16", mlok = "M-LOK", moe = "MOE",
+    moa = "MOA", mp5 = "MP5", mp5k = "MP5K", otm = "OTM", pdw = "PDW",
+    pepr = "P.E.P.R.", pmag = "PMAG", prs = "PRS", qd = "QD", rmr = "RMR",
+    sa58 = "SA58", scar = "SCAR", scarh = "SCAR-H", scarl = "SCAR-L",
+    spr = "SPR", sro = "SRO", std = "Standard", urgi = "URG-I",
+}
+
+local function fallback_display_name(id)
+    local words = {}
+    for part in string.gmatch(tostring(id or "Unknown"), "[^_]+") do
+        local lower = string.lower(part)
+        local display = DISPLAY_ACRONYMS[lower]
+        if not display then
+            local first = string.match(lower, "^.") or ""
+            display = string.upper(first) .. string.sub(lower, 2)
+        end
+        table.insert(words, display)
     end
-    return require(REPO_BASE .. module_name .. ".luau")
+    return table.concat(words, " ")
 end
-
--- Resolve modular dependencies (with fallback for standalone console execution)
-local ok_data, AttachmentData = pcall(function() return load_module("attachment_data") end)
-if not ok_data or not AttachmentData then
-    AttachmentData = {
-        ALIASES = ATTACHMENT_ALIASES,
-        resolve = function(att_id)
-            if not att_id then return nil end
-            local seen = {}
-            local current = att_id
-            while ATTACHMENT_ALIASES[current] and not seen[current] do
-                seen[current] = true
-                current = ATTACHMENT_ALIASES[current]
-            end
-            return current
-        end,
-        sync_latest_renames = function()
-            local ok, http = pcall(function() return game:GetService("HttpService") end)
-            if not ok or not http then return false, "HttpService not available" end
-            local success, body = pcall(function()
-                return http:GetAsync("https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/renames.csv", true)
-            end)
-            if not success or type(body) ~= "string" then return false, "fetch failed" end
-            for line in body:gmatch("[^\r\n]+") do
-                local old_id, new_id = line:match("^%s*([^,]+)%s*,%s*([^,%s]+)%s*$")
-                if old_id and new_id and old_id ~= "old_name" and new_id ~= "new_name" then
-                    ATTACHMENT_ALIASES[old_id] = new_id
-                end
-            end
-            return true, "synced"
-        end,
-        get_sync_status = function() return "embedded snapshot" end,
-    }
-end
-
-local ok_wdata, WeaponData = pcall(function() return load_module("weapon_data") end)
-local ok_fmt, AttachmentFormatter = pcall(function() return load_module("attachment_formatter") end)
-local ok_agg, AttachmentAggregator = pcall(function() return load_module("attachment_aggregator") end)
-local ok_rnd, AttachmentRenderer = pcall(function() return load_module("attachment_renderer") end)
-
-local formatter = (ok_fmt and AttachmentFormatter and AttachmentFormatter.new({
-    weapon_data = ok_wdata and WeaponData or nil,
-    attachment_data = ok_data and AttachmentData or nil,
-}))
-local renderer = (ok_rnd and AttachmentRenderer and AttachmentRenderer.new({ formatter = formatter }))
 
 local function print_attachment_stats(target_player)
-    -- 1. Synchronize latest upstream renames and beautified names via AttachmentData & AttachmentFormatter (SRP)
-    if AttachmentData.sync_latest_renames then
-        pcall(function()
-            AttachmentData.sync_latest_renames()
-        end)
-    end
-    -- 2. Locate target human player
+    -- 1. Locate target human player
     local my_player = target_player
     if type(my_player) == "string" and players and type(players.get) == "function" then
         my_player = players.get(my_player)
@@ -367,7 +350,7 @@ local function print_attachment_stats(target_player)
     if my_player and type(my_player.get_profile_stats) == "function" then
         local stats = my_player.get_profile_stats() or {}
 
-        -- 3. Delegate aggregation to AttachmentAggregator (SRP: stats extraction & kill folding)
+        -- 2. Aggregate locally so this script does not load child chunks into Fiu.
         local aggregated = nil
         if ok_agg and AttachmentAggregator then
             aggregated = AttachmentAggregator.aggregate(stats, AttachmentData, ok_wdata and WeaponData or nil)
@@ -408,7 +391,7 @@ local function print_attachment_stats(target_player)
         local sync_status = (AttachmentData.get_sync_status and AttachmentData.get_sync_status()) or "embedded snapshot"
         local beautified_status = (formatter and formatter.get_sync_status and formatter:get_sync_status()) or "balancing.csv"
 
-        -- 4. Delegate presentation to AttachmentRenderer (SRP: layout and printing)
+        -- 3. Present names locally; the standalone fallback avoids child module loads.
         if renderer then
             renderer:render_table(aggregated, player_name, {
                 sync_status = sync_status,
@@ -417,7 +400,12 @@ local function print_attachment_stats(target_player)
         else
             print(string.format("\n================ ALL %d ATTACHMENTS BY KILLS ================", #aggregated.items))
             for i, it in ipairs(aggregated.items) do
-                print(string.format("#%-3d %-32s | Kills: %-6d | Top Gun: %s (%d)", i, it.id, it.kills, it.top_gun, it.top_gun_kills))
+            print(string.format("#%-3d %-32s | Kills: %-6d | Top Gun: %s (%d)",
+                i,
+                fallback_display_name(it.id),
+                it.kills,
+                fallback_display_name(it.top_gun),
+                it.top_gun_kills))
             end
         end
 
