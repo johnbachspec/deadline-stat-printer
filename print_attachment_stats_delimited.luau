@@ -1,4 +1,4 @@
--- print-attachment-stats-delimited.luau
+-- print_attachment_stats_delimited.luau
 -- Prints aggregated attachment statistics (kills and top weapon) across all weapons,
 -- formatted as delimited Lua table chunks (100 attachments per line) for debugging
 -- and log fixture generation.
@@ -8,7 +8,7 @@
 --
 -- How to call in the Luau Server Console:
 --   1. Paste the script contents or run:
---        require("https://raw.githubusercontent.com/<user>/deadline-stat-printer/main/print-attachment-stats-delimited.luau")
+--        require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print-attachment-stats-delimited.luau")
 --   2. For subsequent calls in the same server session:
 --        shared.print_attachment_stats()                      -- default (first human player)
 --        shared.print_attachment_stats(players.get("Name"))   -- specific player
