@@ -65,14 +65,16 @@ At the top of `iris_viewer.luau`:
 
 | Setting | Default | Options |
 | --- | --- | --- |
-| `COLORS` | `"dark"` | `"dark"` or `"light"`: Iris's two color sets. `nil` leaves colors alone. |
+| `COLORS` | `"deadline"` | `"deadline"`: black and grey panels with white text and accents, like Deadline's menus (no Iris blue). `"dark"` / `"light"`: Iris's own sets, only if this console exposes them (Deadline's doesn't). `nil` leaves colors alone. |
+| `CONSOLE_COLORS` | `true` | Also give the client console (every Iris window) the `"deadline"` colors. `false` = only the stat printer's windows. |
 | `SPACING` | `nil` | `"clear"` (roomier, bigger padding) or `"default"` (compact). |
 | `FONT` | `12187365977` (Rubik) | Font for the tables (`nil` for Iris's font, Code): a Roblox font name, e.g. `"RobotoMono"`, `"BuilderSans"`, `"Ubuntu"`, `"Arial"` (`"?"` prints every name), or a Creator Store font's asset id (the number in its store link), e.g. `12187365977` for [Rubik](https://create.roblox.com/store/asset/12187365977/Rubik), the font Deadline's own menus appear to use. |
-| `FONT_WEIGHT` | `"Medium"` | `"Thin"`, `"ExtraLight"`, `"Light"`, `"Regular"`, `"Medium"`, `"SemiBold"`, `"Bold"`, `"ExtraBold"` or `"Heavy"`, for fonts that have that weight. |
+| `FONT_WEIGHT` | `"Regular"` | Weight of the table text: `"Thin"`, `"ExtraLight"`, `"Light"`, `"Regular"`, `"Medium"`, `"SemiBold"`, `"Bold"`, `"ExtraBold"` or `"Heavy"`, for fonts that have that weight. |
+| `HEADER_WEIGHT` | `"Bold"` | Weight of the table headers, in `FONT`; `nil` = same as `FONT_WEIGHT`. With a table font set, headers use this instead of the bold older Iris versions give them. |
 | `TEXT_SIZE` | `14` | Text size in pixels, for everything. |
-| `CONSOLE_FONT` | `"Ubuntu"` | Font of every Iris window: the client Luau console itself, plus the stat printer's titles, buttons and section headers. Only `"Ubuntu"` or `"Code"` in Deadline's client console; `nil` leaves it alone. |
+| `CONSOLE_FONT` | `"BuilderSansBold"` | Font of every Iris window: the client Luau console itself, plus the stat printer's titles, buttons and section headers. A built-in Roblox font name in quotes, with any weight in the name (`"BuilderSansBold"`, `"GothamBold"`, `"SourceSansBold"`); `nil` leaves it alone. Rubik can't be used here: it isn't built in, and loading it by asset id needs the `Font` type. |
 | `NUMBER_FONT` | `"RobotoMono"` (`nil` = same as `FONT`) | A second font, by name or asset id like `FONT`, for table cells that are only a number: `12,345`, `3.721`, `61.28%`, `$1,234`, `2h 3m 20s`, `7,305 st`. |
-| `NUMBER_WEIGHT` | `nil` | Weight for `NUMBER_FONT`, like `FONT_WEIGHT`. |
+| `NUMBER_WEIGHT` | `"Regular"` | Weight for `NUMBER_FONT`, like `FONT_WEIGHT`. |
 | `EXTRA` | `{}` | Any other [Iris style key](https://github.com/SirMallard/Iris/blob/main/lib/config.lua), e.g. `WindowBgTransparency = 0.2`. Keys that need Roblox types (`Color3`, `Vector2`) only work if the console has them. |
 
 The defaults pair Deadline's own font, Rubik, for text with a monospaced font for numbers, so numbers in each column line up. Font names and weights are text, so they need quotes (`"RobotoMono"`); without them Lua reads a variable that doesn't exist and the setting is silently off. Set everything to `nil` and paste it again to go back to Iris's normal look.
@@ -82,9 +84,11 @@ The defaults pair Deadline's own font, Rubik, for text with a monospaced font fo
 Deadline's client console has **no `Font` type**, and Iris's own font setting only takes a `Font` object (Deadline's Iris is 2.1 or later, so it sets `FontFace`; an `Enum.Font` makes it fail with `Font expected, got EnumItem`). So the font is applied in two ways:
 
 - **Table cells and table headers** (most of the text) get it through Roblox rich text: the viewer wraps each cell in `<font face="...">`, or `<font family="rbxassetid://...">` for an asset id, with `weight="500"` style weights. This needs no `Font` type, works for any font, and is cached when a report arrives, so it costs nothing per frame. `NUMBER_FONT` picks the tag for cells that are only a number; a cell mixing words and a number, like `SCAR-H (29045)`, uses `FONT`.
-- **Window titles, buttons, section headers, the filter box and plain text lines** use Iris's own font, and so does the **client Luau console** window itself (it is an Iris window too). Iris's presets hold two `Font` objects, Code and Ubuntu, so those two work here. `CONSOLE_FONT` sets it for every Iris window through `iris.UpdateGlobalConfig` (the default makes the console and these parts Ubuntu); `FONT = "Ubuntu"` or `"Code"` would also set it for the stat printer's windows only. The `[theme] applied` line says what each got (`titles and buttons: ...; console: ...`). In a console that does have `Font`, any font and weight works here as well.
+- **Window titles, buttons, section headers, the filter box and plain text lines** use Iris's own font, and so does the **client Luau console** window itself (it is an Iris window too). That setting only takes a real `Font` object. Without the `Font` type the snippet gets one two other ways: Iris's presets (Code and Ubuntu in `iris.TemplateConfig`, which Deadline's `iris` doesn't seem to expose), or by giving a hidden `TextLabel` (made with `create_instance`) the font by name and reading its `FontFace` back. It only uses a value that is a genuine `Font` (its `Family` is an `rbxasset://` path), since a bad global font would break every Iris window, the console included. `CONSOLE_FONT` sets this for every Iris window through `iris.UpdateGlobalConfig`; if neither way works it prints `CONSOLE_FONT not applied: could not get the ... font here (Iris's presets: ..., create_instance: ...)`. Weights and asset ids (Rubik) can't reach these parts without the `Font` type. The `[theme] applied` line says what each got (`titles and buttons: ...; console: ...`).
 
 `CONSOLE_FONT` changes Iris's global setting for the rest of the session, so it also reaches any other Iris window, such as the Iris demo. Set it to `"Code"` and paste again to go back.
+
+The `"deadline"` colors are grey levels, so they need no `Color3` type either: if the console lacks it, the snippet reads real black and white from a hidden `TextLabel`'s default colors and makes the greys between with `Color3:Lerp`. It only uses them after checking they are exactly black and white, since `CONSOLE_COLORS` changes every Iris window. If that fails it prints `COLORS "deadline" not applied` and leaves the colors alone.
 
 The rich-text tags are not checked: a font name Roblox doesn't know just draws in the normal font, with no message. Asset ids in rich text (`rbxassetid://...`) are the least certain part; if Rubik doesn't show, use a font name.
 

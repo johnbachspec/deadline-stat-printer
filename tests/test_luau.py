@@ -369,11 +369,14 @@ local iris = {
     __next_id = nil; __configs = __configs + 1; __pushed = t
   end,
   PopConfig = function() __configs = __configs - 1; __pushed = nil; table.insert(__drawn, "PopConfig") end,
-  UpdateGlobalConfig = function(t) print("GLOBAL font=" .. tostring(t.TextFont)) end,
+  UpdateGlobalConfig = function(t)
+    print("GLOBAL" .. (t.TextFont and (" font=" .. tostring(t.TextFont)) or "") .. (t.TextColor and (" color=" .. tostring(t.TextColor)) or ""))
+  end,
   TemplateConfig = { colorDark = { TextColor = "white" }, colorLight = { TextColor = "black" },
     sizeDefault = { TextFont = "Enum.Font.Code", TextSize = 13 }, sizeClear = { TextFont = "Enum.Font.Ubuntu", TextSize = 15 } },
 }
 local Enum = { Font = { Code = "Enum.Font.Code", Ubuntu = "Enum.Font.Ubuntu" } }
+local Color3 = { fromRGB = function(r, g, b) return "rgb(" .. r .. "," .. g .. "," .. b .. ")" end }
 local __font_mt = { __tostring = function(f) return "Font(" .. f.Family .. ")" end }
 local Font = { fromEnum = function(item)
   assert(item, "invalid font")
@@ -465,6 +468,7 @@ class TestIrisViewer(unittest.TestCase):
                 self.assertEqual((vector[1], vector[-1]), ("950", "SMG"))
                 recap = only_table(output, 6)
                 self.assertEqual(recap[1][:2], ["Kills:", "3,000"])
+                self.assertEqual("<b>weapon</b>" in output, not new_tables)  # pre-2.4 Iris: bold header row
 
     def test_refresh_asks_the_server_for_a_new_copy(self):
         after = """__frame()
@@ -538,7 +542,7 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
         output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=self.theme_source()),
                             after="__frame(); __dump()")
         frame = drawn(output)
-        self.assertEqual(frame[0], "PushConfig dsp:theme size=14 font=nil color=white")  # no FONT: Iris's own
+        self.assertEqual(frame[0], "PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)")  # no FONT: Iris's own
         self.assertEqual(frame[1], "Window Stat printer")  # the push wraps our windows only
         self.assertEqual(frame[-1], "PopConfig")
 
@@ -546,16 +550,19 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
         output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
                             prelude=viewer_prelude(extra="local Font = nil\n" + self.theme_source()),
                             after="__frame(); __dump()")
-        vector = next(row for row in only_table(output, 13) if "Vector" in row[0])
-        self.assertEqual(vector[:2], ['<font family="rbxassetid://12187365977" weight="500">Vector</font>',
-                                      '<font face="RobotoMono">950</font>'])
+        weapons = only_table(output, 13)
+        vector = next(row for row in weapons if "Vector" in row[0])
+        self.assertEqual(vector[:2], ['<font family="rbxassetid://12187365977" weight="400">Vector</font>',
+                                      '<font face="RobotoMono" weight="400">950</font>'])  # content Regular
+        self.assertEqual(weapons[0][0], '<font family="rbxassetid://12187365977" weight="700">weapon</font>')  # headers Bold
+        self.assertNotIn("<b>", output)  # a header font replaces the old bold headers
 
     def test_console_font_sets_every_iris_window(self):
         # Iris's global font reaches the client console window too; without the Font type
         # only Iris's own Ubuntu and Code are possible.
         cases = (('"Ubuntu"', "GLOBAL font=Enum.Font.Ubuntu", "titles and buttons: Ubuntu; console: Ubuntu"),
                  ('"Code"', "GLOBAL font=Enum.Font.Code", "console: Code"),
-                 ('"Arial"', "CONSOLE_FONT not applied: only", "console: unchanged"),
+                 ('"Arial"', "CONSOLE_FONT not applied: could not get the Arial font here", "console: unchanged"),
                  ("nil", None, "console: unchanged"))
         for font, applied, summary in cases:
             with self.subTest(font=font):
@@ -564,33 +571,109 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
                 if applied:
                     self.assertIn(applied, output)
                 else:
-                    self.assertNotIn("GLOBAL", output)
+                    self.assertNotIn("GLOBAL font=", output)
                 self.assertIn(summary, output)
+
+    def test_console_font_from_a_hidden_label_without_font_type(self):
+        # Deadline's console has neither the Font type nor Iris's presets, so the theme reads a
+        # Font object back from a TextLabel; anything that isn't a real Font is not used.
+        label = """
+local Font = nil
+iris.TemplateConfig = nil
+local function create_instance(class)
+  local fields = {}
+  return setmetatable({ destroy = function() end }, {
+    __newindex = function(_, k, v) fields[k] = v end,
+    __index = function(_, k)
+      if k == "FontFace" then return __LABEL_FONT(fields.Font) end
+    end })
+end"""
+        good = "local function __LABEL_FONT(item) return setmetatable({ Family = 'rbxasset://fonts/families/' .. item .. '.json' }, __font_mt) end"
+        bad = "local function __LABEL_FONT(item) return item end  -- e.g. a wrapped value that is not a Font"
+        cases = ((good, "GLOBAL font=Font(rbxasset://fonts/families/Enum.Font.Ubuntu.json)", "console: Ubuntu"),
+                 (bad, None, "console: unchanged"))
+        for font_source, applied, summary in cases:
+            with self.subTest(applied=applied):
+                extra = font_source + "\n" + label + "\n" + self.theme_source(CONSOLE_FONT='"Ubuntu"')
+                output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=extra))
+                self.assertIn(summary, output)
+                if applied:
+                    self.assertIn(applied, output)
+                else:
+                    self.assertNotIn("GLOBAL font=", output)
+                    self.assertIn("Iris's presets: missing, create_instance: yes", output)
+
+    def test_deadline_colors_reach_the_viewer_and_the_console(self):
+        cases = (('true', "GLOBAL font=", "console: BuilderSansBold, colors deadline"),
+                 ('false', None, "colors no"))
+        for console_colors, global_colors, summary in cases:
+            with self.subTest(console_colors=console_colors):
+                label = """
+local Font = nil
+local function create_instance(class)
+  return setmetatable({ destroy = function() end }, { __index = function(_, k)
+    if k == "FontFace" then return setmetatable({ Family = "rbxasset://fonts/families/BuilderSans.json" }, __font_mt) end
+  end })
+end"""
+                extra = label + "\n" + self.theme_source(CONSOLE_COLORS=console_colors)
+                output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=extra),
+                                    after="__frame(); __dump()")
+                self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)")
+                self.assertIn(summary, output)
+                self.assertEqual("color=rgb(255,255,255)" in output.split("PushConfig")[0], global_colors is not None)
+
+    def test_deadline_colors_without_color3_come_from_a_hidden_label(self):
+        # No Color3 type: black and white are read from a TextLabel's default colors and the
+        # greys made with Color3:Lerp; colors that aren't a checked black and white are not used.
+        def label(black, white):
+            return f"""
+local Color3 = nil
+local function __grey(level)
+  return setmetatable({{ R = level / 255, G = level / 255, B = level / 255,
+    Lerp = function(self, other, t) return __grey(math.floor(self.R * 255 + (other.R - self.R) * 255 * t + 0.5)) end }},
+    {{ __tostring = function(c) return "grey" .. math.floor(c.R * 255 + 0.5) end }})
+end
+local function create_instance(class)
+  return setmetatable({{ destroy = function() end }}, {{ __index = function(_, k)
+    if k == "TextStrokeColor3" then return __grey({black}) end
+    if k == "BackgroundColor3" then return __grey({white}) end
+  end }})
+end"""
+        good = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=label(0, 255) + self.theme_source()),
+                          after="__frame(); __dump()")
+        self.assertEqual(drawn(good)[0], "PushConfig dsp:theme size=14 font=nil color=grey255")
+        self.assertIn("GLOBAL color=grey255", good)  # the console gets them too
+        bad = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=label(27, 163) + self.theme_source()),
+                         after="__frame(); __dump()")
+        self.assertIn('COLORS "deadline" not applied', bad)
+        self.assertEqual(drawn(bad)[0], "PushConfig dsp:theme size=14 font=nil color=nil")
+        self.assertNotIn("GLOBAL color", bad)
 
     def test_theme_fonts_in_a_console_without_font_type(self):
         # Deadline's client console has no Font type: tables get the fonts through rich text,
         # and Iris's own font (titles, buttons) is left alone.
-        extra = "local Font = nil\n" + self.theme_source(FONT="12187365977", FONT_WEIGHT='"Medium"',
-                                                             NUMBER_FONT='"RobotoMono"', CONSOLE_FONT="nil")
+        extra = "local Font = nil\n" + self.theme_source(FONT="12187365977", FONT_WEIGHT='"Medium"', HEADER_WEIGHT="nil",
+                                                             NUMBER_FONT='"RobotoMono"', NUMBER_WEIGHT="nil",
+                                                             CONSOLE_FONT="nil")
         text, number = '<font family="rbxassetid://12187365977" weight="500">', '<font face="RobotoMono">'
         for new_tables in (True, False):
             with self.subTest(new_tables=new_tables):
                 output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
                                     prelude=viewer_prelude(new_tables, extra=extra), after="__frame(); __dump()")
                 self.assertIn("titles and buttons: Iris's font", output)
-                self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=nil color=white")
+                self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)")
                 weapons = only_table(output, 13)
                 self.assertEqual(weapons[0][0], f"{text}weapon</font>")  # header (bold tags removed by grids())
                 vector = next(row for row in weapons if row[0] == f"{text}Vector</font>")
                 self.assertEqual((vector[1], vector[12]), (f"{number}950</font>", f"{text}SMG</font>"))
                 self.assertEqual(only_table(output, 6)[1][:2], [f"{text}Kills:</font>", f"{number}3,000</font>"])
-                self.assertEqual(f"{text}<b>weapon</b></font>" in output, not new_tables)  # old Iris: bold header
+                self.assertNotIn("<b>", output)  # with a font set, headers take its weight instead of bold
 
     def test_theme_code_or_ubuntu_also_change_titles_without_font_type(self):
         # Iris's presets hold Font objects for Code and Ubuntu, so those need no Font type.
         extra = "local Font = nil\n" + self.theme_source(FONT='"Ubuntu"', FONT_WEIGHT="nil")
         output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=extra), after="__frame(); __dump()")
-        self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=Enum.Font.Ubuntu color=white")
+        self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=Enum.Font.Ubuntu color=rgb(255,255,255)")
         self.assertIn("titles and buttons: Ubuntu", output)
 
     def test_theme_fonts_by_asset_id_and_weight_with_font_type(self):
@@ -610,7 +693,7 @@ local Font = {
                 extra = font_objects + "\n" + self.theme_source(FONT=font, FONT_WEIGHT=weight)
                 output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=extra),
                                     after="__frame(); __dump()")
-                self.assertEqual(drawn(output)[0], f"PushConfig dsp:theme size=14 font={expected} color=white")
+                self.assertEqual(drawn(output)[0], f"PushConfig dsp:theme size=14 font={expected} color=rgb(255,255,255)")
 
     def test_number_font_applies_to_number_cells_only(self):
         cases = (('"RobotoMono"', "nil", '<font face="RobotoMono">'),
@@ -637,7 +720,7 @@ local Font = {
                             after="__frame(); __dump()")
         self.assertIn("[theme] applied", output)
         self.assertIn("[viewer] ready", output)
-        self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=nil color=white",
+        self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)",
                                              "Window Stat printer"])
 
     def test_reports_from_an_older_viewer_still_draw(self):
@@ -652,7 +735,8 @@ for _, report in pairs(shared.iris_viewer.reports) do
   end
 end
 __frame(); __dump()"""
-        extra = self.theme_source(FONT="12187365977", FONT_WEIGHT="nil", NUMBER_FONT='"RobotoMono"')
+        extra = self.theme_source(FONT="12187365977", FONT_WEIGHT="nil", HEADER_WEIGHT="nil", NUMBER_FONT='"RobotoMono"',
+                                  NUMBER_WEIGHT="nil")
         output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
                             prelude=viewer_prelude(False, extra=extra), after=after)
         self.assertNotIn("[viewer] Fiu", output)
@@ -661,6 +745,31 @@ __frame(); __dump()"""
         weapons = only_table(output, 13)
         self.assertEqual(weapons[0][0], f"{text}weapon</font>")
         self.assertIn([f"{text}Vector</font>", f"{text}950</font>"], [row[:2] for row in weapons])
+
+    def test_header_rows_from_an_older_viewer_get_the_header_weight(self):
+        # An older viewer built and styled header rows without the is_head marker; they must
+        # switch to HEADER_WEIGHT instead of keeping the content weight they were cached with.
+        after = """
+local fonts = shared.iris_viewer_fonts
+for _, report in pairs(shared.iris_viewer.reports) do
+  for _, section in ipairs(report.sections) do
+    for _, block in ipairs(section.blocks) do
+      if block.header then
+        block.head = { number = {}, bold = true, rich_for = fonts, rich = {} }
+        for c, name in ipairs(block.columns) do
+          block.head[c] = { name }
+          block.head.rich[c] = { fonts.text .. name .. "</font>", nil, nil, true }
+        end
+      end
+    end
+  end
+end
+__frame(); __dump()"""
+        output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
+                            prelude=viewer_prelude(False, extra=self.theme_source()), after=after)
+        weapons = only_table(output, 13)
+        self.assertEqual(weapons[0][0], '<font family="rbxassetid://12187365977" weight="700">weapon</font>')
+        self.assertEqual(weapons[1][0][:57], '<font family="rbxassetid://12187365977" weight="400">M4A1')
 
     def test_a_theme_iris_rejects_is_turned_off(self):
         after = """shared.iris_viewer_theme = { reject = true }

@@ -1,31 +1,34 @@
 -- iris_theme.luau
--- Your look for iris_viewer.luau's windows: colors, spacing, font and text size.
--- It only styles the stat printer's windows, not other Iris windows in the game.
--- Paste it into the CLIENT Luau console (or Client Autorun, after the viewer), then
--- change the values below and paste it again to apply them. Setting everything to
--- nil and pasting goes back to Iris's normal look. More in IRIS_VIEWER.md.
+-- Your look for iris_viewer.luau's windows: colors, spacing, fonts and text size, and
+-- (CONSOLE_FONT / CONSOLE_COLORS) the client Luau console's too.
+-- Paste it into the CLIENT Luau console (or use client_autorun.txt, which has it), then
+-- change the values below and paste it again to apply them. More in IRIS_VIEWER.md.
 
-local COLORS = "dark"   -- "dark" or "light" (Iris's two color sets), or nil to leave colors alone
+local COLORS = "deadline" -- "deadline": black and grey with white text, like Deadline's menus;
+                          -- "dark" / "light": Iris's own sets (only if this console exposes them); nil: leave alone
+local CONSOLE_COLORS = true -- also give the client console (every Iris window) the "deadline" colors
 local SPACING = nil     -- "clear" (roomier), "default" (compact), or nil to leave spacing alone
--- FONT styles the tables (cells and headers). Titles, buttons and section headers can
--- only use "Code" or "Ubuntu" in Deadline's client console (it has no Font type) and keep
--- Iris's font for anything else.
+-- FONT styles the tables (cells and headers). Titles, buttons and section headers follow
+-- CONSOLE_FONT below: Deadline's client console has no Font type, so they can't use an
+-- asset id like Rubik.
 local FONT = 12187365977  -- Rubik (Deadline's UI font), by its Creator Store asset id. Or a Roblox font
                           -- name in quotes, like "RobotoMono", "BuilderSans", "Ubuntu", "Arial";
                           -- nil for Iris's font (Code); "?" prints every font name
-local FONT_WEIGHT = "Medium" -- nil, or "Light", "Regular", "Medium", "SemiBold", "Bold", "ExtraBold", "Heavy", ...
+local FONT_WEIGHT = "Regular" -- table text: nil, or "Light", "Regular", "Medium", "SemiBold", "Bold", "ExtraBold", "Heavy"
+local HEADER_WEIGHT = "Bold"  -- table headers (same font as FONT); nil = same as FONT_WEIGHT
 local TEXT_SIZE = 14    -- text size in pixels, or nil to leave it alone
 
 -- Font of every Iris window: the client Luau console itself, and the stat printer's
--- titles, buttons and section headers. Only "Ubuntu" or "Code" in Deadline's client
--- console (Iris's own two fonts); nil leaves it alone. The tables keep FONT / NUMBER_FONT.
-local CONSOLE_FONT = "Ubuntu"
+-- titles, buttons and section headers. A built-in Roblox font name in quotes, with the
+-- weight in the name ("BuilderSansBold", "GothamBold", "SourceSansBold"); nil leaves it
+-- alone. Rubik isn't built in and needs the Font type, so it can't be used here.
+local CONSOLE_FONT = "BuilderSansBold"
 
 -- A second font for table cells that are only a number ("12,345", "3.721", "61.28%",
 -- "$1,234", "2h 3m 20s"), e.g. a monospaced one so numbers line up while names use FONT.
 local NUMBER_FONT = "RobotoMono" -- a font name in quotes or an asset id, like FONT; nil = same as FONT
                                  -- (numbers line up best in a monospaced font: "RobotoMono" or "Code")
-local NUMBER_WEIGHT = nil -- like FONT_WEIGHT
+local NUMBER_WEIGHT = "Regular" -- like FONT_WEIGHT
 
 -- Any other Iris style key, applied last. Needs Roblox types, e.g.
 --   WindowBgTransparency = 0.2,
@@ -33,6 +36,23 @@ local NUMBER_WEIGHT = nil -- like FONT_WEIGHT
 --   ItemSpacing = Vector2.new(8, 6),
 -- The keys are listed in Iris's config.lua: https://github.com/SirMallard/Iris/blob/main/lib/config.lua
 local EXTRA = {}
+
+-- The "deadline" colors, as grey levels from 0 (black) to 255 (white), and transparencies.
+local DEADLINE_GREYS = {
+    TextColor = 255, TextDisabledColor = 130, BorderColor = 55, BorderActiveColor = 120,
+    WindowBgColor = 10, PopupBgColor = 14, MenubarBgColor = 16,
+    TitleBgColor = 16, TitleBgActiveColor = 28, TitleBgCollapsedColor = 16,
+    ScrollbarGrabColor = 70, FrameBgColor = 26, FrameBgHoveredColor = 40, FrameBgActiveColor = 56,
+    ButtonColor = 44, ButtonHoveredColor = 70, ButtonActiveColor = 100, CheckMarkColor = 255,
+    HeaderColor = 30, HeaderHoveredColor = 50, HeaderActiveColor = 70,
+    SliderGrabColor = 200, SliderGrabActiveColor = 255, SeparatorColor = 55,
+    TableBorderStrongColor = 60, TableBorderLightColor = 36, TableRowBgColor = 0, TableRowBgAltColor = 255,
+}
+local DEADLINE_TRANSPARENCIES = {
+    WindowBgTransparency = 0.04, TitleBgTransparency = 0, TitleBgActiveTransparency = 0,
+    ButtonTransparency = 0, HeaderTransparency = 0, FrameBgTransparency = 0,
+    TableRowBgTransparency = 1, TableRowBgAltTransparency = 0.95,
+}
 
 if not iris then
     print("[theme] iris is missing: run this in the client Luau console")
@@ -45,7 +65,41 @@ local function copy(template)
     for key, value in pairs(template or {}) do theme[key] = value end
 end
 
-if COLORS then copy(templates[COLORS == "light" and "colorLight" or "colorDark"]) end
+-- Greys without the Color3 type: a hidden TextLabel's default colors are real black
+-- (TextStrokeColor3) and white (BackgroundColor3), and Color3:Lerp makes the greys between.
+-- Only a checked black and white are used; a bad color would break every Iris window.
+local function grey_maker()
+    if Color3 and Color3.fromRGB then return function(v) return Color3.fromRGB(v, v, v) end end
+    if not create_instance then return nil end
+    local ok, black, white = pcall(function()
+        local label = create_instance("TextLabel")
+        local dark, light = label.TextStrokeColor3, label.BackgroundColor3
+        pcall(function() label.destroy() end)
+        return dark, light
+    end)
+    if not ok then return nil end
+    local checked, black_and_white = pcall(function()
+        return black.R + black.G + black.B == 0 and white.R + white.G + white.B == 3
+    end)
+    if not (checked and black_and_white) then return nil end
+    return function(v) return black:Lerp(white, v / 255) end
+end
+
+local palette = nil -- the "deadline" colors, for this theme and (CONSOLE_COLORS) every Iris window
+if COLORS == "deadline" then
+    local grey = grey_maker()
+    local ok = grey and pcall(function()
+        palette = {}
+        for key, level in pairs(DEADLINE_GREYS) do palette[key] = grey(level) end
+        for key, value in pairs(DEADLINE_TRANSPARENCIES) do palette[key] = value end
+    end)
+    if ok then copy(palette) else
+        palette = nil
+        print("[theme] COLORS \"deadline\" not applied: no Color3 type here, and no colors from a hidden TextLabel")
+    end
+elseif COLORS then
+    copy(templates[COLORS == "light" and "colorLight" or "colorDark"])
+end
 if SPACING then copy(templates[SPACING == "clear" and "sizeClear" or "sizeDefault"]) end
 
 -- Table cells and headers get their font through rich text (<font face="...">), which
@@ -61,28 +115,59 @@ local function font_tag(font, weight)
 end
 
 -- Titles, buttons and section headers use Iris's own font setting, which only takes a
--- Font object. Deadline's client console has no Font type, but Iris's presets hold two
--- Font objects (Code and Ubuntu), so those two work there too.
+-- Font object. Without the Font type there are two sources: Iris's presets (Code, Ubuntu)
+-- and a hidden TextLabel's FontFace (any built-in font name).
+local function is_font(value) -- a real Font object has a Family like "rbxasset://fonts/families/Ubuntu.json"
+    local ok, family = pcall(function() return value.Family end)
+    return ok and type(family) == "string" and family:find("rbxasset") ~= nil
+end
 local function iris_font(name, weight_name)
     local presets = { Code = (templates.sizeDefault or {}).TextFont, Ubuntu = (templates.sizeClear or {}).TextFont }
     if presets[name] and not weight_name then return presets[name] end
-    if not Font then return nil end
-    local ok, font = pcall(function()
-        local weight = weight_name and Enum.FontWeight[weight_name]
-        if type(name) == "number" then return Font.fromId(name, weight) end
-        local face = Font.fromEnum(Enum.Font[name])
-        return weight and Font.new(face.Family, weight, face.Style) or face
+    if Font then
+        local ok, font = pcall(function()
+            local weight = weight_name and Enum.FontWeight[weight_name]
+            if type(name) == "number" then return Font.fromId(name, weight) end
+            local face = Font.fromEnum(Enum.Font[name])
+            return weight and Font.new(face.Family, weight, face.Style) or face
+        end)
+        return ok and font or nil
+    end
+    -- No Font type (Deadline's client console): give a hidden TextLabel the font by name and
+    -- read its FontFace back. Only a checked, real Font is used; a bad one would break Iris.
+    if type(name) ~= "string" or weight_name or not create_instance then return nil end
+    local ok, face = pcall(function()
+        local label = create_instance("TextLabel")
+        label.Font = Enum.Font[name]
+        local font = label.FontFace
+        pcall(function() label.destroy() end)
+        return font
     end)
-    return ok and font or nil
+    return ok and is_font(face) and face or nil
 end
 
--- CONSOLE_FONT goes into Iris's global config, so it reaches windows the theme doesn't wrap.
-local console = "unchanged"
+-- CONSOLE_FONT and CONSOLE_COLORS go into Iris's global config, so they reach windows the
+-- theme doesn't wrap: the client console itself, and any other Iris window.
+local global, has_global, console, console_colors = {}, false, "unchanged", "no"
 if CONSOLE_FONT then
     local face = iris_font(CONSOLE_FONT)
-    local ok, err = false, "only \"Ubuntu\" or \"Code\" work in this console"
-    if face and iris.UpdateGlobalConfig then ok, err = pcall(iris.UpdateGlobalConfig, { TextFont = face }) end
-    if ok then console = tostring(CONSOLE_FONT) else print("[theme] CONSOLE_FONT not applied: " .. tostring(err)) end
+    if face then global.TextFont, has_global = face, true else
+        print(string.format("[theme] CONSOLE_FONT not applied: could not get the %s font here (Iris's presets: %s, create_instance: %s)",
+            tostring(CONSOLE_FONT), iris.TemplateConfig and "yes" or "missing", create_instance and "yes" or "missing"))
+    end
+end
+if CONSOLE_COLORS and palette then
+    for key, value in pairs(palette) do global[key] = value end
+    has_global = true
+end
+if has_global and iris.UpdateGlobalConfig then
+    local ok, err = pcall(iris.UpdateGlobalConfig, global)
+    if ok then
+        console = global.TextFont and tostring(CONSOLE_FONT) or console
+        console_colors = CONSOLE_COLORS and palette and COLORS or "no"
+    else
+        print("[theme] console font and colors not applied: " .. tostring(err))
+    end
 end
 
 local fonts, chrome = nil, "Iris's font"
@@ -98,7 +183,8 @@ if FONT == "?" then
     end
 elseif FONT or NUMBER_FONT then
     local text = font_tag(FONT, FONT_WEIGHT)
-    fonts = { text = text, number = font_tag(NUMBER_FONT, NUMBER_WEIGHT) or text }
+    fonts = { text = text, number = font_tag(NUMBER_FONT, NUMBER_WEIGHT) or text,
+        header = HEADER_WEIGHT and font_tag(FONT, HEADER_WEIGHT) or text }
     local face = FONT and iris_font(FONT, FONT_WEIGHT)
     if face then theme.TextFont, chrome = face, tostring(FONT) end
 end
@@ -109,6 +195,8 @@ shared.iris_viewer_theme = theme
 shared.iris_viewer_fonts = fonts
 if chrome == "Iris's font" and console ~= "unchanged" then chrome = console end
 print(string.format("[theme] applied: colors %s, spacing %s, text size %s; tables: font %s %s, numbers %s %s;"
-    .. " titles and buttons: %s; console: %s", tostring(COLORS), tostring(SPACING), tostring(TEXT_SIZE),
-    tostring(FONT or "Iris's"), tostring(FONT_WEIGHT or ""), tostring(NUMBER_FONT or "same"),
-    tostring(NUMBER_WEIGHT or ""), chrome, console))
+    .. " titles and buttons: %s; console: %s, colors %s",
+    palette and "deadline" or COLORS ~= "deadline" and tostring(COLORS) or "not applied",
+    tostring(SPACING), tostring(TEXT_SIZE),
+    tostring(FONT or "Iris's"), tostring(FONT_WEIGHT or "") .. (HEADER_WEIGHT and " (headers " .. HEADER_WEIGHT .. ")" or ""),
+    tostring(NUMBER_FONT or "same"), tostring(NUMBER_WEIGHT or ""), chrome, console, console_colors))
