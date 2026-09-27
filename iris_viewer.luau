@@ -5,6 +5,8 @@ local PAGE_ROWS = 50   -- table rows per page; longer tables get Prev / Next and
 local FILTER_ROWS = 12 -- tables with more rows than this get a filter box
 local WINDOW_SIZES = { stats = { 1180, 640 }, attachments = { 820, 640 }, caps = { 380, 320 } }
 local DEFAULT_SIZE = { 700, 500 }
+local ONLY_FOR = {} -- player names, e.g. { "bachancuc123" }: in Client Autorun, only they get the viewer; {} = everyone
+if #ONLY_FOR > 0 and not table.find(ONLY_FOR, tostring(local_player)) then return end
 if not (iris and on_server_event and shared) then
     print("[viewer] iris, on_server_event or shared is missing: run this in the client Luau console")
     return

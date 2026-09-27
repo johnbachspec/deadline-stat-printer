@@ -466,7 +466,7 @@ local R = require("x/modules/iris_report.luau")
 local report = R.new("attachments:Big", "Big", nil)
 report:section("All", true)
 report:columns({ "Name", "Note" })
-for i = 1, 60 do report:row({ "row " .. i, string.rep("é", 40) .. "\ttab\\slash\nline" }) end
+for i = 1, 120 do report:row({ "row " .. i, string.rep("é", 40) .. "\ttab\\slash\nline" }) end
 local messages = report:messages()
 for _, m in ipairs(messages) do assert(utf8.len(m), "a part split a UTF-8 character") end
 print("PARTS " .. #messages)
@@ -474,17 +474,36 @@ for _, m in ipairs(messages) do __deliver(m) end
 __frame(); print("-- page 1"); __dump()
 __click("dsp:attachments:Big:2:2:next"); __frame(); __frame(); print("-- page 2"); __dump()
 __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "ROW 5"; __frame(); print("-- filtered"); __dump()
+__widgets["dsp:attachments:Big:2:2:filter"].state.text.value = ""
+__click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); __dump()
 """
         output = run_script("iris_viewer.luau", "nil", prelude=IRIS_MOCKS.replace("__NEW_TABLES__", "true"), after=after)
         self.assertGreater(int(re.search(r"PARTS (\d+)", output).group(1)), 1)
         pages = dict(part.split("\n", 1) for part in output.split("-- ")[1:])
         page1 = only_table(pages["page 1"], 2)
-        self.assertEqual([r[0] for r in page1], ["Name"] + [f"row {i}" for i in range(1, 26)])
+        self.assertEqual([r[0] for r in page1], ["Name"] + [f"row {i}" for i in range(1, 51)])
         self.assertEqual(page1[1][1], "é" * 40 + "<TAB>tab\\slash<NL>line")
-        self.assertIn("Text rows 26-50 of 60", drawn(pages["page 2"]))
-        self.assertEqual([r[0] for r in only_table(pages["page 2"], 2)][1:], [f"row {i}" for i in range(26, 51)])
+        self.assertIn("Text rows 51-100 of 120", drawn(pages["page 2"]))
+        self.assertEqual([r[0] for r in only_table(pages["page 2"], 2)][1:], [f"row {i}" for i in range(51, 101)])
         filtered = [r[0] for r in only_table(pages["filtered"], 2)][1:]
         self.assertEqual(filtered, ["row 5"] + [f"row {i}" for i in range(50, 60)])
+        self.assertEqual(len(only_table(pages["all"], 2)), 1 + 120)  # Show all: every row on one page
+        self.assertIn("Text all 120 rows", drawn(pages["all"]))
+        self.assertIn("SmallButton Pages", drawn(pages["all"]))
+        self.assertNotIn("SmallButton Next >", drawn(pages["all"]))
+
+    def test_only_for_limits_the_viewer_to_named_players(self):
+        viewer = (ROOT / "iris_viewer.luau").read_text(encoding="utf-8")
+        self.assertIn("local ONLY_FOR = {}", viewer)
+        mocks = IRIS_MOCKS.replace("__NEW_TABLES__", "true") + '\nlocal local_player = "Tester"\n'
+        for names, runs in (('{ "Someone" }', False), ('{ "Someone", "Tester" }', True)):
+            with self.subTest(names=names):
+                source = viewer.replace("local ONLY_FOR = {}", f"local ONLY_FOR = {names}")
+                with tempfile.TemporaryDirectory() as tmp:
+                    script = Path(tmp) / "viewer.luau"
+                    script.write_text(source, encoding="utf-8")
+                    output = run_script(script, "nil", prelude=mocks)
+                self.assertEqual("[viewer] ready" in output, runs)
 
     def test_a_failing_window_is_closed_and_reported_once(self):
         after = r"""
