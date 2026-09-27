@@ -95,12 +95,12 @@ local function cell(id, args)
     if NEW_TABLES then iris.NextColumn() end
 end
 local function styled(row, c, fonts) -- a cell's iris.Text args: rich text in its font (iris_theme.luau), bold for old headers
-    local tag = fonts and ((row.number and row.number[c]) and fonts.number or fonts.text) -- (rows from older viewers have no .number)
+    local tag = fonts and (row.is_head and fonts.header or (row.number and row.number[c]) and fonts.number or fonts.text) -- (older rows: no .number)
     if not (tag or row.bold) then return row[c] end
     if row.rich_for ~= (fonts or row) then row.rich, row.rich_for = {}, fonts or row end -- cached until the fonts change
     if not row.rich[c] then
         local text = row[c][1]:gsub("[<>&]", RICH_ESCAPES)
-        text = row.bold and "<b>" .. text .. "</b>" or text
+        text = (row.bold and not tag) and "<b>" .. text .. "</b>" or text -- with a header font its weight applies instead
         row.rich[c] = { tag and tag .. text .. "</font>" or text, nil, nil, true }
     end
     return row.rich[c]
@@ -150,6 +150,7 @@ local function draw_table(tbl, ui)
     end
     if tbl.header then -- the header row, made here so reports received by an older viewer have it too; Iris 2.4+ styles it, older gets bold
         if not tbl.head then tbl.head = { number = {}, bold = not NEW_TABLES }; for c, name in ipairs(tbl.columns) do tbl.head[c] = { name } end end
+        if not tbl.head.is_head then tbl.head.is_head, tbl.head.rich_for = true, nil end -- (older viewers' header rows lack it; restyle them)
         local ids = slot_ids(tbl, 0)
         for c = 1, n do cell(ids[c], styled(tbl.head, c, shared.iris_viewer_fonts)) end
     end
