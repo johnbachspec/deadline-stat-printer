@@ -8,9 +8,8 @@ Usage:
 
 Checks:
   1. total kills are conserved by the merge (no double count, no loss),
-  2. the known duplicate merges:
-     - vector_9mm_bolt (511) + vector_45acp_bolt (194) -> kalis_scalar_std_bcg (705, top Vector),
-     - plus historical merges from renames.csv (super_scar_trigger, smr_mk16 urgi, qbz95 handle),
+  2. the known duplicate merges listed in tests/expected_merges.csv, e.g.
+     vector_9mm_bolt (511) + vector_45acp_bolt (194) -> kalis_scalar_std_bcg (705, top Vector),
   3. every canonical id whose total combines 2+ distinct log rows is listed,
   4. the embedded Luau alias table matches renames.csv verbatim,
   5. structural sanity of the Luau files (balanced braces, no tabs).
@@ -27,17 +26,19 @@ CSV_PATH = ROOT / "renames.csv"
 LUAU_PATH = ROOT / "print_attachment_stats.luau"
 DELIMITED_PATH = ROOT / "print_attachment_stats_delimited.luau"
 ATTACHMENT_DATA_PATH = ROOT / "modules" / "attachment_data.luau"
-
-ALL_EXPECTED_MERGES = {
-    # canonical id: (total kills, top gun, top gun kills, contributing legacy ids)
-    "kalis_scalar_std_bcg": (705, "Vector", 705, {"vector_9mm_bolt", "vector_45acp_bolt"}),
-    "vallais_super_fang_trigger": (13952, "SCARH", 13169, {"schmidt_super_scar_trigger", "vallais_super_fang_trigger"}),
-    "vallais_mfh_mk16_mlok_urgi_9.3inch": (2285, "M4A1", 2285, {"schmidt_smr_mk16_mlok_urg_i_9.3inch", "vallais_smr_mk16_mlok_urg_i_9.3inch"}),
-    "vallais_mfh_mk16_mlok_urgi_15inch": (159, "M4A1", 159, {"schmidt_smr_mk16_mlok_urg_i_15inch", "vallais_smr_mk16_mlok_urg_i_15inch"}),
-    "qingyuan_defense_qbz95_long_bow_picatinny_carry_handle": (333, "QBZ95", 333, {"qingyuan_defense_qbz95_long_bow_picatinny_carry_handle", "schneider_defense_qbz95_long_bow_picatinny_carry_handle"}),
-}
+EXPECTED_MERGES_PATH = ROOT / "tests" / "expected_merges.csv"
 
 failures = []
+
+
+def load_expected_merges(path=EXPECTED_MERGES_PATH):
+    """canonical id -> (total kills, top gun, top gun kills, set of contributing log ids)."""
+    with open(path, encoding="utf-8") as f:
+        return {r["canonical_id"]: (int(r["kills"]), r["top_gun"], int(r["top_gun_kills"]), set(r["sources"].split(";")))
+                for r in csv.DictReader(f)}
+
+
+ALL_EXPECTED_MERGES = load_expected_merges()
 
 
 def check(cond, msg):

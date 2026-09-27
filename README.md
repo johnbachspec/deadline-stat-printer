@@ -38,7 +38,7 @@ To view aggregated attachment statistics across all weapons, paste `print_attach
 require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_attachment_stats.luau")
 ```
 
-Attachments and guns are listed by their in-game names, downloaded at run time from `modules/attachment_names.luau` (generated from deadline-balancing `balancing.csv`). An attachment too new to be in that file yet prints as a prettified id, and if the download fails the whole list does; the header line says which (`-- names: deadline-balancing 0.25.4`). Set `LOAD_NAMES = false` at the top of the script to skip the download.
+Attachments and guns are listed by their in-game names. The game gives some different parts the same name (three parts are all just "AFT"), so those get the part in brackets, taken from the item id: `AFT (Cheek Piece)`, `AFT (Connector)`, `AFT (Shoulder Piece)`. Names are downloaded at run time from `modules/attachment_names.luau` (generated from deadline-balancing `balancing.csv`). An attachment too new to be in that file yet prints as a prettified id, and if the download fails the whole list does; the header line says which (`-- names: deadline-balancing 0.25.4`). Set `LOAD_NAMES = false` at the top of the script to skip the download.
 
 After running once, `shared.print_attachment_stats` remains available:
 
@@ -82,6 +82,7 @@ print_attachment_stats_delimited.luau <- same data as Lua-table lines, used to c
 rename.py                   <- applies renames.csv to the name column of CSV/Excel balancing sheets
 renames.csv                 <- deadline-balancing rename list plus historical renames added here
 balancing.csv               <- deadline-balancing item sheet; source of display names
+extra_display_names.csv     <- hand-written names for old ids balancing.csv no longer lists
 modules/
   weapon_data.luau         <- weapon ids: legacy aliases, display names, types
   level_data.luau          <- XP thresholds and level calculation
@@ -94,6 +95,7 @@ modules/
 tests/
   test_suite.py              <- python tests/test_suite.py
   attachment logs output.txt <- saved printer output used as the verify_attachment_merge fixture
+  expected_merges.csv        <- which fixture rows each rename folds together, and the resulting totals
 tools/
   check_fiu_compat.py         <- fails any script the game's Fiu VM would refuse to load
   build_attachment_names.py   <- regenerates modules/attachment_names.luau from balancing.csv
@@ -106,7 +108,9 @@ tools/
 
 ### Keeping names and renames current
 
-`.github/workflows/sync-balancing.yml` runs daily (or on demand from the Actions tab). It downloads `balancing.csv` and `renames.csv` from `recoil-group/deadline-balancing`, regenerates `modules/attachment_names.luau` and the embedded alias tables, and commits to `main` only if the Fiu load check and the tests pass. Upstream renames are merged into `renames.csv`; rows added here by hand are never dropped. A new rename that changes the totals in the test fixture fails the tests on purpose, so review it and update the expected merges in `tests/test_suite.py` and `tools/verify_attachment_merge.py`.
+`.github/workflows/sync-balancing.yml` runs daily (or on demand from the Actions tab). It downloads `balancing.csv` and `renames.csv` from `recoil-group/deadline-balancing`, regenerates `modules/attachment_names.luau` and the embedded alias tables, and commits to `main` only if the Fiu load check and the tests pass. Upstream renames are merged into `renames.csv`; rows added here by hand are never dropped. A new rename that changes the totals in the test fixture fails the tests on purpose, so review it and update `tests/expected_merges.csv`.
+
+If the printer shows a prettified id instead of an in-game name (e.g. `Fn SCAR Mk20 Gas Block`), that id is missing from `balancing.csv`, usually because the game renamed the part. If the part still exists under a new id (here `aft_mk20_gas_block`), add `old,new` to `renames.csv` so its kills merge into the current part; otherwise add `id,Name` to `extra_display_names.csv`. Then run both build tools.
 
 To do the same by hand:
 
