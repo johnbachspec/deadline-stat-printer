@@ -46,9 +46,7 @@ local function parse(text)
             table.insert(container.blocks, { text = { f[1] or "", true }, key = report.key .. ":" .. count })
         elseif kind == "columns" then
             count = count + 1
-            current = { columns = f, rows = {}, slots = {}, header = table.concat(f) ~= "", key = report.key .. ":" .. count .. ":" .. #f,
-                head = { number = {}, bold = not NEW_TABLES } } -- Iris 2.4+ styles its header row; older ones get bold
-            for c, name in ipairs(f) do current.head[c] = { name } end
+            current = { columns = f, rows = {}, slots = {}, header = table.concat(f) ~= "", key = report.key .. ":" .. count .. ":" .. #f }
             table.insert(container.blocks, current)
         elseif kind == "row" and current then
             local cells = { search = string.lower(table.concat(f, " ")), number = {} } -- number: cells that are only a number
@@ -97,7 +95,7 @@ local function cell(id, args)
     if NEW_TABLES then iris.NextColumn() end
 end
 local function styled(row, c, fonts) -- a cell's iris.Text args: rich text in its font (iris_theme.luau), bold for old headers
-    local tag = fonts and (row.number[c] and fonts.number or fonts.text)
+    local tag = fonts and ((row.number and row.number[c]) and fonts.number or fonts.text) -- (rows from older viewers have no .number)
     if not (tag or row.bold) then return row[c] end
     if row.rich_for ~= (fonts or row) then row.rich, row.rich_for = {}, fonts or row end -- cached until the fonts change
     if not row.rich[c] then
@@ -150,7 +148,8 @@ local function draw_table(tbl, ui)
     else -- NumColumns, RowBg, BordersOuter, BordersInner
         open(iris.Table({ n, true, true, true }))
     end
-    if tbl.header then
+    if tbl.header then -- the header row, made here so reports received by an older viewer have it too; Iris 2.4+ styles it, older gets bold
+        if not tbl.head then tbl.head = { number = {}, bold = not NEW_TABLES }; for c, name in ipairs(tbl.columns) do tbl.head[c] = { name } end end
         local ids = slot_ids(tbl, 0)
         for c = 1, n do cell(ids[c], styled(tbl.head, c, shared.iris_viewer_fonts)) end
     end
