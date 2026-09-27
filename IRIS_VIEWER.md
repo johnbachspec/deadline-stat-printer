@@ -19,7 +19,7 @@ The client console has no `require`, so step 1 has to be a paste; `require(...)`
 
 ### Starting it automatically (Client Autorun)
 
-To skip step 1 for good, paste `iris_viewer.luau` into the **Client Autorun** tab of the console instead. Deadline runs the client autorun on each player's client ("the client autorun runs per-client"), so the viewer starts by itself when you join.
+To skip step 1 for good, copy the whole of **`client_autorun.txt`** into the **Client Autorun** tab of the console. It is the theme and the viewer in one piece, with each file's settings at the top of its part (theme first). You can also paste `iris_viewer.luau` alone there. Deadline runs the client autorun on each player's client ("the client autorun runs per-client"), so the viewer starts by itself when you join.
 
 That means every player on your server gets the viewer. To keep it to yourself, list your name in `ONLY_FOR` at the top of the file before pasting it:
 
@@ -27,7 +27,9 @@ That means every player on your server gets the viewer. To keep it to yourself, 
 local ONLY_FOR = { "bachancuc123" } -- only these players get the viewer; {} = everyone
 ```
 
-After you change `iris_viewer.luau`, paste the new version into Client Autorun again; the autorun keeps whatever was pasted last, not the file in this repo.
+After the viewer or theme changes, copy the new `client_autorun.txt` into Client Autorun again; the autorun keeps whatever was pasted last, not the file in this repo.
+
+`client_autorun.txt` is generated: edit `iris_theme.luau` or `iris_viewer.luau`, then run `python tools/build_client_autorun.py` (the tests fail if it is out of date). The two files can't simply be joined, since the pasted text is one chunk and would pass [the 255-line limit](#the-255-line-limit). Instead each becomes a function passed to one call, `return run(theme, viewer)`. The compiler puts that call on the line it starts, and adds no hidden return at the end of a chunk that ends in `return`, so the chunk's own top level ends around line 100 and each part keeps its own 255 lines.
 
 | Report | Sent by | Window |
 | --- | --- | --- |
