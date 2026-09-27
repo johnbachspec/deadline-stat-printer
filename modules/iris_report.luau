@@ -88,18 +88,25 @@ function IrisReport:messages()
     return messages
 end
 
--- Sends the report to each player (players.get(...) objects); returns how many got it.
+-- Sends the report to each player (players.get(...) objects). Returns how many got
+-- it and the first error, if any player's fire_client failed.
 function IrisReport:send(recipients)
-    local messages, sent = self:messages(), 0
+    local messages, sent, problem = self:messages(), 0, nil
     for _, player in ipairs(recipients or {}) do
-        local ok = pcall(function()
+        local ok, err = pcall(function()
             for _, message in ipairs(messages) do
                 player.fire_client(message)
             end
         end)
-        if ok then sent = sent + 1 end
+        if ok then sent = sent + 1 else problem = problem or tostring(err) end
     end
-    return sent
+    return sent, problem
+end
+
+-- One console line saying where a report went, so a missing window can be traced.
+function IrisReport.sent_line(what, sent, recipients, problem)
+    return string.format("[iris] sent %s to %d of %d players%s", what, sent, recipients,
+        problem and (" (fire_client failed: " .. problem .. ")") or "")
 end
 
 -- A Refresh request "dsp1|refresh|<kind>|<arg>" from a viewer: build(arg) makes the

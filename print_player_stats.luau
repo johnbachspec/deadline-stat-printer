@@ -110,10 +110,9 @@ local function print_player_stats(player, options_or_filter, target_override, so
         renderer:print_report(data)
     end
     if SHOW_IN ~= "console" then
-        local sent = iris_report(data, filter, target, sort_by):send(PlayerLookup.humans(players))
-        if SHOW_IN == "iris" then
-            print(string.format("Sent %s's stats to %d players' Iris viewers", tostring(target_p.name), sent))
-        end
+        local humans = PlayerLookup.humans(players)
+        local sent, problem = iris_report(data, filter, target, sort_by):send(humans)
+        print(IrisReport.sent_line(tostring(target_p.name) .. "'s stats", sent, #humans, problem))
     end
     return data.weapon_list
 end
