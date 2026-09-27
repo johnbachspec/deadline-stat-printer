@@ -1,4 +1,3 @@
---!strict
 -- modules/level_data.luau
 -- XP thresholds and the level calculation.
 
@@ -6,7 +5,9 @@ local LevelData = {}
 
 -- Mirrors the CHARACTER list in the game's progression spreadsheet
 -- (Max Level: 85). The game has no prestige system.
-LevelData.THRESHOLDS: { [number]: number } = {
+-- NOTE: Deadline's Luau console uses a Lua 5.x-style VM ("Fiu") that does not
+-- accept Luau type annotations, so this file intentionally has none.
+LevelData.THRESHOLDS = {
     [0] = 0, [1] = 1000, [2] = 3500, [3] = 6000, [4] = 9000,
     [5] = 12500, [6] = 16500, [7] = 21000, [8] = 26000, [9] = 31300,
     [10] = 37000, [11] = 43000, [12] = 49500, [13] = 56500, [14] = 64000,
@@ -33,7 +34,7 @@ LevelData.MAX_LEVEL_XP = LevelData.THRESHOLDS[LevelData.MAX_LEVEL]
 -- Returns level, xp_to_next_level (0 at max level).
 -- Matches the game's ProgressionData: a threshold is passed only once XP is
 -- strictly greater than it, and the level caps at MAX_LEVEL (no prestige).
-function LevelData.get_level(xp: number | string?): (number, number)
+function LevelData.get_level(xp)
     local xp_num = tonumber(xp) or 0
 
     local level = 0
@@ -55,7 +56,7 @@ end
 -- prestige). Returns prestige, wrapped_level: prestige is how many times the
 -- max-level XP total has been earned, wrapped_level is the level the
 -- remaining XP would be worth on its own.
-function LevelData.get_prestige(xp: number | string?): (number, number)
+function LevelData.get_prestige(xp)
     local xp_num = tonumber(xp) or 0
     local prestige = math.floor(xp_num / LevelData.MAX_LEVEL_XP)
     local wrapped_level = LevelData.get_level(xp_num % LevelData.MAX_LEVEL_XP)

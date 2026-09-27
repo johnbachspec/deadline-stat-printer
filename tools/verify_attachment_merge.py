@@ -5,9 +5,11 @@ exact same aggregation in Python against a saved printer output).
 Usage:
     python tools/verify_attachment_merge.py [log-output-file]
 
-    Defaults to tests/attachment logs output.txt; the log file must use the
-    printer's own output format:
+    Defaults to tests/attachment logs output.txt; the log file may use either
+    the legacy paste-back format:
         ["<att_id>"]={kills=N,top_gun="<gun>",top_gun_kills=M}, ...
+    or the current human-readable table format:
+        #<rank> <att_id> | Kills: <N> | Top Gun: <gun> (<M>)
 
 Checks:
   1. total kills are conserved by the merge (no double count, no loss),
