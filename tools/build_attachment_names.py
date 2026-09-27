@@ -1,118 +1,120 @@
-"""Validate the runtime-only BEAUTIFIED_NAMES setup in
-modules/attachment_formatter.luau from deadline-balancing balancing.csv
-(tracked in this repo as balancing.csv).
+"""Generate modules/attachment_names.luau (id -> in-game display name) from
+recoil-group/deadline-balancing balancing.csv (tracked here as balancing.csv).
+
+print_attachment_stats.luau require()s the generated module from GitHub at
+run time, so names for newly added attachments reach players as soon as the
+regenerated module is pushed; ids it does not know fall back to a prettified id.
 
 Usage:
-    python tools/build_attachment_names.py           # report available names
-    python tools/build_attachment_names.py --fetch   # download latest balancing.csv
-    python tools/build_attachment_names.py --check   # validate no large table is embedded
+    python tools/build_attachment_names.py           # regenerate the module from balancing.csv
+    python tools/build_attachment_names.py --fetch   # download the latest balancing.csv first
+    python tools/build_attachment_names.py --check   # exit 1 if the module is out of date
+
+The table is packed several entries per line so the module takes about
+NAME_LINES lines however many names there are: Deadline's Fiu VM fails to
+load a function whose code spans more than 255 source lines (see
+tools/check_fiu_compat.py). Non-ASCII characters are written as \\ddd byte
+escapes so the module is plain ASCII.
 """
 import csv
+import io
+import math
 import sys
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = ROOT / "balancing.csv"
-LUAU_PATH = ROOT / "modules" / "attachment_formatter.luau"
-BEGIN = "-- BEGIN BEAUTIFIED_NAMES"
-END = "-- END BEAUTIFIED_NAMES"
+LUAU_PATH = ROOT / "modules" / "attachment_names.luau"
+NAME_LINES = 200
+MIN_NAMES = 1000  # sanity floor for a downloaded balancing.csv
 
-UPSTREAM_URLS = [
-    "https://raw.githubusercontent.com/recoil-studio/deadline-balancing/main/balancing.csv",
-    "https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/balancing.csv",
-]
+UPSTREAM_URL = "https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/balancing.csv"
 
 
-def fetch_upstream():
-    """Download the latest balancing.csv from upstream repository."""
-    for url in UPSTREAM_URLS:
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = resp.read()
-                if len(data) > 50000:
-                    CSV_PATH.write_bytes(data)
-                    print(f"Fetched latest balancing.csv from {url} ({len(data)} bytes)")
-                    return True
-        except Exception:
-            continue
-    print("Warning: Failed to fetch upstream balancing.csv, using existing local copy.")
-    return False
+def parse_names(text):
+    """Returns (version, updated, {name: pretty_name}) from balancing.csv text."""
+    rows = list(csv.reader(io.StringIO(text)))
+    header_idx = next((i for i, r in enumerate(rows[:5])
+                       if "name" in [c.strip() for c in r] and "pretty_name" in [c.strip() for c in r]), None)
+    if header_idx is None:
+        raise ValueError("no header row with name and pretty_name columns")
+    header = [c.strip() for c in rows[header_idx]]
+    name_idx, pretty_idx = header.index("name"), header.index("pretty_name")
+    version_row = rows[0] if header_idx > 0 else []
+    version = version_row[0].strip() if len(version_row) > 0 else ""
+    updated = version_row[1].strip() if len(version_row) > 1 else ""
+    names = {}
+    for row in rows[header_idx + 1:]:
+        if len(row) > pretty_idx:
+            name, pretty = row[name_idx].strip(), row[pretty_idx].strip()
+            if name and pretty:
+                names[name] = pretty
+    return version, updated, names
 
 
 def load_names(path=None):
-    """Read balancing.csv and extract (name, pretty_name) pairs sorted by name."""
-    if path is None:
-        path = CSV_PATH
-    with open(path, encoding="utf-8", errors="replace") as f:
-        reader = csv.reader(f)
-        header_found = False
-        name_idx, pretty_idx = 2, 3
-        pairs = {}
-        for row in reader:
-            if not header_found:
-                for idx, col in enumerate(row):
-                    if col.strip() == "name":
-                        name_idx = idx
-                    elif col.strip() == "pretty_name":
-                        pretty_idx = idx
-                if "name" in [c.strip() for c in row]:
-                    header_found = True
-            else:
-                if len(row) > max(name_idx, pretty_idx):
-                    tech = row[name_idx].strip()
-                    pretty = row[pretty_idx].strip()
-                    if tech and pretty and tech != "name":
-                        pairs[tech] = pretty
-
-    sorted_pairs = sorted(pairs.items(), key=lambda p: p[0].lower())
-    return sorted_pairs
+    return parse_names(Path(path or CSV_PATH).read_text(encoding="utf-8-sig"))
 
 
-def escape_luau_string(s):
-    """Escape backslashes and double quotes for Luau double-quoted literal."""
-    # Escape backslashes first, then double quotes
-    s = s.replace("\\", "\\\\")
-    s = s.replace('"', '\\"')
-    return s
+def fetch_upstream():
+    """Download balancing.csv, replacing the local copy only if it parses sensibly."""
+    try:
+        req = urllib.request.Request(UPSTREAM_URL, headers={"User-Agent": "deadline-stat-printer"})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = resp.read()
+        version, _, names = parse_names(data.decode("utf-8-sig"))
+    except Exception as exc:
+        print(f"Warning: could not fetch {UPSTREAM_URL} ({exc}); using the local balancing.csv.")
+        return False
+    if len(names) < MIN_NAMES:
+        print(f"Warning: upstream balancing.csv has only {len(names)} names; keeping the local copy.")
+        return False
+    CSV_PATH.write_bytes(data)
+    print(f"Fetched balancing.csv {version} ({len(names)} names) from {UPSTREAM_URL}")
+    return True
 
 
-def render(pairs):
-    lines = []
-    for tech, pretty in pairs:
-        esc_pretty = escape_luau_string(pretty)
-        lines.append(f'    ["{tech}"] = "{esc_pretty}",')
+def luau_string(s):
+    """Double-quoted Luau literal; anything outside printable ASCII becomes \\ddd byte escapes."""
+    out = []
+    for b in s.encode("utf-8"):
+        c = chr(b)
+        if c in '"\\':
+            out.append("\\" + c)
+        elif 32 <= b < 127 and c not in "{}":  # braces escaped so brace-balance checks stay meaningful
+            out.append(c)
+        else:
+            out.append(f"\\{b:03d}")  # always 3 digits so a following digit is not absorbed
+    return '"' + "".join(out) + '"'
+
+
+def render(version, updated, names):
+    pairs = sorted(names.items(), key=lambda p: p[0].lower())
+    per_line = max(1, math.ceil(len(pairs) / NAME_LINES))
+    entries = [f"[{luau_string(k)}] = {luau_string(v)}," for k, v in pairs]
+    rows = [" ".join(entries[i:i + per_line]) for i in range(0, len(entries), per_line)]
+    lines = [
+        "-- modules/attachment_names.luau",
+        "-- GENERATED by tools/build_attachment_names.py from recoil-group/deadline-balancing",
+        "-- balancing.csv - do not edit by hand. Maps item ids (the \"name\" column, attachments",
+        "-- and weapons) to their in-game display names (\"pretty_name\").",
+        "-- Entries are packed several per line on purpose: Deadline's Fiu VM fails to load any",
+        "-- function spanning more than 255 source lines (see tools/check_fiu_compat.py).",
+        "",
+        "local NAMES = {",
+    ] + ["    " + r for r in rows] + [
+        "}",
+        "",
+        "return {",
+        f"    VERSION = {luau_string(version)},",
+        f"    UPDATED = {luau_string(updated)},",
+        f"    COUNT = {len(pairs)},",
+        "    NAMES = NAMES,",
+        "}",
+        "",
+    ]
     return "\n".join(lines)
-
-
-def split_markers(text):
-    if BEGIN not in text:
-        raise SystemExit(f"BEGIN marker not found in {LUAU_PATH.name}")
-    if END not in text:
-        raise SystemExit(f"END marker not found in {LUAU_PATH.name}")
-    ctor = "AttachmentFormatter.BEAUTIFIED_NAMES = {"
-    pos = text.find(ctor)
-    if pos == -1 or pos < text.index(BEGIN):
-        raise SystemExit("table constructor not found after BEGIN marker")
-    head_end = text.index("\n", pos) + 1
-    end_pos = text.index(END)
-    close_start = text.rfind("\n}", 0, end_pos)
-    if close_start == -1:
-        raise SystemExit('closing "}" line not found before END marker')
-    tail_start = close_start + 1
-    return text[:head_end], text[tail_start:]
-
-
-def sync_table(path, pairs, check_only=False):
-    text = path.read_text(encoding="utf-8")
-    runtime_marker = "-- BEGIN BEAUTIFIED_NAMES (runtime loaded; intentionally no embedded table)"
-    empty_table = "AttachmentFormatter.BEAUTIFIED_NAMES = {}"
-    if runtime_marker in text and empty_table in text and "[\"kalis_scalar_std_bcg\"]" not in text:
-        print(f"{path.name}: runtime name loading configured; {len(pairs)} names available in balancing.csv.")
-        return 0
-    print(f"ERROR: {path.name} must use the runtime-only name table to stay Fiu-compatible.")
-    return 1
 
 
 def main(argv=None):
@@ -120,11 +122,19 @@ def main(argv=None):
         argv = sys.argv
     if "--fetch" in argv:
         fetch_upstream()
-    check_only = "--check" in argv
-    pairs = load_names()
-    print(f"{CSV_PATH.name}: loaded {len(pairs)} unique beautified attachment names.")
-    rc = sync_table(LUAU_PATH, pairs, check_only)
-    return rc
+    version, updated, names = load_names()
+    print(f"{CSV_PATH.name} {version}: {len(names)} display names.")
+    expected = render(version, updated, names)
+    current = LUAU_PATH.read_text(encoding="utf-8") if LUAU_PATH.is_file() else None
+    if current is not None and current.replace("\r\n", "\n") == expected:
+        print(f"{LUAU_PATH.name} is in sync with {CSV_PATH.name}.")
+        return 0
+    if "--check" in argv:
+        print(f"DRIFT: {LUAU_PATH.name} does not match {CSV_PATH.name}. Run without --check to regenerate.")
+        return 1
+    LUAU_PATH.write_text(expected, encoding="utf-8", newline="\n")
+    print(f"wrote {LUAU_PATH.relative_to(ROOT)} ({len(names)} names).")
+    return 0
 
 
 if __name__ == "__main__":
