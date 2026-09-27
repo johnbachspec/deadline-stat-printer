@@ -524,25 +524,52 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
                     output = run_script(script, "nil", prelude=mocks)
                 self.assertEqual("[viewer] ready" in output, runs)
 
-    def test_theme_snippet_styles_only_the_viewer_windows(self):
-        theme = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
-        for font, expected, warning in (('"Ubuntu"', "Font(Enum.Font.Ubuntu)", False), ('"Comic"', "nil", True)):
-            with self.subTest(font=font):
-                source = theme.replace('local FONT = "Code"', f"local FONT = {font}")
-                with tempfile.TemporaryDirectory() as tmp:
-                    script = Path(tmp) / "theme.luau"
-                    script.write_text(source, encoding="utf-8")
-                    output = run_script(script, "nil", prelude=viewer_prelude(), after="__frame(); __dump()")
-                frame = drawn(output)
-                self.assertEqual(frame[0], f"PushConfig dsp:theme size=14 font={expected} color=white")
-                self.assertEqual(frame[1], "Window Stat printer")  # the push wraps our windows only
-                self.assertEqual(frame[-1], "PopConfig")
-                self.assertEqual("not available" in output, warning)
+    @staticmethod
+    def theme_source(**settings):
+        """iris_theme.luau with settings changed from their nil default, e.g. FONT='"Ubuntu"'."""
+        source = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
+        for name, value in settings.items():
+            assert f"local {name} = nil" in source, name
+            source = source.replace(f"local {name} = nil", f"local {name} = {value}", 1)
+        return f";(function()\n{source}\nend)()\n"
 
-    def test_theme_fonts_by_asset_id_and_weight(self):
-        # Iris 2.1+ keeps Font objects, so any Creator Store font (by asset id) and weight works.
+    def test_theme_snippet_styles_only_the_viewer_windows(self):
+        output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=self.theme_source()),
+                            after="__frame(); __dump()")
+        frame = drawn(output)
+        self.assertEqual(frame[0], "PushConfig dsp:theme size=14 font=nil color=white")  # no FONT: Iris's own
+        self.assertEqual(frame[1], "Window Stat printer")  # the push wraps our windows only
+        self.assertEqual(frame[-1], "PopConfig")
+
+    def test_theme_fonts_in_a_console_without_font_type(self):
+        # Deadline's client console has no Font type: tables get the fonts through rich text,
+        # and Iris's own font (titles, buttons) is left alone.
+        extra = "local Font = nil\n" + self.theme_source(FONT="12187365977", FONT_WEIGHT='"Medium"',
+                                                             NUMBER_FONT='"RobotoMono"')
+        text, number = '<font family="rbxassetid://12187365977" weight="500">', '<font face="RobotoMono">'
+        for new_tables in (True, False):
+            with self.subTest(new_tables=new_tables):
+                output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
+                                    prelude=viewer_prelude(new_tables, extra=extra), after="__frame(); __dump()")
+                self.assertIn("titles and buttons: Iris's font", output)
+                self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=nil color=white")
+                weapons = only_table(output, 13)
+                self.assertEqual(weapons[0][0], f"{text}weapon</font>")  # header (bold tags removed by grids())
+                vector = next(row for row in weapons if row[0] == f"{text}Vector</font>")
+                self.assertEqual((vector[1], vector[12]), (f"{number}950</font>", f"{text}SMG</font>"))
+                self.assertEqual(only_table(output, 6)[1][:2], [f"{text}Kills:</font>", f"{number}3,000</font>"])
+                self.assertEqual(f"{text}<b>weapon</b></font>" in output, not new_tables)  # old Iris: bold header
+
+    def test_theme_code_or_ubuntu_also_change_titles_without_font_type(self):
+        # Iris's presets hold Font objects for Code and Ubuntu, so those need no Font type.
+        extra = "local Font = nil\n" + self.theme_source(FONT='"Ubuntu"')
+        output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=extra), after="__frame(); __dump()")
+        self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=Enum.Font.Ubuntu color=white")
+        self.assertIn("titles and buttons: Ubuntu", output)
+
+    def test_theme_fonts_by_asset_id_and_weight_with_font_type(self):
+        # A console that has the Font type can set Iris's own font to any family and weight.
         font_objects = """
-iris.TemplateConfig.sizeDefault.TextFont = { Family = "rbxasset://fonts/families/SourceSansPro.json" }
 local typeof = nil
 Enum.FontWeight = { Medium = "Medium", Bold = "Bold" }
 local Font = {
@@ -550,30 +577,21 @@ local Font = {
   fromEnum = function(item) return { Family = item .. ".json", Style = "Normal" } end,
   new = function(family, weight, style) return setmetatable({}, { __tostring = function() return "Font.new(" .. family .. "," .. weight .. "," .. style .. ")" end }) end,
 }"""
-        theme = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
         cases = (('12187365977', '"Medium"', "Font.fromId(12187365977,Medium)"),
                  ('"Ubuntu"', '"Bold"', "Font.new(Enum.Font.Ubuntu.json,Bold,Normal)"))
         for font, weight, expected in cases:
             with self.subTest(font=font):
-                source = (theme.replace('local FONT = "Code"', f"local FONT = {font}")
-                          .replace("local FONT_WEIGHT = nil", f"local FONT_WEIGHT = {weight}"))
-                with tempfile.TemporaryDirectory() as tmp:
-                    script = Path(tmp) / "theme.luau"
-                    script.write_text(source, encoding="utf-8")
-                    output = run_script(script, "nil", prelude=viewer_prelude(extra=font_objects),
-                                        after="__frame(); __dump()")
+                extra = font_objects + "\n" + self.theme_source(FONT=font, FONT_WEIGHT=weight)
+                output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra=extra),
+                                    after="__frame(); __dump()")
                 self.assertEqual(drawn(output)[0], f"PushConfig dsp:theme size=14 font={expected} color=white")
-                self.assertNotIn("not available", output)
 
     def test_number_font_applies_to_number_cells_only(self):
-        theme = (ROOT / "iris_theme.luau").read_text(encoding="utf-8")
         cases = (('"RobotoMono"', "nil", '<font face="RobotoMono">'),
                  ('12187365977', '"Medium"', '<font family="rbxassetid://12187365977" weight="500">'))
         for font, weight, tag in cases:
             with self.subTest(font=font):
-                source = (theme.replace("local NUMBER_FONT = nil", f"local NUMBER_FONT = {font}")
-                          .replace("local NUMBER_WEIGHT = nil", f"local NUMBER_WEIGHT = {weight}"))
-                extra = f";(function()\n{source}\nend)()\n"
+                extra = self.theme_source(NUMBER_FONT=font, NUMBER_WEIGHT=weight)
                 output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
                                     prelude=viewer_prelude(extra=extra), after="__frame(); __dump()")
                 vector = next(row for row in only_table(output, 13) if row[0] == "Vector")
@@ -593,15 +611,8 @@ local Font = {
                             after="__frame(); __dump()")
         self.assertIn("[theme] applied", output)
         self.assertIn("[viewer] ready", output)
-        self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=Font(Enum.Font.Code) color=white",
+        self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=nil color=white",
                                              "Window Stat printer"])
-
-    def test_theme_without_a_font_type_keeps_the_font(self):
-        # Deadline's Iris only takes Font objects, so without Font the theme must not send an Enum.Font.
-        output = run_script("iris_theme.luau", "nil", prelude=viewer_prelude(extra="local Font = nil"),
-                            after="__frame(); __dump()")
-        self.assertIn("this console has no Font type", output)
-        self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=nil color=white")
 
     def test_a_theme_iris_rejects_is_turned_off(self):
         after = """shared.iris_viewer_theme = { reject = true }
