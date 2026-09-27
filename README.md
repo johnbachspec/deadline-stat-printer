@@ -1,4 +1,4 @@
-I# deadline-stat-printer
+# deadline-stat-printer
 
 Prints detailed account and per-weapon statistics for Deadline (Roblox) players from the in-game Luau server console, as console text or as in-game [Iris windows](#iris-windows). Original script and inspiration from [@LegitACarWithAGun](https://github.com/LegitACarWithAGun); modular version by [@johnbachspec](https://github.com/johnbachspec); contribution by [@refact0r](https://github.com/refact0r) and [GabeeCoding](https://github.com/GabeeCoding)
 
