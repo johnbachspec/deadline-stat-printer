@@ -1,4 +1,3 @@
---!strict
 -- print_player_stats.luau
 -- In the in-game Luau Server Console, run:
 --   require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")
@@ -7,7 +6,7 @@
 local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
 
 -- Resolves module locally if present in the Roblox hierarchy, falling back to remote URL.
-local function load_module(module_name: string): any
+local function load_module(module_name)
     local current_script = script
     if current_script and current_script.Parent then
         local modules_folder = current_script.Parent:FindFirstChild("modules")
@@ -43,20 +42,14 @@ local SORT_BY = "KILLS"
 
 local renderer = Renderer.new({ formatters = Formatters, level_data = LevelData })
 
-export type PrintOptions = {
-    filter: string?,
-    target: string?,
-    sort_by: string?,
-}
-
 -- Supports either:
 --   print_player_stats(player, { filter = "SMG", target = "MP5", sort_by = "TYPE" })
 -- or legacy positional arguments:
 --   print_player_stats(player, filter_override, target_override, sort_override)
-local function print_player_stats(player: any, options_or_filter: any, target_override: string?, sort_override: string?): any
-    local filter: string = FILTER_TYPE
-    local target: string = TARGET_WEAPON
-    local sort_by: string = SORT_BY
+local function print_player_stats(player, options_or_filter, target_override, sort_override)
+    local filter = FILTER_TYPE
+    local target = TARGET_WEAPON
+    local sort_by = SORT_BY
 
     if type(options_or_filter) == "table" then
         if options_or_filter.filter ~= nil then filter = options_or_filter.filter end

@@ -1,4 +1,3 @@
---!strict
 -- modules/renderer.luau
 -- Prints the account recap and the per-weapon table. Does simple ratios
 -- on numbers it is handed; no data lookups of its own.
@@ -7,18 +6,12 @@
 local Renderer = {}
 Renderer.__index = Renderer
 
-export type RendererDeps = {
-    formatters: any,
-    level_data: any,
-    grid_width: number?,
-}
-
 local DEFAULT_GRID_WIDTH = 166
 local ROW_FORMAT         = "%-20s %10s %11s %11s %10.3f %9.2f%% %12s %8.2f %8.2f %14s %16s %9.2f%%  %-8.8s"
 local HEADER_FORMAT      = "%-20s %10s %11s %11s %10s %10s %12s %8s %8s %14s %16s %10s  %-8.8s"
 
 -- deps = { formatters = ..., level_data = ..., grid_width = 166 (optional) }
-function Renderer.new(deps: RendererDeps)
+function Renderer.new(deps)
     local width = deps.grid_width or DEFAULT_GRID_WIDTH
     return setmetatable({
         fmt = deps.formatters,
@@ -30,7 +23,7 @@ function Renderer.new(deps: RendererDeps)
 end
 
 -- Profile achievements are { is_alpha_tester = bool, is_predemo_tester = bool }.
-local function tester_status(achievements: any): string
+local function tester_status(achievements)
     local ach = achievements or {}
     local tags = {}
     if ach.is_predemo_tester then table.insert(tags, "predemo tester") end
@@ -39,7 +32,7 @@ local function tester_status(achievements: any): string
 end
 
 -- Prints `columns` (a list of equal-length string lists) side by side.
-function Renderer:print_columns(columns: { { string } })
+function Renderer:print_columns(columns)
     local width = math.floor((self.grid_width - (#columns - 1)) / #columns)
     for row = 1, #columns[1] do
         local cells = {}
@@ -51,19 +44,19 @@ function Renderer:print_columns(columns: { { string } })
     end
 end
 
-function Renderer:print_title(title: string)
+function Renderer:print_title(title)
     print(self.fmt.center_text(title, self.grid_width))
     print("")
 end
 
 -- account_totals = { use_time, rounds_fired } over ALL weapons, so the recap
 -- does not change with FILTER_TYPE.
-function Renderer:print_overall_recap(player_name: any, p: any, spendings: any, achievements: any, account_totals: any, collection: any)
+function Renderer:print_overall_recap(player_name, p, spendings, achievements, account_totals, collection)
     local fmt = self.fmt
     local safe_div = fmt.safe_div
     local pct = fmt.pct
-    local n = function(v: any): number return tonumber(v) or 0 end
-    local label = function(name: string, value: any): string
+    local n = function(v) return tonumber(v) or 0 end
+    local label = function(name, value)
         return string.format("%-19s%s", name, tostring(value))
     end
 
@@ -158,7 +151,7 @@ function Renderer:print_table_header()
     print(self.thin_bar)
 end
 
-function Renderer:print_row(w: any, total_kills: number, total_time: number)
+function Renderer:print_row(w, total_kills, total_time)
     local fmt, d = self.fmt, w.data
     local safe_div = fmt.safe_div
     local pct = fmt.pct
@@ -183,7 +176,7 @@ end
 
 -- table_totals   = totals over the rows shown (for % allK / % allT)
 -- account_totals = totals over ALL weapons (for the recap)
-function Renderer:print_report(player_name: any, player_stats: any, spendings: any, achievements: any, collection: any, weapon_list: { any }, table_totals: any, account_totals: any)
+function Renderer:print_report(player_name, player_stats, spendings, achievements, collection, weapon_list, table_totals, account_totals)
     self:print_overall_recap(player_name, player_stats, spendings, achievements, account_totals, collection)
     self:print_table_header()
     for _, w in ipairs(weapon_list) do

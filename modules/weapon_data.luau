@@ -1,8 +1,9 @@
---!strict
 -- modules/weapon_data.luau
 -- Static facts about weapons: legacy id aliases, display names, type classification.
 -- Weapon ids are the exact (case-sensitive) model names under
 -- ReplicatedStorage.data.item in the game; profile stats are keyed by them.
+-- NOTE: Deadline's Luau console uses a Lua 5.x-style VM ("Fiu") that does not
+-- accept Luau type annotations, so this file intentionally has none.
 
 local WeaponData = {}
 
@@ -75,7 +76,7 @@ WeaponData.TYPES = {
 
 -- Pre-indexed lowercase map for O(1) resolution:
 -- maps lowercase (raw id | alias | display name) -> canonical weapon id.
-local RESOLVE_LOOKUP: { [string]: string } = {}
+local RESOLVE_LOOKUP = {}
 
 for legacy, target in pairs(WeaponData.ALIASES) do
     RESOLVE_LOOKUP[string.lower(legacy)] = target
@@ -88,17 +89,17 @@ for id in pairs(WeaponData.TYPES) do
     end
 end
 
-function WeaponData.display_name(id: string): string
+function WeaponData.display_name(id)
     return WeaponData.DISPLAY_NAMES[id] or id
 end
 
-function WeaponData.type_of(id: string): string
+function WeaponData.type_of(id)
     return WeaponData.TYPES[id] or "Unknown"
 end
 
 -- Resolves user input (raw id, legacy id, or display name; case-insensitive)
 -- to the id used as a key in the combined stats table.
-function WeaponData.resolve(name: string): string
+function WeaponData.resolve(name)
     local lower = string.lower(name)
     return RESOLVE_LOOKUP[lower] or name
 end
