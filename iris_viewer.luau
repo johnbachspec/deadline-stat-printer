@@ -7,22 +7,15 @@ local WINDOW_SIZES = { stats = { 1180, 640 }, attachments = { 820, 640 }, caps =
 local DEFAULT_SIZE = { 700, 500 }
 local ONLY_FOR = {} -- player names, e.g. { "bachancuc123" }: in Client Autorun, only they get the viewer; {} = everyone
 if #ONLY_FOR > 0 and not table.find(ONLY_FOR, tostring(local_player)) then return end
-if not (iris and on_server_event and shared) then
-    print("[viewer] iris, on_server_event or shared is missing: run this in the client Luau console")
-    return
-end
+if not (iris and on_server_event and shared) then return print("[viewer] iris, on_server_event or shared is missing: run this in the client Luau console") end
 local NEW_TABLES = iris.NextHeaderColumn ~= nil -- Iris 2.4+ table API (see IRIS_VIEWER.md)
 local set_id = iris.SetNextWidgetID or function() end -- every widget needs an explicit id (see IRIS_VIEWER.md)
 local viewer = shared.iris_viewer
 if not viewer then
     viewer = { reports = {}, order = {}, parts = {} }
     shared.iris_viewer = viewer
-    on_server_event:Connect(function(message)
-        if viewer.receive then pcall(viewer.receive, message) end
-    end)
-    iris:Connect(function()
-        if viewer.draw then viewer.draw() end
-    end)
+    on_server_event:Connect(function(message) if viewer.receive then pcall(viewer.receive, message) end end)
+    iris:Connect(function() if viewer.draw then viewer.draw() end end)
 end
 local UNESCAPE = { ["\\"] = "\\", t = "\t", n = "\n" }
 local RICH_ESCAPES = { ["<"] = "&lt;", [">"] = "&gt;", ["&"] = "&amp;" }
@@ -61,8 +54,8 @@ local function parse(text)
             for c, name in ipairs(f) do current.header_args[c] = header_args(name) end
             table.insert(container.blocks, current)
         elseif kind == "row" and current then
-            local cells = { search = string.lower(table.concat(f, " ")) }
-            for c, value in ipairs(f) do cells[c] = { value } end
+            local cells = { search = string.lower(table.concat(f, " ")), number = {} } -- number: cells that are only a number
+            for c, value in ipairs(f) do cells[c] = { value }; cells.number[c] = value:find("%d") and not value:find("[^%d%s,%.%%%$%+%-:/()hmstXP]") end
             table.insert(current.rows, cells)
         end
     end
@@ -105,6 +98,11 @@ local function cell(id, args)
     set_id(id)
     iris.Text(args)
     if NEW_TABLES then iris.NextColumn() end
+end
+local function number_args(row, c, tag) -- a number cell as rich text in the number font; cached until the font changes
+    if not row.rich or row.rich.tag ~= tag then row.rich = { tag = tag } end
+    row.rich[c] = row.rich[c] or { tag .. row[c][1] .. "</font>", nil, nil, true }
+    return row.rich[c]
 end
 local function visible_rows(tbl, ui)
     if #tbl.rows <= FILTER_ROWS then return tbl.rows end
@@ -153,10 +151,10 @@ local function draw_table(tbl, ui)
         local ids = slot_ids(tbl, 0)
         for c = 1, n do cell(ids[c], tbl.header_args[c]) end
     end
-    local first = (page - 1) * per_page
+    local first, tag = (page - 1) * per_page, shared.iris_viewer_number_font
     for slot = 1, math.min(per_page, #rows - first) do
         local row, ids = rows[first + slot], slot_ids(tbl, slot)
-        for c = 1, n do cell(ids[c], row[c] or EMPTY) end
+        for c = 1, n do cell(ids[c], tag and row.number[c] and number_args(row, c, tag) or row[c] or EMPTY) end
     end
     close()
 end
@@ -230,17 +228,17 @@ local function guarded(draw, ...) -- closes what a failing window left open; rep
     local base = depth
     local ok, err = pcall(draw, ...)
     while depth > base do depth = depth - 1; pcall(iris.End) end
-    if not ok and not viewer.error then
-        viewer.error = tostring(err)
-        print("[viewer] " .. viewer.error)
-    end
+    if not ok and not viewer.error then viewer.error = tostring(err); print("[viewer] " .. viewer.error) end
 end
 viewer.draw = function()
     depth = 0
+    local theme = type(shared.iris_viewer_theme) == "table" and iris.PushConfig and shared.iris_viewer_theme -- iris_theme.luau
+    if theme then set_id("dsp:theme"); theme = pcall(iris.PushConfig, theme) end -- styles only these windows
     guarded(draw_hub)
     for i, id in ipairs(viewer.order) do
         guarded(draw_report, viewer.reports[id], i)
     end
+    if theme then pcall(iris.PopConfig) end
 end
 viewer.show = function() viewer.show_hub = true; for _, r in pairs(viewer.reports) do r.popup = true end end -- shared.iris_viewer.show()
 viewer.error = nil; viewer.show()
