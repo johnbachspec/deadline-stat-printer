@@ -229,14 +229,15 @@ if not viewer then
     iris:Connect(function() if viewer.draw then viewer.draw() end end)
 end
 local UNESCAPE = { ["\\"] = "\\", t = "\t", n = "\n" }
-local RICH_ESCAPES = { ["<"] = "&lt;", [">"] = "&gt;", ["&"] = "&amp;" }
-local EMPTY = { "" }
+local RICH_ESCAPES, EMPTY = { ["<"] = "&lt;", [">"] = "&gt;", ["&"] = "&amp;" }, { "" }
 local function fields(line)
     local out = {}
-    for field in (line .. "\t"):gmatch("([^\t]*)\t") do
-        table.insert(out, (field:gsub("\\(.)", UNESCAPE)))
-    end
+    for field in (line .. "\t"):gmatch("([^\t]*)\t") do table.insert(out, (field:gsub("\\(.)", UNESCAPE))) end
     return out
+end
+local function tip(widget, text) -- hover help; hands the widget back so calls chain: tip(iris.X(...), "..").clicked()
+    if text and iris.Tooltip and widget.hovered and widget.hovered() then set_id("dsp:tip"); iris.Tooltip({ text }) end
+    return widget
 end
 local function parse(text)
     local report = { blocks = {}, sections = {} }
@@ -249,7 +250,7 @@ local function parse(text)
             report.key = "dsp:" .. f[1]
         elseif kind == "section" then
             count = count + 1
-            container = { title = f[1], open = f[2] == "1", blocks = {}, key = report.key .. ":" .. count }
+            container = { title = f[1], open = f[2] == "1", tip = f[3] ~= "" and f[3] or nil, blocks = {}, key = report.key .. ":" .. count }
             table.insert(report.sections, container)
         elseif kind == "text" then
             count = count + 1
@@ -318,7 +319,7 @@ end
 local function visible_rows(tbl, ui)
     if #tbl.rows <= FILTER_ROWS then return tbl.rows end
     set_id(tbl.key .. ":filter")
-    local query = string.lower(iris.InputText({ "Filter", "type to filter rows" }).state.text.value or "")
+    local query = string.lower(tip(iris.InputText({ "Filter", "type to filter rows" }), "Show only rows containing this text (any column)").state.text.value or "")
     local cache = ui.filters[tbl.key]
     if not (cache and cache.query == query and cache.source == tbl.rows) then
         cache = { query = query, source = tbl.rows, rows = {} }
@@ -339,12 +340,12 @@ local function draw_table(tbl, ui)
         set_id(tbl.key .. ":pager"); open(iris.SameLine())
         if not all then
             set_id(tbl.key .. ":prev")
-            if iris.SmallButton({ "< Prev" }).clicked() and page > 1 then page = page - 1 end
+            if tip(iris.SmallButton({ "< Prev" }), "Previous page of rows").clicked() and page > 1 then page = page - 1 end
             set_id(tbl.key .. ":next")
-            if iris.SmallButton({ "Next >" }).clicked() and page < pages then page = page + 1 end
+            if tip(iris.SmallButton({ "Next >" }), "Next page of rows").clicked() and page < pages then page = page + 1 end
         end
         set_id(tbl.key .. ":all")
-        if iris.SmallButton({ all and "Pages" or "Show all" }).clicked() then ui.pages[tbl.key .. ":all"] = not all end
+        if tip(iris.SmallButton({ all and "Pages" or "Show all" }), all and "Back to paged rows" or "Draw every row (slow on long tables)").clicked() then ui.pages[tbl.key .. ":all"] = not all end
         set_id(tbl.key .. ":rows"); iris.Text({ all and string.format("all %d rows", #rows) or string.format("rows %d-%d of %d",
             (page - 1) * per_page + 1, math.min(page * per_page, #rows), #rows) })
         close()
@@ -393,7 +394,7 @@ local function draw_report(report, index)
         set_id(report.key .. ":bar"); open(iris.SameLine())
         if report.refresh ~= "" then
             set_id(report.key .. ":refresh")
-            if iris.SmallButton({ "Refresh" }).clicked() and fire_server then
+            if tip(iris.SmallButton({ "Refresh" }), "Ask the server for a fresh copy of this report").clicked() and fire_server then
                 pcall(fire_server, "dsp1|refresh|" .. report.refresh)
             end
         end
@@ -402,7 +403,7 @@ local function draw_report(report, index)
         draw_blocks(report.blocks, ui)
         for _, section in ipairs(report.sections) do
             set_id(section.key)
-            local header = open(iris.CollapsingHeader({ section.title }))
+            local header = open(tip(iris.CollapsingHeader({ section.title }), section.tip)) -- tip: sent by the server
             if section.open and not ui.seen[section.key] then header.state.isUncollapsed:set(true) end
             ui.seen[section.key] = true -- after the first report, keep what the user opened or closed
             if header.state.isUncollapsed.value then draw_blocks(section.blocks, ui) end
@@ -425,13 +426,13 @@ local function draw_hub()
             local report = viewer.reports[id]
             set_id(report.key .. ":hubrow"); open(iris.SameLine())
             set_id(report.key .. ":show")
-            if iris.SmallButton({ "Show" }).clicked() then report.popup = true end
+            if tip(iris.SmallButton({ "Show" }), "Open this report's window again").clicked() then report.popup = true end
             set_id(report.key .. ":hubtitle"); iris.Text({ report.title .. "  (" .. report.received .. ")" })
             close()
         end
         if #viewer.order > 0 then
             set_id("dsp:hub:clear")
-            if iris.SmallButton({ "Clear all" }).clicked() then viewer.reports, viewer.order = {}, {} end
+            if tip(iris.SmallButton({ "Clear all" }), "Forget every report received so far").clicked() then viewer.reports, viewer.order = {}, {} end
         end
         if viewer.error then set_id("dsp:hub:error"); iris.Text({ "Error: " .. viewer.error, true }) end
     end

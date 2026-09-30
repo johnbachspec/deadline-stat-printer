@@ -106,12 +106,12 @@ local recent = {} -- "12:03:10  Alice captured a point (2 this match)", newest f
 
 local function captures_report()
     local report = IrisReport.new("caps", "Captures", "caps|")
-    report:section("Captures this match", true)
+    report:section("Captures this match", true, "Objective captures per player since the match started, most first")
     local rows = standings()
     if #rows == 0 then report:text("No captures yet this match") end
     if #rows > 0 then report:columns({ "Player", "Captures" }) end
     for _, row in ipairs(rows) do report:row({ row.name, tostring(row.caps) }) end
-    report:section("Latest captures", true)
+    report:section("Latest captures", true, "Each capture as it happened, newest first, with the time it was seen")
     if #recent == 0 then report:text("None yet") end
     for _, line in ipairs(recent) do report:text(line) end
     return report
