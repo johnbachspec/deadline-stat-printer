@@ -94,7 +94,8 @@ end
 function AttachmentRenderer:add_to_report(report, aggregated)
     local items = aggregated.items
     report:text(self:names_source())
-    report:section(string.format("All %d attachments by kills", #items), true)
+    report:section(string.format("All %d attachments by kills", #items), true, "Every attachment this player has kills with, most kills first\n"
+        .. "Kills: kills with it equipped   Top gun: the weapon it got the most kills on, with those kills")
     report:columns({ "Attachment", "Kills", "Top gun (kills)" })
     for i, item in ipairs(items) do
         report:row({ string.format("%d. %s", i, self:item_name(item)), tostring(item.kills),

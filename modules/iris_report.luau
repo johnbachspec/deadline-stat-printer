@@ -5,7 +5,8 @@
 -- one line per item, fields separated by tabs:
 --   report  <id> <title> <refresh> <popup>   first line; the viewer's Refresh button
 --                                            sends <refresh> back; popup 1 opens the window
---   section <title> <open 1|0>               collapsing header holding what follows
+--   section <title> <open 1|0> <tip>         collapsing header holding what follows; tip
+--                                            (may be empty) shows when it is hovered
 --   text    <text>
 --   columns <name>...                        starts a table (all names "": no header row)
 --   row     <cell>...
@@ -45,8 +46,9 @@ function IrisReport:add(kind, ...)
     return self
 end
 
-function IrisReport:section(title, open)
-    return self:add("section", title, open and "1" or "0")
+-- tip: optional hover text for the section header, saying what the section shows.
+function IrisReport:section(title, open, tip)
+    return self:add("section", title, open and "1" or "0", tip)
 end
 
 function IrisReport:text(text)

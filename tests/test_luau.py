@@ -320,7 +320,7 @@ shared.stop_cap_announcer(); __caps.Bob = 5; __tick(); __say("!caps")
 # delivers to the server's on_client_event handlers as that player.
 IRIS_MOCKS = r"""
 local __new_tables = __NEW_TABLES__
-local __widgets, __stack, __next_id, __frame_fn, __clicks = {}, {}, nil, nil, {}
+local __widgets, __stack, __next_id, __frame_fn, __clicks, __hovers = {}, {}, nil, nil, {}, {}
 local __drawn, __grids, __sent, __auto_ids, __configs, __pushed = {}, {}, 0, {}, 0, nil
 local function __state(v) return { value = v, set = function(self, x) self.value = x end } end
 local function __esc(s) return (tostring(s):gsub("\t", "<TAB>"):gsub("\n", "<NL>")) end
@@ -336,6 +336,7 @@ local function __make(kind, container)
     end
     w.id = id
     w.clicked = function() return __clicks[id] == true end
+    w.hovered = function() return __hovers[id] == true end
     local text, parent = args and args[1], __stack[#__stack]
     if text == "boom" then error("boom") end
     if __pushed and __pushed.reject then error("Unable to assign property FontFace. Font expected, got EnumItem") end
@@ -354,7 +355,7 @@ end
 local iris = {
   Window = __make("Window", true), CollapsingHeader = __make("CollapsingHeader", true),
   SameLine = __make("SameLine", true), Table = __make("Table", true),
-  Text = __make("Text"), SmallButton = __make("SmallButton"), InputText = __make("InputText"),
+  Text = __make("Text"), Tooltip = __make("Tooltip"), SmallButton = __make("SmallButton"), InputText = __make("InputText"),
   SetNextWidgetID = function(id) __next_id = id end,
   End = function() assert(#__stack > 0, "End without an open widget"); table.remove(__stack) end,
   NextColumn = function()
@@ -394,9 +395,10 @@ local function __frame()
   -- Under Fiu, Iris's automatic ids are draw order, so any widget without an explicit id can
   -- take over another one's state (or kind) when a report changes.
   assert(#__auto_ids == 0, "drawn without an explicit id: " .. table.concat(__auto_ids, "; "))
-  __clicks = {}
+  __clicks, __hovers = {}, {}
 end
 local function __click(id) assert(__widgets[id], "no widget " .. id); __clicks[id] = true end
+local function __hover(id) assert(__widgets[id], "no widget " .. id); __hovers[id] = true end
 local function __dump()
   for _, line in ipairs(__drawn) do print("DRAWN\t" .. line) end
   local ids = {}
@@ -483,6 +485,21 @@ print("AGAIN " .. (__sent - before))"""
                             + "\nend)()\n" + after)
         self.assertIn("REFRESHED 2", output)  # each report fits in one message
         self.assertIn("AGAIN 2", output)
+
+    def test_tooltips_show_only_for_the_hovered_widget(self):
+        after = """__frame(); print("-- idle"); __dump()
+__hover("dsp:stats:Tester:refresh"); __frame(); print("-- hover"); __dump()
+__hover("dsp:hub:clear"); __frame(); print("-- hub"); __dump()
+__hover("dsp:stats:Tester:1"); __frame(); print("-- section"); __dump()"""
+        output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE), prelude=viewer_prelude(), after=after)
+        steps = dict(part.split("\n", 1) for part in output.split("-- ")[1:])
+        self.assertFalse([line for line in drawn(steps["idle"]) if line.startswith("Tooltip")])
+        self.assertEqual([line for line in drawn(steps["hover"]) if line.startswith("Tooltip")],
+                         ["Tooltip Ask the server for a fresh copy of this report"])
+        self.assertIn("Tooltip Forget every report received so far", drawn(steps["hub"]))
+        section_tips = [line for line in drawn(steps["section"]) if line.startswith("Tooltip")]
+        self.assertEqual(len(section_tips), 1)  # each section header has its own text, sent by the server
+        self.assertIn("Lifetime totals from this player's profile", section_tips[0])
 
     def test_long_reports_arrive_in_parts_and_page_and_filter(self):
         after = r"""

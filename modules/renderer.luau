@@ -11,6 +11,14 @@ local ROW_FORMAT         = "%-20s %10s %11s %11s %10s %10s %12s %8s %8s %14s %16
 local WEAPON_COLUMNS     = { "weapon", "kills", "deaths w/", "deaths by", "w-KDR", "% allK", "rds. ct", "K/Min",
     "RFpK", "weapon XP", "time used", "% allT", "type" }
 local DEATHS_WITH_NOTE   = "deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)"
+local SECTION_TIPS       = { -- hover text for the viewer's section headers
+    overall = "Lifetime totals from this player's profile: kills, deaths, headshots, wallbangs, money, XP and time played",
+    averages = "Lifetime totals divided by matches played or by minutes alive",
+    weapons = "One row per weapon; % columns are shares of the weapons listed\n"
+        .. "deaths w/: deaths while carrying it   deaths by: deaths to it   w-KDR: kills / deaths w/\n"
+        .. "% allK: share of kills   rds. ct: rounds fired   K/Min: kills per minute used\n"
+        .. "RFpK: rounds fired per kill   time used / % allT: time held and its share   type: caliber",
+}
 
 -- deps = { formatters = ..., level_data = ..., grid_width = 166 (optional) }
 function Renderer.new(deps)
@@ -210,7 +218,7 @@ end
 -- The same report for iris_viewer.luau; `report` is a modules/iris_report.luau report.
 function Renderer:add_to_report(report, data)
     local totals, averages = self:recap_cells(data)
-    report:section("Overall account statistics", true)
+    report:section("Overall account statistics", true, SECTION_TIPS.overall)
     report:columns({ "", "", "", "", "", "" })
     for row = 1, #totals[1] do
         local cells = {}
@@ -220,12 +228,12 @@ function Renderer:add_to_report(report, data)
         end
         report:row(cells)
     end
-    report:section("Average stats per match and minute", true)
+    report:section("Average stats per match and minute", true, SECTION_TIPS.averages)
     report:columns({ "", "", "", "" })
     for _, column in ipairs(averages) do
         report:row({ column[1][1], column[1][2], column[2][1], column[2][2] })
     end
-    report:section(string.format("Detailed weapon stats (%d weapons)", #data.weapon_list), true)
+    report:section(string.format("Detailed weapon stats (%d weapons)", #data.weapon_list), true, SECTION_TIPS.weapons)
     report:text(DEATHS_WITH_NOTE)
     report:columns(WEAPON_COLUMNS)
     for _, w in ipairs(data.weapon_list) do
