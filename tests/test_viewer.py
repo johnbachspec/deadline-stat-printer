@@ -236,25 +236,31 @@ __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame
                             after="__frame(); __dump()")
         frame = drawn(output)
         self.assertEqual(frame[0], "PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)")  # no FONT: Iris's own
-        # The theme wraps our windows only; each window's title-bar buttons get red for themselves alone.
-        self.assertEqual(frame[1:4], ["PushConfig dsp:hub:red hover=rgb(196,43,28) active=rgb(150,30,20)",
-                                      "Window Stat printer", "PopConfig"])
+        self.assertEqual(frame[1], "Window Stat printer")  # the push wraps our windows only
         self.assertEqual(frame[-1], "PopConfig")
 
-    def test_title_bar_buttons_light_up_red_on_every_window(self):
+    def test_every_window_has_a_red_close_button(self):
         output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE), prelude=viewer_prelude(),
-                            after="__frame(); __dump()")
+                            after="__frame(); __click('dsp:stats:Tester:export'); __frame(); __dump()")
         frame = drawn(output)
-        windows = [i for i, line in enumerate(frame) if line.startswith("Window ")]
-        self.assertGreaterEqual(len(windows), 2)  # the hub and the report
-        for i in windows:
-            self.assertTrue(frame[i - 1].startswith("PushConfig ") and frame[i - 1].endswith(":red hover=rgb(196,43,28) active=rgb(150,30,20)"), frame[i - 1])
-            self.assertEqual(frame[i + 1], "PopConfig")  # popped before the window's contents
+        windows = [line for line in frame if line.startswith("Window ")]
+        closes = [i for i, line in enumerate(frame) if line == "SmallButton Close"]
+        self.assertEqual(len(closes), len(windows))  # the hub, the report and its Export window
+        self.assertGreaterEqual(len(windows), 3)
+        for i in closes:  # red for this button alone
+            self.assertRegex(frame[i - 1], r"^PushConfig \S+:closecolors button=rgb\(170,35,25\)$")
+            self.assertEqual(frame[i + 1], "PopConfig")
 
-    def test_windows_still_draw_without_color3(self):
+    def test_close_button_closes_its_window(self):
+        output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(),
+                            after="__frame(); __click('dsp:hub:close'); __frame()\n"
+                                  "print('HUB OPEN ' .. tostring(__widgets['dsp:hub'].state.isOpened.value))")
+        self.assertIn("HUB OPEN false", output)
+
+    def test_close_button_without_color3_is_plain(self):
         output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra="local Color3 = nil\n"),
                             after="__frame(); __dump()")
-        self.assertEqual(drawn(output)[0], "Window Stat printer")  # no red push, nothing else changes
+        self.assertEqual(drawn(output)[:2], ["Window Stat printer", "SmallButton Close"])  # no red push
 
     def test_theme_defaults_are_rubik_with_robotomono_numbers(self):
         output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
@@ -427,8 +433,7 @@ local Font = {
                             after="__frame(); __dump()")
         self.assertNotIn("[theme] applied", output)
         self.assertIn("[viewer] ready", output)
-        self.assertEqual(drawn(output)[:3], ["PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)",
-                                             "PushConfig dsp:hub:red hover=rgb(196,43,28) active=rgb(150,30,20)",
+        self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)",
                                              "Window Stat printer"])
 
     def test_reports_from_an_older_viewer_still_draw(self):
@@ -489,8 +494,7 @@ __frame(); print("-- after " .. tostring(shared.iris_viewer_theme)); __frame(); 
         self.assertIn("[viewer] theme turned off, Iris rejected it: ", output)
         self.assertIn("-- after nil", output)
         frame = drawn(output.split("-- after nil")[1])
-        self.assertEqual(frame[:2], ["PushConfig dsp:hub:red hover=rgb(196,43,28) active=rgb(150,30,20)",
-                                     "Window Stat printer"])  # next frame draws without the theme
+        self.assertEqual(frame[0], "Window Stat printer")  # next frame draws without the theme
         self.assertTrue(any(line.startswith("Text Error: theme turned off") for line in frame))
 
     def test_a_failing_window_is_closed_and_reported_once(self):
