@@ -20,6 +20,30 @@ def load_fixture(path=FIXTURE_OUTPUT):
     return parse_fixture(Path(path).read_text(encoding="utf-8"))
 
 
+def validate_fixture_rows(rows):
+    """Validates (attachment_id, kills, top_gun, top_gun_kills) rows.
+
+    Returns a list of error strings (empty if all checks pass).
+    """
+    errors = []
+    if not rows:
+        return ["fixture contains 0 rows or is empty"]
+    seen = {}
+    for att_id, kills, gun, gun_kills in rows:
+        if att_id in seen:
+            errors.append(f"duplicate attachment id: {att_id} appears multiple times")
+        seen[att_id] = (kills, gun, gun_kills)
+        if kills < 0:
+            errors.append(f"{att_id}: negative kills ({kills})")
+        if gun_kills < 0:
+            errors.append(f"{att_id}: negative top_gun_kills ({gun_kills})")
+        if gun_kills > kills:
+            errors.append(f"{att_id}: top_gun_kills ({gun_kills}) exceeds total kills ({kills})")
+        if not gun or not gun.strip():
+            errors.append(f"{att_id}: missing top_gun name")
+    return errors
+
+
 def top_gun(guns):
     """(gun, kills) with the most kills; ties go to the alphabetically first gun, as in Luau."""
     return min(guns.items(), key=lambda g: (-g[1], g[0]))

@@ -19,10 +19,12 @@ the span, and so does a long table constructor assigned to a field
 packed several entries per line.
 
 Usage:
-    python tools/check_fiu_compat.py              # files the game loads: root scripts + modules they load
-    python tools/check_fiu_compat.py --all        # every .luau in the repo root and modules/
-    python tools/check_fiu_compat.py FILE...      # specific files
-    python tools/check_fiu_compat.py -v           # also list passing functions
+    python tools/check_fiu_compat.py                    # files the game loads: root scripts + modules they load
+    python tools/check_fiu_compat.py --all              # every .luau in the repo root and modules/
+    python tools/check_fiu_compat.py FILE...            # specific files
+    python tools/check_fiu_compat.py -v                 # also list passing functions with span and headroom
+    python tools/check_fiu_compat.py --warn-headroom N  # warn if any function has < N lines of headroom
+    python tools/check_fiu_compat.py --fail-on-warn     # exit 1 if any headroom warnings are found
 
 luau-compile is taken from $LUAU_BIN, then luau_bin/, then PATH.
 """
@@ -168,8 +170,11 @@ def read_protos(bytecode):
     return protos
 
 
-def check_file(compiler, path, verbose=False):
-    """Returns a list of problem strings for one file."""
+def check_file(compiler, path, verbose=False, warn_headroom=None, warnings_out=None):
+    """Returns a list of problem strings for one file.
+
+    If warnings_out is a list, warnings for functions with headroom < warn_headroom are appended.
+    """
     result = subprocess.run([compiler, "--binary", str(path)], capture_output=True)
     if result.returncode != 0:
         return [f"compile error: {result.stderr.decode('utf-8', 'replace').strip()}"]
@@ -177,22 +182,60 @@ def check_file(compiler, path, verbose=False):
     for p in read_protos(result.stdout):
         if p["linegaplog2"] is None:
             continue
+        span = p["last"] - p["first"]
         label = f"{p['name']} (lines {p['first']}-{p['last']}, {p['sizecode']} instructions)"
         if p["linegaplog2"] < MAX_LINEGAPLOG2:
-            span = p["last"] - p["first"]
             crash = p["sizecode"] % (1 << p["linegaplog2"]) == 0
             problems.append(f"{label} spans {span} lines (max {MAX_SPAN})"
                             + ("; crashes Fiu with this compiler's instruction count" if crash else
                                "; loads only if the game's compiler emits a lucky instruction count"))
-        elif verbose:
-            print(f"  ok  {label}")
+        else:
+            headroom = MAX_SPAN - span
+            if warn_headroom is not None and headroom < warn_headroom:
+                msg = f"{label} spans {span} lines ({headroom} lines of headroom left, < {warn_headroom})"
+                if warnings_out is not None:
+                    warnings_out.append(msg)
+            if verbose:
+                tag = f" [span {span}, {headroom} lines headroom]" if span > 0 else ""
+                print(f"  ok  {label}{tag}")
     return problems
 
 
 def main(argv):
     verbose = "-v" in argv
-    files = [Path(a) for a in argv[1:] if a not in ("-v", "--all")]
-    if not files and "--all" in argv:
+    all_files = "--all" in argv
+    fail_on_warn = "--fail-on-warn" in argv
+    warn_headroom = None
+    files = []
+    i = 1
+    while i < len(argv):
+        a = argv[i]
+        if a in ("-v", "--all", "--fail-on-warn"):
+            i += 1
+        elif a == "--warn-headroom":
+            i += 1
+            if i < len(argv):
+                try:
+                    warn_headroom = int(argv[i])
+                except ValueError:
+                    raise dd.DataError(f"invalid --warn-headroom value: {argv[i]}")
+                i += 1
+            else:
+                raise dd.DataError("--warn-headroom requires an integer argument")
+        elif a.startswith("--warn-headroom="):
+            val = a.split("=", 1)[1]
+            try:
+                warn_headroom = int(val)
+            except ValueError:
+                raise dd.DataError(f"invalid --warn-headroom value: {val}")
+            i += 1
+        elif a.startswith("-"):
+            raise dd.DataError(f"unknown option: {a}")
+        else:
+            files.append(Path(a))
+            i += 1
+
+    if not files and all_files:
         files = sorted(ROOT.glob("*.luau")) + sorted((ROOT / "modules").glob("*.luau"))
     elif not files:
         files = game_loaded_files()
@@ -203,25 +246,34 @@ def main(argv):
     if not compiler:
         print("luau-compile not found: set LUAU_BIN to its folder, or put it in luau_bin/ or on PATH")
         return 2
-    failed = 0
+    failed, total_warnings = 0, 0
     for path in files:
         try:
             shown = path.resolve().relative_to(ROOT)
         except ValueError:
             shown = path
+        warnings = []
         try:
-            problems = check_file(compiler, path, verbose)
+            problems = check_file(compiler, path, verbose, warn_headroom, warnings)
         except ValueError as error:  # bytecode this checker can't read, e.g. from a newer Luau
             print(f"cannot check {shown}: {error}")
             return 2
-        print(f"{'FAIL' if problems else 'ok  '} {shown}")
+        status = "FAIL" if problems else ("WARN" if warnings else "ok  ")
+        print(f"{status} {shown}")
         for problem in problems:
             print(f"       {problem}")
+        for warning in warnings:
+            print(f"       warning: {warning}")
         failed += bool(problems)
+        total_warnings += len(warnings)
     if failed:
         print(f"\n{failed} file(s) would crash or risk crashing Deadline's Fiu VM on load.")
         return 1
-    print(f"\nAll {len(files)} file(s) are safe for Deadline's Fiu VM.")
+    if fail_on_warn and total_warnings > 0:
+        print(f"\n{total_warnings} warning(s) found with --fail-on-warn.")
+        return 1
+    warn_summary = f" ({total_warnings} warning(s))" if total_warnings > 0 else ""
+    print(f"\nAll {len(files)} file(s) are safe for Deadline's Fiu VM{warn_summary}.")
     return 0
 
 

@@ -35,7 +35,7 @@ import sys
 import deadline_data as dd
 import luau_source as luau
 
-NAME_LINES = 200
+NAME_LINES = 100
 MIN_NAMES = 1000  # sanity floor for a downloaded balancing.csv
 
 LABEL_WORDS = {
@@ -49,7 +49,14 @@ def is_weapon(item_id):
     return item_id != item_id.lower()
 
 
-# --- sources -----------------------------------------------------------------
+def normalize_name(pretty):
+    for prefix in ("Axtell Defense ", "Axtell Defence "):
+        if pretty.startswith(prefix):
+            return "AD " + pretty[len(prefix):]
+    if pretty in ("Axtell Defense", "Axtell Defence"):
+        return "AD"
+    return pretty
+
 
 def parse_names(text):
     """Returns (version, updated, {name: pretty_name}) from balancing.csv text."""
@@ -68,7 +75,7 @@ def parse_names(text):
         if len(row) > pretty_idx:
             name, pretty = row[name_idx].strip(), row[pretty_idx].strip()
             if name and pretty:
-                names[name] = pretty
+                names[name] = normalize_name(pretty)
     return version, updated, names
 
 

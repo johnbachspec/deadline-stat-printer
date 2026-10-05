@@ -177,10 +177,10 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,ecm_gunslinger_mod3_picatinny_foregrip_flipped,BCM Gunfighter Mod 3 Picatinny Flipped,5,0.07,-3,-2,,,,,,,,300
 ,,ecm_gunslinger_mod3_picatinny_shortened_foregrip,BCM Gunfighter Mod 3 Picatinny Shortened,6,0.05,-2,-1,,,,,,,,300
 ,,ecm_gunslinger_mod3_picatinny_shortened_foregrip_flipped,BCM Gunfighter Mod 3 Picatinny Shortened Flipped,6,0.05,-2,-1,,,,,,,,300
-,,axtell_defense_3inch_picatinny_rail_panel,Axtell Defense 3 inch Picatinny,1.33,0.04,,,,,,,,,,300
-,,axtell_defense_5inch_picatinny_rail_panel,Axtell Defense 5 inch Picatinny,2,0.06,,,,,,,,,,500
-,,axtell_defense_7inch_picatinny_rail_panel,Axtell Defense 7 inch Picatinny,2.66,0.08,,,,,,,,,,700
-,,axtell_defense_rubber_overmolding_vertical_foregrip,Axtell Defense Soft Touch Rubber Overmolding Vertical,4,0.09,-3,-4,,,,,,,,500
+,,axtell_defense_3inch_picatinny_rail_panel,AD 3 inch Picatinny,1.33,0.04,,,,,,,,,,300
+,,axtell_defense_5inch_picatinny_rail_panel,AD 5 inch Picatinny,2,0.06,,,,,,,,,,500
+,,axtell_defense_7inch_picatinny_rail_panel,AD 7 inch Picatinny,2.66,0.08,,,,,,,,,,700
+,,axtell_defense_rubber_overmolding_vertical_foregrip,AD Soft Touch Rubber Overmolding Vertical,4,0.09,-3,-4,,,,,,,,500
 ,,bt_qd_nar_ecro_22mm_mount,B&T QD NAR ACRO 22mm,0,0.03,,,,,,,,,,500
 ,,bt_qd_nar_ecro_30mm_mount,B&T QD NAR ACRO 30mm,0,0.04,,,,,,,,,,550
 ,,bt_qd_nar_ecro_39mm_mount,B&T QD NAR ACRO 39mm,0,0.05,,,,,,,,,,600
@@ -197,10 +197,10 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,talvern_rear_battlesight,Troy Rear Battlesight,1,0.01,,,,,,,,,,0
 ,,talvern_rear_battlesight_folded,Troy Rear Battlesight Folded,1,0.01,,,,,,,,,,0
 ,,talvern_battlesight_picatinny_base,Troy Battlesight Base,0,0.02,,,,,,,,,,400
-,,axtell_defense_rock_lock_rail_mounted_fixed_front_sight,Axtell Defense Rock & Lock Rail Mounted Fixed,0,0.02,,,,,,,,,,700
-,,axtell_defense_rock_lock_a1.5_fixed_rear_sight,Axtell Defense Rock & Lock A1.5 Fixed,0,0.03,,,,,,,,,,700
-,,axtell_defense_fixed_sight_front_post,Axtell Defense Fixed,1,0.005,,,,,,,,,,0
-,,axtell_defense_fixed_sight_rear_aperture,Axtell Defense Fixed,1,0.005,,,,,,,,,,0
+,,axtell_defense_rock_lock_rail_mounted_fixed_front_sight,AD Rock & Lock Rail Mounted Fixed,0,0.02,,,,,,,,,,700
+,,axtell_defense_rock_lock_a1.5_fixed_rear_sight,AD Rock & Lock A1.5 Fixed,0,0.03,,,,,,,,,,700
+,,axtell_defense_fixed_sight_front_post,AD Fixed,1,0.005,,,,,,,,,,0
+,,axtell_defense_fixed_sight_rear_aperture,AD Fixed,1,0.005,,,,,,,,,,0
 ,,firm_#40_rear_sight_base,F.I.R.M. #40 Base,0,0.02,,,,,,,,,,400
 ,,firm_#40_rear_sight,F.I.R.M. #40,1,0.02,,,,,,,,,,0
 ,,firm_#40_rear_sight_folded,F.I.R.M. #40 Folded,1,0.02,,,,,,,,,,0
@@ -263,8 +263,8 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,thordsen_frs15_cover_stock,Thordsen FRS-15 Cover,5,0.1,0,0,,,,,,,,600
 ,,magtap_rts_carbine_stock,Magtap RTS Carbine,17,0.23,-9,-9,,,,,,,,900
 ,,magtap_moa_sl_k_carbine_stock,Magtap MOE SL-K Carbine,18,0.17,-7,-8,,,,,,,,800
-,,axtell_defense_collapsible_milspec_buttstock,Axtell Defense Collapsible Milspec,16,0.18,-8,-10,,,,,,,,900
-,,axtell_defense_concave_buttpad,Axtell Defense Concave,1,0.02,-1,-1,,,,,,,,0
+,,axtell_defense_collapsible_milspec_buttstock,AD Collapsible Milspec,16,0.18,-8,-10,,,,,,,,900
+,,axtell_defense_concave_buttpad,AD Concave,1,0.02,-1,-1,,,,,,,,0
 ,ak_rear_trunnions,,,,,,,,,,,,,,
 ,,kazarov_ak74_rear_trunnion,Kazarov AK-74,0,0.03,,,,,,,,,,0
 ,,kazarov_akm_rear_trunnion,Kazarov AKM,0,0.03,,,,,,,,,,0
@@ -565,7 +565,7 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,sc_irregulars_omm_8_slot_board_rear,AT Refine OMM 8 Slot Board,0,0.08,,,,,,,,,,500
 ,m4a1_gas_block,,,,,,,,,,,,,,
 ,,jp_enterprises_5b_gasblock,JP Enterprises 5B,-1,0.08,-2,-2,,,,,,,,750
-,,axtell_defense_mk12_low_profile_gasblock,Axtell Defense MK12 Low Profile,0,0.06,-1,-1,,,,,,,,1200
+,,axtell_defense_mk12_low_profile_gasblock,AD MK12 Low Profile,0,0.06,-1,-1,,,,,,,,1200
 ,,windsor_armory_railed_ar15_gasblock,Windsor Armory AR-15 Railed,0,0.1,0,-1,,,,,,,,1000
 ,,hart_m4fs_gasblock,Hart M4 Standard,3,0.11,0,0,,,,,,,,0
 ,ar15_front_sight_post,,,,,,,,,,,,,,
@@ -716,7 +716,7 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,equinox_ex15_orion_pistol_grip,Arrow AX // 15 ORION AR-15,9,0.09,-2,-1,,,,,,,,1000
 ,,ecm_gunslinger_mod3_ar15_pistol_grip,BCM Gunfighter Mod 3 AR-15,8,0.09,-3,-2,,,,,,,,750
 ,,pww_ecm_gunslinger_mod3_scar_pistol_grip,Everetts Machining BCM Gunfighter Mod 3 FANG,8,0.1,-3,-2,,,,,,,,800
-,,axtell_defense_pistol_grip_with_trigger_guard,Axtell Defense w/ Trigger Guard,10,0.13,-2,-4,,,,,,,,900
+,,axtell_defense_pistol_grip_with_trigger_guard,AD w/ Trigger Guard,10,0.13,-2,-4,,,,,,,,900
 ,,kalis_scalar_gen3_ar15_pistol_grip,KALIS Scalar Gen3 AR-15,5.5,0.07,-5,-2,,,,,,,,800
 ,vector_gen3_grip_core,,,,,,,,,,,,,,
 ,,kalis_scalar_gen3_grip_core,KALIS Scalar Gen3 Grip Core,1.5,0.03,,,,,,,,,,200
@@ -746,10 +746,10 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,novacek_marked_vyctor_mur1s_ar15_upper_receiver,Nowa Marked VYCTOR MUR1S AR-15,2,0.26,-1,-1,,,,,,,,2500
 ,,vyctor_mur1s_ar15_upper_receiver,VYCTOR MUR1S AR-15,1,0.25,-1,-2,,,,,,,,2000
 ,,ardian_weapons_ar15_model_1_m1curgh_upper_receiver,Ardian Weapons AR-15 Model 1 M1CURGH,4,0.34,-1,-1,,-0.05,,,,,,4000
-,,axtell_defense_adm4v7_upper_receiver,Axtell Defense ADM4V7,1,0.23,-1,-1,,,,,,,,1000
-,,axtell_defense_m4a1_upper_receiver,Axtell Defense M4A1,0,0.24,-2,-2,,,,,,,,1500
-,,axtell_defense_mk12_upper_receiver,Axtell Defense MK12,4,0.25,1,2,,-0.1,,100,,,,2000
-,,axtell_defense_mk18_upper_receiver,Axtell Defense MK18,3,0.23,0,-1,,0.15,,-100,,,,2500
+,,axtell_defense_adm4v7_upper_receiver,AD ADM4V7,1,0.23,-1,-1,,,,,,,,1000
+,,axtell_defense_m4a1_upper_receiver,AD M4A1,0,0.24,-2,-2,,,,,,,,1500
+,,axtell_defense_mk12_upper_receiver,AD MK12,4,0.25,1,2,,-0.1,,100,,,,2000
+,,axtell_defense_mk18_upper_receiver,AD MK18,3,0.23,0,-1,,0.15,,-100,,,,2500
 ,m4a1_bolt_catch,,,,,,,,,,,,,,
 ,,m4a1_std_bolt_catch,Hart M4 Standard,0,0.01,,,,,,,,,,0
 ,,ardian_weapons_ar15_extended_bolt_catch,Ardian Weapons AR-15 Extended,1,0.03,,,,,,,,,,300
@@ -765,7 +765,7 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,ardian_weapons_ax556_adac15_lower_receiver,Ardian Weapons AX556 ADAC-15,6,0.42,-2,-3,,,,,,,,4000
 ,,novacek_n4_gen3_ar15_lower_receiver,Nowa N4 Gen3 AR-15,5,0.35,-2,-1,,,,,,,,2000
 ,,equinox_ex15_lower_receiver,Arrow AX // 15 AR-15,3,0.25,-1,0,,,,,,,,1500
-,,axtell_defense_m4_carbine_lower_receiver,Axtell Defense M4 Carbine,3,0.33,,,,,,,,,,1000
+,,axtell_defense_m4_carbine_lower_receiver,AD M4 Carbine,3,0.33,,,,,,,,,,1000
 ,m4a1_mag_release,,,,,,,,,,,,,,
 ,,m4a1_std_mag_release,Hart M4A1,0,0.01,,,,,,,,,,0
 ,,ardian_weapons_adac15_mag_release,Ardian Weapons ADAC15 Mag Release,1,0.02,,,,,,,,,,200
@@ -822,7 +822,7 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,cmmg_mk9_lower_receiver,CmmG MK9,1,0.26,,,,,,,,,,0
 ,,equinox_ex15_lower_receiver_ar9,Arrow AX // 15 AR-15,3,0.25,-1,0,,,,,,,,1500
 ,,hart_m4a1_std_lower_receiver_ar9,Hart M4A1,0,0.3,,,,,,,,,,0
-,,axtell_defense_m4_carbine_lower_receiver_ar9,Axtell Defense M4 Carbine,3,0.33,,,,,,,,,,1000
+,,axtell_defense_m4_carbine_lower_receiver_ar9,AD M4 Carbine,3,0.33,,,,,,,,,,1000
 ,,novacek_n4_gen3_ar15_lower_receiver_ar9,Nowa N4 Gen3 AR-15,5,0.35,-2,-1,,,,,,,,2000
 ,mk9_dust_cover,,,,,,,,,,,,,,
 ,,cmmg_mk9_dust_cover,CmmG MK9,1,0.03,0,0,,,,,,,,0
@@ -2435,7 +2435,7 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,tb_mount_223_mb,BPAC 223CB,0,0.08,-14,-12,,0,0,0,,,0.04,400
 ,,talvern_claymore_5.56x45_muzzle_brake,Glenn & Harris Claymore 5.56x45,2,0.1,-10,-15,,0,0,0,,,0.03,500
 ,,onyx_adapter,Onyx One,0,0.06,-4,-5,,0,0.01,10,,,0,300
-,,adw_adapter,Axtell Defence Wave MB,0,0.08,-16,-10,,0,0,0,,,0.06,500
+,,adw_adapter,AD Wave MB,0,0.08,-16,-10,,0,0,0,,,0.06,500
 ,,strelets_st_6012,Strelets ST-6012 5.56x45,-1,0.09,-18,-10,,0,0,0,,,0.07,400
 ,,kaleva_corvette_556,Kaleva Corvette 5.56x45,0,0.08,-15,-11,,0,0,0,,,0,400
 ,,annihilator_556,Annihilator 5.56,1,0.1,-11,-16,,0,0,0,,,0.01,500
@@ -2635,7 +2635,7 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,hart_rear_ironsight_600m,Hart 600m,1,0.005,,,,,,,,,,0
 ,,virticon_ar15_night_fighter_rear_sight_aperture,Virticon AR-15 Night Fighter,1,0.005,,,,,,,,,,200
 ,ddw,,,,,,,,,,,,,,
-,,adw_qd,Axtell Defence Wave QD,-6,0.28,-17,-19,,-0.1,0.1,70,,,-0.17,1200
+,,adw_qd,AD Wave QD,-6,0.28,-17,-19,,-0.1,0.1,70,,,-0.17,1200
 ,starsurp_ace_recoil_pad,,,,,,,,,,,,,,
 ,,starsurp_starsurp_apex_0.5_recoil_pad,StarSurp APEX M4 SOCOM Gen4,2,0.03,-1,-1,,,,,,,,0
 ,rsa_sa58_mag_plate,,,,,,,,,,,,,,

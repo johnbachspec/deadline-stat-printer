@@ -15,10 +15,21 @@ local IrisBridge = {}
 
 local MIN_INTERVAL = 0.5 -- seconds between the same request from the same player, so clicks cannot flood the server
 
--- Keeps a report's messages for viewers that start later.
+-- Keeps a report's messages for viewers that start later (at most 1 stats and 1 attachments per player).
 local function keep(state, id, messages)
     state.latest = state.latest or {}
     state.latest_order = state.latest_order or {}
+    local kind, player = id:match("^([^:]+):([^:]+)")
+    if kind == "stats" or kind == "attachments" then
+        local prefix = kind .. ":" .. player
+        for i = #state.latest_order, 1, -1 do
+            local existing = state.latest_order[i]
+            if existing ~= id and (existing == prefix or existing:sub(1, #prefix + 1) == prefix .. ":") then
+                table.remove(state.latest_order, i)
+                state.latest[existing] = nil
+            end
+        end
+    end
     if not state.latest[id] then table.insert(state.latest_order, id) end
     state.latest[id] = messages
 end

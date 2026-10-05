@@ -7,8 +7,9 @@ Usage:
     python tools/verify_attachment_merge.py --write-expected   # rewrite tests/fixtures/expected_merges.csv
 
 Checks:
-  1. total kills are conserved by the merge (no double count, no loss),
-  2. every current id built from 2+ logged ids is listed in expected_merges.csv with
+  1. fixture integrity (no duplicates, valid kill counts, non-empty gun names),
+  2. total kills are conserved by the merge (no double count, no loss),
+  3. every current id built from 2+ logged ids is listed in expected_merges.csv with
      the same kills, top gun and contributing ids (no surprise merges, none missing).
 
 After adding renames that fold ids in the fixture together, review the printed
@@ -28,6 +29,7 @@ def main(argv):
         print(f"FAIL  saved output not found: {log_path}")
         return 1
     rows = fx.load_fixture(log_path)
+    failures = [f"fixture error: {err}" for err in fx.validate_fixture_rows(rows)]
     merged = fx.replay_merge(rows, dict(dd.load_renames()), dd.load_weapon_aliases())
     merges = fx.merges_from_replay(merged)
 
@@ -37,11 +39,15 @@ def main(argv):
         print(f"  {canon}: {kills} kills, top {gun} ({gun_kills}) <- {', '.join(sorted(sources))}")
 
     if "--write-expected" in argv:
+        if failures:
+            print("\nFAIL  cannot write expected merges from an invalid fixture:")
+            for f in failures:
+                print(f"      {f}")
+            return 1
         fx.write_expected_merges(merges)
         print(f"\nwrote {dd.EXPECTED_MERGES_CSV.relative_to(dd.ROOT)}")
         return 0
 
-    failures = []
     before, after = sum(r[1] for r in rows), sum(b["kills"] for b in merged.values())
     if before != after:
         failures.append(f"kills not conserved: {before} logged, {after} after merging")

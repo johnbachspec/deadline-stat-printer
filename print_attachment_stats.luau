@@ -121,12 +121,12 @@ local function view_of(aggregated, opts)
 end
 
 -- Refresh in the viewer asks for "attachments|<name>|<gun>|<search>|<view>".
--- Each different view gets its own window.
+-- Each player has at most one attachment report window; new options replace it.
 local function iris_report(player, view, opts)
     local name = tostring(player.name)
     local suffix = table.concat({ opts.view == "guns" and "by gun" or "", opts.gun_name, opts.search }, " ")
         :gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
-    local report = IrisReport.new("attachments:" .. name .. (suffix ~= "" and (":" .. suffix) or ""),
+    local report = IrisReport.new("attachments:" .. name,
         "Attachments: " .. name .. (suffix ~= "" and (" (" .. suffix .. ")") or ""),
         IrisReport.refresh_request("attachments", name, opts.gun_name, opts.search, opts.view))
     renderer:add_view(report, view)

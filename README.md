@@ -78,7 +78,7 @@ shared.print_attachment_stats("SomeName", { search = "eotech" })          -- nam
 shared.print_attachment_stats("SomeName", { view = "guns", gun = "M4A1" }) -- options combine
 ```
 
-In the Iris viewer, each different view opens in its own window, e.g. "Attachments: SomeName (by gun M4A1)", and its **Refresh** button keeps those options.
+In the Iris viewer, each player has at most two report windows (one for stats and one for attachments). Running a new query or view updates their window in place, e.g. "Attachments: SomeName (by gun M4A1)", and its **Refresh** button keeps those options.
 
 ### Capture Announcer
 

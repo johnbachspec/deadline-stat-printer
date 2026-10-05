@@ -71,6 +71,16 @@ viewer.receive = function(message) -- one message per part: "dsp1|<id>|<part>|<p
     viewer.parts[id] = nil
     local ok, report = pcall(parse, table.concat(pending))
     if not ok then print("[viewer] could not read report " .. id .. ": " .. tostring(report)); return end
+    local kind, player = report.id:match("^([^:]+):([^:]+)")
+    if kind == "stats" or kind == "attachments" then
+        local prefix = kind .. ":" .. player
+        for i = #viewer.order, 1, -1 do
+            local existing_id = viewer.order[i]
+            if existing_id ~= report.id and (existing_id == prefix or existing_id:sub(1, #prefix + 1) == prefix .. ":") then
+                table.remove(viewer.order, i); viewer.reports[existing_id] = nil
+            end
+        end
+    end
     local old = viewer.reports[report.id]
     if not old then table.insert(viewer.order, report.id) end
     report.ui = old and old.ui or { pages = {}, filters = {}, seen = {}, sorts = {} } -- kept across refreshes

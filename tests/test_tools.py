@@ -112,5 +112,31 @@ class TestGroupValidation(unittest.TestCase):
                 self.assertIn(problem, str(ctx.exception))
 
 
+class TestFixtureValidation(unittest.TestCase):
+    def test_valid_rows_pass(self):
+        rows = [("att_a", 10, "M4A1", 8), ("att_b", 5, "SCARH", 5)]
+        self.assertEqual(fx.validate_fixture_rows(rows), [])
+
+    def test_empty_rows_fail(self):
+        self.assertIn("0 rows", fx.validate_fixture_rows([])[0])
+
+    def test_duplicate_attachment_ids_fail(self):
+        rows = [("att_a", 10, "M4A1", 8), ("att_a", 5, "SCARH", 5)]
+        errors = fx.validate_fixture_rows(rows)
+        self.assertTrue(any("duplicate" in e for e in errors))
+
+    def test_invalid_counts_and_missing_gun_fail(self):
+        cases = [
+            ([("att_a", 10, "M4A1", 12)], "exceeds"),
+            ([("att_b", -1, "M4A1", 0)], "negative kills"),
+            ([("att_c", 5, "M4A1", -1)], "negative top_gun_kills"),
+            ([("att_d", 5, "", 2)], "missing top_gun"),
+        ]
+        for rows, expected in cases:
+            with self.subTest(expected=expected):
+                errors = fx.validate_fixture_rows(rows)
+                self.assertTrue(any(expected in e for e in errors), f"expected {expected} in {errors}")
+
+
 if __name__ == "__main__":
     unittest.main()

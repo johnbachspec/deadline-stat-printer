@@ -81,6 +81,9 @@ class TestNames(unittest.TestCase):
         self.assertEqual(s["hart_m4a1_castlenut"], "Hart M4A1 Castle Nut (Standard)")  # base part of its variants
         self.assertEqual(s["ak308_7.62x51_muzzle_brake"], "Kazarov Group AK-308 (7.62x51 Muzzle Brake)")  # vs the gun
         self.assertEqual(s["dd_enhanced_mvg"], "AD Enhanced MVG")  # unique names untouched
+        self.assertEqual(s["axtell_defense_m4a1_upper_receiver"], "AD M4A1")
+        self.assertEqual(s["axtell_defense_3inch_picatinny_rail_panel"], "AD 3 inch Picatinny")
+        self.assertEqual(s["adw_adapter"], "AD Wave MB")
 
     def test_module_has_attachments_only(self):
         module = dd.ATTACHMENT_NAMES_LUAU.read_text(encoding="utf-8")

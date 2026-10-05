@@ -1,6 +1,7 @@
 # Fails any push or pull request that would stop the scripts from loading in
-# Deadline's Fiu VM (see tools/check_fiu_compat.py) or that breaks the tests,
-# which run the console scripts under the luau CLI.
+# Deadline's Fiu VM (see tools/check_fiu_compat.py), that has an out-of-date
+# client_autorun.txt bundle, or that breaks the tests, which run the console
+# scripts under the luau CLI.
 name: Check
 
 on:
@@ -21,6 +22,9 @@ jobs:
 
       - name: Fiu load check
         run: python tools/check_fiu_compat.py
+
+      - name: Client autorun check
+        run: python tools/build_client_autorun.py --check
 
       - name: Tests
         run: python -m unittest discover -s tests -v

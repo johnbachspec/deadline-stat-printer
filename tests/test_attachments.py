@@ -164,19 +164,35 @@ class TestAttachmentViews(unittest.TestCase):
 shared.print_attachment_stats("Tester", { view = "guns", gun = "M4A1" })
 __frame(); __dump()
 local before = __sent
-__click("dsp:attachments:Tester:by gun M4A1:refresh"); __frame()
+__click("dsp:attachments:Tester:refresh"); __frame()
 print("REFRESHED " .. (__sent - before))"""
         output = run_script("print_attachment_stats.luau", self.players, prelude=viewer_prelude(), after=after)
         frame = drawn(output)
-        self.assertIn("Window Attachments: Tester", frame)
         self.assertIn("Window Attachments: Tester (by gun M4A1)", frame)
+        # Replaces the previous attachment report: at most one attachment window per player
+        self.assertEqual(len([w for w in frame if w.startswith("Window Attachments: Tester")]), 1)
         tables = grids(output)
-        main = next(rows for rows in tables.values() if rows[0][:3] == ["#", "Attachment", "Kills"] and len(rows[0]) == 7)
-        self.assertEqual(main[1], ["1", "10mm Thread Protector", "20", "AKM", "10", "M4A1 (7), Vector (2), +1 more", "4"])
-        self.assertEqual(main[2][5], "-")  # an empty cell shows "-", so its column stays in line
         by_gun = next(rows for rows in tables.values() if rows[0] == ["#", "Attachment", "Kills"])
         self.assertEqual(by_gun[1:], [["1", "10mm Thread Protector", "7"]])  # one gun: no "All guns" total
         self.assertIn("REFRESHED 1", output)
+
+    def test_player_has_at_most_two_reports_one_stats_one_attachments(self):
+        # A player has at most 2 reports: 1 for stats and 1 for attachments
+        after = """
+shared.print_attachment_stats("Tester")
+shared.print_attachment_stats("Tester", { gun = "M4A1" })
+local R = require("x/modules/iris_report.luau")
+local s1 = R.new("stats:Tester", "Stats: Tester", nil); s1:text("v1")
+for _, m in ipairs(s1:messages()) do __deliver(m) end
+local s2 = R.new("stats:Tester", "Stats: Tester", nil); s2:text("v2")
+for _, m in ipairs(s2:messages()) do __deliver(m) end
+__frame(); __dump()"""
+        output = run_script("print_attachment_stats.luau", self.players, prelude=viewer_prelude(), after=after)
+        frame = drawn(output)
+        tester_windows = [w for w in frame if w.startswith("Window Attachments: Tester") or w.startswith("Window Stats: Tester")]
+        self.assertEqual(len(tester_windows), 2)
+        self.assertIn("Window Attachments: Tester (M4A1)", frame)
+        self.assertIn("Window Stats: Tester", frame)
 
 
 @needs_luau
