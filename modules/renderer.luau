@@ -11,14 +11,24 @@ local DEFAULT_GRID_WIDTH = 166
 local ROW_FORMAT         = "%-20s %10s %11s %11s %10s %10s %12s %8s %8s %14s %16s %10s  %-8.8s"
 local WEAPON_COLUMNS     = { "Weapon", "Kills", "Deaths w/", "Deaths by", "w-KDR", "% allK", "Rds. ct", "K/Min",
     "RFpK", "Weapon XP", "Time used", "% allT", "Type" }
-local DEATHS_WITH_NOTE   = "Deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)"
+local DEATHS_WITH_NOTE   = "Deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)" -- console only: Iris shows SECTION_TIPS.weapons
 local SECTION_TIPS       = { -- hover text for the viewer's section headers
     overall = "Lifetime totals from this player's profile: kills, deaths, headshots, wallbangs, money, XP and time played",
     averages = "Lifetime totals divided by matches played or by minutes alive",
-    weapons = "One row per weapon; % columns are shares of the weapons listed\n"
-        .. "Deaths w/: deaths while carrying it   Deaths by: deaths to it   w-KDR: kills / deaths w/\n"
-        .. "% allK: share of kills   Rds. ct: rounds fired   K/Min: kills per minute used\n"
-        .. "RFpK: rounds fired per kill   Time used / % allT: time held and its share   Type: caliber",
+    weapons = table.concat({ -- one column per line
+        "One row per weapon. % columns are shares of the weapons listed.",
+        "",
+        "Deaths w/  -  deaths while carrying it in any slot (a death counts for every weapon carried)",
+        "Deaths by  -  deaths to it",
+        "w-KDR  -  kills / Deaths w/",
+        "% allK  -  share of kills",
+        "Rds. ct  -  rounds fired",
+        "K/Min  -  kills per minute used",
+        "RFpK  -  rounds fired per kill",
+        "Time used  -  time held",
+        "% allT  -  share of time held",
+        "Type  -  caliber or class",
+    }, "\n"),
 }
 
 -- deps = { formatters = ..., grid_width = 166 (optional) }
@@ -200,7 +210,6 @@ function Renderer:add_to_report(report, data)
         report:row({ column[1][1], column[1][2], column[2][1], column[2][2] })
     end
     report:section(string.format("Detailed weapon stats (%d weapons)", #data.weapon_list), true, SECTION_TIPS.weapons)
-    report:text(DEATHS_WITH_NOTE)
     report:columns(WEAPON_COLUMNS)
     for _, w in ipairs(data.weapon_list) do
         report:row(self:weapon_cells(w))

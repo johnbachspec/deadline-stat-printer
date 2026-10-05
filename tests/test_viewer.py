@@ -165,6 +165,7 @@ __dump()"""
         self.assertEqual(vector.split("\t")[1], "950")
         self.assertEqual(len(vector.split("\t")), len(header.split("\t")))  # one cell per column
         self.assertTrue(any(line.startswith("Detailed weapon stats") for line in lines))  # section titles
+        self.assertNotIn("Deaths w/ =", text)  # the section's tooltip explains it; no extra line in the window
 
     def test_export_follows_the_sort(self):
         after = r"""
