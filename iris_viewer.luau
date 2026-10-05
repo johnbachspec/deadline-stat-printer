@@ -332,7 +332,6 @@ viewer.draw = function()
 end
 viewer.show = function() viewer.show_hub = true; for _, r in pairs(viewer.reports) do r.popup = true end end -- shared.iris_viewer.show()
 viewer.error = nil; viewer.show()
-print(string.format("[viewer] ready (Iris %s tables), %d reports so far. Run a stat script in the server console;"
-    .. " shared.iris_viewer.show() reopens closed windows.", NEW_TABLES and "2.4+" or "pre-2.4", #viewer.order))
+print(string.format("[viewer] ready (Iris %s tables); shared.iris_viewer.show() reopens closed windows.", NEW_TABLES and "2.4+" or "pre-2.4"))
 end)
 end)

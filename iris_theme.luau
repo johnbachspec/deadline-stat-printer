@@ -149,7 +149,7 @@ end
 
 -- CONSOLE_FONT and CONSOLE_COLORS go into Iris's global config, so they reach windows the
 -- theme doesn't wrap: the client console itself, and any other Iris window.
-local global, has_global, console, console_colors = {}, false, "unchanged", "no"
+local global, has_global = {}, false
 if CONSOLE_FONT then
     local face = iris_font(CONSOLE_FONT)
     if face then global.TextFont, has_global = face, true else
@@ -163,15 +163,12 @@ if CONSOLE_COLORS and palette then
 end
 if has_global and iris.UpdateGlobalConfig then
     local ok, err = pcall(iris.UpdateGlobalConfig, global)
-    if ok then
-        console = global.TextFont and tostring(CONSOLE_FONT) or console
-        console_colors = CONSOLE_COLORS and palette and COLORS or "no"
-    else
+    if not ok then
         print("[theme] console font and colors not applied: " .. tostring(err))
     end
 end
 
-local fonts, chrome = nil, "Iris's font"
+local fonts = nil
 if FONT == "?" then
     local ok, items = pcall(function() return Enum.Font:GetEnumItems() end)
     if ok then
@@ -187,18 +184,11 @@ elseif FONT or NUMBER_FONT then
     fonts = { text = text, number = font_tag(NUMBER_FONT, NUMBER_WEIGHT) or text,
         header = HEADER_WEIGHT and font_tag(FONT, HEADER_WEIGHT) or text }
     local face = FONT and iris_font(FONT, FONT_WEIGHT)
-    if face then theme.TextFont, chrome = face, tostring(FONT) end
+    if face then theme.TextFont = face end
 end
 if TEXT_SIZE then theme.TextSize = TEXT_SIZE end
 for key, value in pairs(EXTRA) do theme[key] = value end
 
 shared.iris_viewer_theme = theme
 shared.iris_viewer_fonts = fonts
-if chrome == "Iris's font" and console ~= "unchanged" then chrome = console end
-print(string.format("[theme] applied: colors %s, spacing %s, text size %s; tables: font %s %s, numbers %s %s;"
-    .. " titles and buttons: %s; console: %s, colors %s",
-    palette and "deadline" or COLORS ~= "deadline" and tostring(COLORS) or "not applied",
-    tostring(SPACING), tostring(TEXT_SIZE),
-    tostring(FONT or "Iris's"), tostring(FONT_WEIGHT or "") .. (HEADER_WEIGHT and " (headers " .. HEADER_WEIGHT .. ")" or ""),
-    tostring(NUMBER_FONT or "same"), tostring(NUMBER_WEIGHT or ""), chrome, console, console_colors))
 end)
