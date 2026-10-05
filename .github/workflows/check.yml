@@ -7,10 +7,15 @@ name: Check
 on:
   push:
   pull_request:
+  workflow_dispatch: # Actions > Check > Run workflow: try another runner image before moving the pin
+    inputs:
+      runner:
+        description: "Runner image, e.g. ubuntu-26.04"
+        default: ubuntu-24.04
 
 jobs:
   check:
-    runs-on: ubuntu-24.04 # pinned: ubuntu-latest becomes Ubuntu 26 from 2026-10-19; move up on purpose, after a test run
+    runs-on: ${{ inputs.runner || 'ubuntu-24.04' }} # pinned: ubuntu-latest becomes Ubuntu 26 from 2026-10-19; move up on purpose, after a test run
     steps:
       - uses: actions/checkout@v5
 
