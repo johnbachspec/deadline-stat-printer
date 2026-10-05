@@ -171,11 +171,11 @@ print("REFRESHED " .. (__sent - before))"""
         self.assertIn("Window Attachments: Tester", frame)
         self.assertIn("Window Attachments: Tester (by gun M4A1)", frame)
         tables = grids(output)
-        main = next(rows for rows in tables.values() if rows[0][:2] == ["Attachment", "Kills"] and len(rows[0]) == 6)
-        self.assertEqual(main[1], ["10mm Thread Protector", "20", "AKM", "10", "M4A1 (7), Vector (2), +1 more", "4"])
-        self.assertEqual(main[2][4], "-")  # an empty cell shows "-", so its column stays in line
-        by_gun = next(rows for rows in tables.values() if rows[0] == ["Attachment", "Kills"])
-        self.assertEqual(by_gun[1:], [["10mm Thread Protector", "7"]])  # one gun: no "All guns" total
+        main = next(rows for rows in tables.values() if rows[0][:3] == ["#", "Attachment", "Kills"] and len(rows[0]) == 7)
+        self.assertEqual(main[1], ["1", "10mm Thread Protector", "20", "AKM", "10", "M4A1 (7), Vector (2), +1 more", "4"])
+        self.assertEqual(main[2][5], "-")  # an empty cell shows "-", so its column stays in line
+        by_gun = next(rows for rows in tables.values() if rows[0] == ["#", "Attachment", "Kills"])
+        self.assertEqual(by_gun[1:], [["1", "10mm Thread Protector", "7"]])  # one gun: no "All guns" total
         self.assertIn("REFRESHED 1", output)
 
 
@@ -200,7 +200,7 @@ class TestColumnWidths(unittest.TestCase):
     def test_older_iris_columns_are_sized_by_their_text(self):
         # Iris before 2.4 makes every column 1/n wide; the viewer resizes them by content.
         after = """__frame()
-local t = __widgets["dsp:attachments:Tester:3:6"]
+local t = __widgets["dsp:attachments:Tester:3:7"]
 local out = {}
 for i, column in ipairs(t.ColumnInstances) do out[i] = string.format("%.4f", column.Size.X) end
 print("WIDTHS " .. table.concat(out, " "))"""
@@ -208,11 +208,23 @@ print("WIDTHS " .. table.concat(out, " "))"""
                             prelude=viewer_prelude(new_tables=False), after=after)
         widths = [float(w) for w in re.search(r"WIDTHS (.*)", output).group(1).split()]
         self.assertAlmostEqual(sum(widths), 1, places=3)
-        attachment, kills, top_gun, top_gun_kills, other_guns, guns = widths
+        rank, attachment, kills, top_gun, top_gun_kills, other_guns, guns = widths
+        self.assertEqual(rank, min(widths))        # "#" and "1" need the least room
         self.assertEqual(max(widths), other_guns)  # "M4A1 (7), Vector (2), +1 more" is the longest text
         self.assertGreater(attachment, kills)      # "10mm Thread Protector" vs "Kills" and "20"
         self.assertGreater(top_gun_kills, guns)    # its header is longer
         self.assertNotEqual(len(set(widths)), 1)   # not 1/n each
+
+    def test_the_viewer_says_once_why_it_cannot_size_columns(self):
+        # e.g. a console whose iris.Table doesn't hand back its column frames
+        after = """local __table = iris.Table
+iris.Table = function(args) local w = __table(args); w.ColumnInstances = nil; return w end
+__frame(); __frame()
+shared.print_attachment_stats("Tester", { view = "guns" }); __frame()"""
+        output = run_script("print_attachment_stats.luau", players_lua(ATTACHMENT_PROFILE),
+                            prelude=viewer_prelude(new_tables=False), after=after)
+        lines = [line for line in output.splitlines() if "table columns stay 1/n wide" in line]
+        self.assertEqual(lines, ["[viewer] table columns stay 1/n wide: iris.Table gave no ColumnInstances (nil)"])
 
 
 @needs_luau

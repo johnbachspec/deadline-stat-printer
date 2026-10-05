@@ -383,12 +383,15 @@ local function column_widths(tbl) -- shares of the table width, from each column
     return tbl.widths
 end
 local function size_columns(widget, tbl) -- Iris before 2.4 gives every column 1/n of the width and never resizes its column frames, so set them once
-    if widget.dsp_sized == tbl or type(widget.ColumnInstances) ~= "table" or not UDim2 then return end
-    widget.dsp_sized = tbl -- (a refreshed report is a new tbl, with new widths)
-    for c, share in ipairs(column_widths(tbl)) do
-        local column = widget.ColumnInstances[c]
-        if column then pcall(function() column.Size = UDim2.new(share, 0, 0, 0) end) end
+    if tbl.sized_for == widget then return end
+    tbl.sized_for = widget -- (marked on our table, not Iris's widget; a refreshed report is a new tbl, with new widths)
+    local columns = type(widget) == "table" and widget.ColumnInstances
+    local problem = (not UDim2 and "this console has no UDim2 type") or (type(columns) ~= "table" and ("iris.Table gave no ColumnInstances (" .. type(columns) .. ")")) or nil
+    for c, share in ipairs(problem and {} or column_widths(tbl)) do
+        local ok, err = pcall(function() columns[c].Size = UDim2.new(share, 0, 0, 0) end)
+        if not ok then problem = "setting a column's Size failed: " .. tostring(err); break end
     end
+    if problem and not viewer.width_problem then viewer.width_problem = problem; print("[viewer] table columns stay 1/n wide: " .. problem) end
 end
 local function draw_table(tbl, ui)
     local rows = visible_rows(tbl, ui)
