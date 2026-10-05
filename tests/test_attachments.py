@@ -171,10 +171,11 @@ print("REFRESHED " .. (__sent - before))"""
         self.assertIn("Window Attachments: Tester", frame)
         self.assertIn("Window Attachments: Tester (by gun M4A1)", frame)
         tables = grids(output)
-        main = next(rows for rows in tables.values() if rows[0][:3] == ["#", "Attachment", "Kills"] and len(rows[0]) == 7)
-        self.assertEqual(main[1], ["1", "10mm Thread Protector", "20", "AKM", "10", "M4A1 (7), Vector (2), +1 more", "4"])
-        by_gun = next(rows for rows in tables.values() if rows[0] == ["#", "Attachment", "Kills"])
-        self.assertEqual(by_gun[1:], [["1", "10mm Thread Protector", "7"]])  # one gun: no "All guns" total
+        main = next(rows for rows in tables.values() if rows[0][:2] == ["Attachment", "Kills"] and len(rows[0]) == 6)
+        self.assertEqual(main[1], ["10mm Thread Protector", "20", "AKM", "10", "M4A1 (7), Vector (2), +1 more", "4"])
+        self.assertEqual(main[2][4], "-")  # an empty cell shows "-", so its column stays in line
+        by_gun = next(rows for rows in tables.values() if rows[0] == ["Attachment", "Kills"])
+        self.assertEqual(by_gun[1:], [["10mm Thread Protector", "7"]])  # one gun: no "All guns" total
         self.assertIn("REFRESHED 1", output)
 
 

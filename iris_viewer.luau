@@ -19,7 +19,7 @@ if not viewer then
     iris:Connect(function() if viewer.draw then viewer.draw() end end)
 end
 local UNESCAPE = { ["\\"] = "\\", t = "\t", n = "\n" }
-local RICH_ESCAPES, EMPTY = { ["<"] = "&lt;", [">"] = "&gt;", ["&"] = "&amp;" }, { "" }
+local RICH_ESCAPES, EMPTY = { ["<"] = "&lt;", [">"] = "&gt;", ["&"] = "&amp;" }, { "-" } -- shown for empty cells: pre-2.4 Iris stacks each column on its own, so an empty (shorter) cell would push the rest of its column out of line
 local SORT_TIP = "Sort by this column. Click again to reverse, a third time for the original order"
 local function fields(line)
     local out = {}
@@ -101,6 +101,7 @@ local function cell(id, args, widget, help) -- widget: iris.Text, or iris.SmallB
 end
 local function styled(row, c, fonts) -- a cell's iris.Text args: rich text in its font (iris_theme.luau), bold for old headers
     local tag = fonts and (row.is_head and fonts.header or (row.number and row.number[c]) and fonts.number or fonts.text) -- (older rows: no .number)
+    if row[c][1] == "" then return EMPTY end -- (display only: sorting and Export still see "")
     if not (tag or row.bold) then return row[c] end
     if row.rich_for ~= (fonts or row) then row.rich, row.rich_for = {}, fonts or row end -- cached until the fonts change
     if not row.rich[c] then

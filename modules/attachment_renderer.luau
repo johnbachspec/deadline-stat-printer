@@ -11,9 +11,12 @@ AttachmentRenderer.__index = AttachmentRenderer
 
 local NAME_COLUMN_MAX = 72 -- longer names overflow their own row instead of widening every row
 
-local ATTACHMENT_COLUMNS = { "#", "Attachment", "Kills", "Top gun", "Top gun kills", "Other guns", "Guns" }
-local ONE_GUN_COLUMNS = { "#", "Attachment", "Kills" }
-local BY_GUN_COLUMNS = { "#", "Attachment", "Kills", "All guns" }
+-- No rank column: rows come most kills first, so it would repeat the Kills order, and
+-- older Iris gives every column the same width, so each column costs the others room.
+-- The console numbers its lines instead.
+local ATTACHMENT_COLUMNS = { "Attachment", "Kills", "Top gun", "Top gun kills", "Other guns", "Guns" }
+local ONE_GUN_COLUMNS = { "Attachment", "Kills" }
+local BY_GUN_COLUMNS = { "Attachment", "Kills", "All guns" }
 local TIPS = {
     attachments = "Every attachment this player has kills with, most kills first\n"
         .. "Kills: kills with it equipped, on every gun   Top gun: the gun it got the most kills on\n"
@@ -63,16 +66,16 @@ function AttachmentRenderer:scope(opts)
     return #parts > 0 and (" " .. table.concat(parts, " ")) or ""
 end
 
--- Console lines, from a row's cells and its name padded to the name column.
-local function kills_line(cells, name)
-    return string.format("#%-3s %s | Kills: %-6s", cells[1], name, cells[3])
+-- Console lines, from a row's cells, its name padded to the name column, and its rank.
+local function kills_line(cells, name, rank)
+    return string.format("#%-3d %s | Kills: %-6s", rank, name, cells[2])
 end
-local function attachment_line(cells, name)
-    local line = kills_line(cells, name) .. string.format(" | Top Gun: %s (%s)", cells[4], cells[5])
-    return cells[6] ~= "" and (line .. " | Also: " .. cells[6]) or line
+local function attachment_line(cells, name, rank)
+    local line = kills_line(cells, name, rank) .. string.format(" | Top Gun: %s (%s)", cells[3], cells[4])
+    return cells[5] ~= "" and (line .. " | Also: " .. cells[5]) or line
 end
-local function by_gun_line(cells, name)
-    return kills_line(cells, name) .. (cells[4] and (" | All guns: " .. cells[4]) or "")
+local function by_gun_line(cells, name, rank)
+    return kills_line(cells, name, rank) .. (cells[3] and (" | All guns: " .. cells[3]) or "")
 end
 
 local function plural(count, word)
@@ -81,7 +84,7 @@ end
 
 -- A view = { banner = console title, intro = Iris-only text or nil, tables = { {
 --   heading = console sub-title or nil, title, open, tip (Iris section),
---   columns, rows = { cell strings }, line = function(cells, padded name) -> console line } } }
+--   columns, rows = { cell strings, the name first }, line = function(cells, padded name, rank) -> console line } } }
 
 -- Every attachment, most kills first. With opts.gun, Kills are kills on that gun and
 -- the gun columns are left out.
@@ -90,8 +93,8 @@ function AttachmentRenderer:attachments_view(aggregated, opts)
     local items, scope, rows = aggregated.items, self:scope(opts), {}
     for i, item in ipairs(items) do
         local name = self.labels:name(item)
-        rows[i] = opts.gun and { tostring(i), name, tostring(item.kills) }
-            or { tostring(i), name, tostring(item.kills), self:gun_name(item.top_gun), tostring(item.top_gun_kills),
+        rows[i] = opts.gun and { name, tostring(item.kills) }
+            or { name, tostring(item.kills), self:gun_name(item.top_gun), tostring(item.top_gun_kills),
                 self:other_guns(item), tostring(#(item.guns or {})) }
     end
     return {
@@ -116,7 +119,7 @@ function AttachmentRenderer:guns_view(by_gun, opts)
     for g, gun in ipairs(by_gun) do
         local rows = {}
         for i, entry in ipairs(gun.items) do
-            rows[i] = { tostring(i), self.labels:name(entry.item), tostring(entry.kills) }
+            rows[i] = { self.labels:name(entry.item), tostring(entry.kills) }
             if all_guns then table.insert(rows[i], tostring(entry.item.kills)) end
         end
         local name, count = self:gun_name(gun.id), plural(#gun.items, "attachment")
@@ -155,10 +158,10 @@ function AttachmentRenderer:print_view(view, limit)
         local shown, hidden = first_rows(tbl.rows, limit)
         local width = 0
         for _, cells in ipairs(shown) do
-            width = math.min(math.max(width, self.fmt.text_width(cells[2])), NAME_COLUMN_MAX)
+            width = math.min(math.max(width, self.fmt.text_width(cells[1])), NAME_COLUMN_MAX)
         end
-        for _, cells in ipairs(shown) do
-            print(tbl.line(cells, self.fmt.pad_right(cells[2], width)))
+        for rank, cells in ipairs(shown) do
+            print(tbl.line(cells, self.fmt.pad_right(cells[1], width), rank))
         end
         if hidden > 0 then
             print(string.format("... %d more not printed here: the Iris window has every row (Export copies them),"
