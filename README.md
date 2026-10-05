@@ -37,7 +37,7 @@ The reports can also open as windows built with [Iris](https://sirmallard.github
 1. In the **Luau client console**, paste the whole of `iris_viewer.luau` and run it (the client console has no `require`). A small "Stat printer" window opens. To never paste it again, copy `client_autorun.txt` (viewer and theme together) into the **Client Autorun** tab instead ([details](IRIS_VIEWER.md#starting-it-automatically-client-autorun)).
 2. In the server console, run `print_player_stats.luau`, `print_attachment_stats.luau` or `cap_announcer.luau` as usual.
 
-Each report opens in its own window, with collapsible sections, filterable and paged tables, and a **Refresh** button. By default the scripts still print to the console as well; set `SHOW_IN` at the top of a script to `"iris"` for windows only or `"console"` for none. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
+Each report opens in its own window, with collapsible sections, filterable and paged tables (click a column header to sort by it), and a **Refresh** button. By default the scripts still print to the console as well; set `SHOW_IN` at the top of a script to `"iris"` for windows only or `"console"` for none. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
 
 To pick colors, spacing, a font or a text size, paste `iris_theme.luau` into the client console as well ([details](IRIS_VIEWER.md#theme-colors-spacing-font-and-text-size)).
 
@@ -55,13 +55,29 @@ Attachments are listed by their in-game names; the "Top Gun" column uses the sam
 
 Names come from `modules/attachment_names.luau` (generated from deadline-balancing `balancing.csv`). An attachment too new to be in that file yet prints as a prettified id, and if that module fails to download the whole list does; the header line says which (`-- names: deadline-balancing 0.25.4`). Set `LOAD_NAMES = false` at the top of the script to skip that download.
 
-After running once, `shared.print_attachment_stats` remains available:
+Each row lists the attachment's top gun, then up to two more guns it has kills on (`| Also: M4A1 (40), Vector (12), +3 more`). The config block at the top of the script picks what to show:
+
+```lua
+local TARGET_GUN = ""            -- one gun only ("AKM", "AK_762" or "AKMN"): kills on that gun
+local SEARCH     = ""            -- only names containing this text, e.g. "eotech", "suppressor"
+local VIEW       = "attachments" -- "attachments": one row each; "guns": grouped by gun
+local TOP_GUNS   = 3             -- guns listed per row; 1 = the top gun only
+```
+
+The `"guns"` view lists every gun the player has attachment kills on, starting with the most-used, and under each gun its attachments by kills on that gun, plus each attachment's total on every gun.
+
+After running once, `shared.print_attachment_stats` remains available. Pass an options table to override the config for one call:
 
 ```lua
 shared.print_attachment_stats()                        -- the first human player found
 shared.print_attachment_stats(players.get("SomeName")) -- a specific player
 shared.print_attachment_stats("SomeName")              -- by name
+shared.print_attachment_stats("SomeName", { gun = "AKM" })                -- kills on one gun
+shared.print_attachment_stats("SomeName", { search = "eotech" })          -- names containing a text
+shared.print_attachment_stats("SomeName", { view = "guns", gun = "M4A1" }) -- options combine
 ```
+
+In the Iris viewer, each different view opens in its own window, e.g. "Attachments: SomeName (by gun M4A1)", and its **Refresh** button keeps those options.
 
 ### Capture Announcer
 
@@ -77,7 +93,7 @@ The console runs Deadline's modding API, documented at [recoil-group.github.io/d
 
 **Weapon table** — one row per weapon: kills, deaths while carrying it, deaths caused by it, w-KDR, share of kills, rounds fired, kills per minute, rounds fired per kill, weapon XP, time used, share of time used, and type. Legacy weapon ids are merged into their current weapon (e.g. `HK416A5` → `KF416`, `AKMN` → `AK_762`, `Glock17`/`Glock20` → `KOSCH`, `Vector` → `SCALAR` and `SA58` → `SG58`, which keep their old names "Vector" and "SA58").
 
-**Attachment stats** — per-attachment kills and top weapon across all guns, by in-game name. Legacy attachment ids are folded into their current ids (`data/renames.csv`: deadline-balancing's rename list plus historical renames added here), and legacy gun ids into their current gun, so renamed or merged parts — e.g. `vector_9mm_bolt` + `vector_45acp_bolt` → `kalis_scalar_std_bcg` ("KALIS Scalar Standard (BCG)") — report unified totals.
+**Attachment stats** — per-attachment kills and the guns with the most kills on it, by in-game name; optionally for one gun, filtered by name, or grouped by gun. Legacy attachment ids are folded into their current ids (`data/renames.csv`: deadline-balancing's rename list plus historical renames added here), and legacy gun ids into their current gun, so renamed or merged parts — e.g. `vector_9mm_bolt` + `vector_45acp_bolt` → `kalis_scalar_std_bcg` ("KALIS Scalar Standard (BCG)") — report unified totals.
 
 ### How to read the numbers
 
@@ -162,10 +178,10 @@ python tools/check_fiu_compat.py
 python -m unittest discover -s tests
 ```
 
-The tests run the console scripts themselves, so they need the `luau` and `luau-compile` CLIs (from a [Luau release](https://github.com/luau-lang/luau/releases)) in `luau_bin/`, on `PATH`, or in the folder `$LUAU_BIN` points to; without them those tests are skipped. To refresh the fixture, run `print_attachment_stats_delimited.luau` in-game and save its output as `tests/fixtures/attachment_stats_output.txt`.
+The tests run the console scripts themselves, so they need the `luau` and `luau-compile` CLIs (from a [Luau release](https://github.com/luau-lang/luau/releases), 0.712 or older: later releases write a bytecode format `check_fiu_compat.py` can't read, so CI pins 0.712) in `luau_bin/`, on `PATH`, or in the folder `$LUAU_BIN` points to; without them those tests are skipped. To refresh the fixture, run `print_attachment_stats_delimited.luau` in-game and save its output as `tests/fixtures/attachment_stats_output.txt`.
 
 ### The Fiu 255-line limit
 
-Deadline's console runs scripts in an old build of the Fiu VM with a line-info bug: it fails to load any function whose code spans more than 255 source lines, before a single line runs, with `Fiu:494: attempt to perform arithmetic (add) on nil and number`. Every function counts, including a file's top level, long `[[...]]` strings and big comment blocks inside it. That is why the generated tables are packed several entries per line. A script's top level runs from its first line to its last, and wrapping the code in a function does not change that, so a script pasted in one piece, like `iris_viewer.luau`, must be 255 lines or fewer in total ([IRIS_VIEWER.md](IRIS_VIEWER.md#the-255-line-limit) has how it stays under). `python tools/check_fiu_compat.py` checks every file the game loads, and CI runs it on every push.
+Deadline's console runs scripts in an old build of the Fiu VM with a line-info bug: it fails to load any function whose code spans more than 255 source lines, before a single line runs, with `Fiu:494: attempt to perform arithmetic (add) on nil and number`. Every function counts, including a file's top level, long `[[...]]` strings and big comment blocks inside it. That is why the generated tables are packed several entries per line. A script's top level runs from its first line to its last, and a plain call to a wrapper function at the end does not change that. A script pasted in one piece, like `iris_viewer.luau`, gets more room by ending its top level early with `return (function(part) part() end)(function() ... end)`: that call sits on the line it starts on, so the top level and the function each get their own 255 lines ([IRIS_VIEWER.md](IRIS_VIEWER.md#the-255-line-limit) has the details). `python tools/check_fiu_compat.py` checks every file the game loads, and CI runs it on every push.
 
 Weapon ids are the exact (case-sensitive) model names under `ReplicatedStorage.data.item` in the game. To add or retype a weapon, edit the tables in `modules/weapon_data.luau`.

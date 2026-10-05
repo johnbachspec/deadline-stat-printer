@@ -40,6 +40,7 @@ After the viewer or theme changes, copy the new `client_autorun.txt` into Client
 In the windows:
 
 - Sections collapse and expand; what you open or close is kept when the report refreshes.
+- Click a column header to sort the table by it: number columns (kills, percentages, times like `1h 2m 3s`) put the most first, text columns go A-Z. Click again to reverse, and a third time to go back to the order the server sent. Cells that aren't numbers, like `N/A`, always go last. The sort is kept when the report refreshes, and the filter and pages work on the sorted rows. Tables with a single row keep a plain header.
 - Tables with more than 12 rows get a filter box (matches any cell, case-insensitive). Tables with more than 50 rows get **< Prev** / **Next >** pages and a **Show all** button that puts every row on one page (**Pages** switches back). Show all on a very long table, like 1,000+ attachments, can cost frame rate, because every visible cell is drawn each frame.
 - Hovering a button or the filter box shows an Iris tooltip explaining it. Hovering a section header shows what that section holds (the weapon section's tip also explains each column); the server sends that text with the section (`report:section(title, open, tip)`), so new sections get their own without changing the viewer. The viewer's `tip(widget, text)` helper draws it (`iris.Tooltip`, skipped if this Iris lacks it) and returns the widget, so it wraps a call without adding a line.
 - **Refresh** asks the server for a fresh copy of that report.
@@ -71,7 +72,7 @@ At the top of `iris_viewer.luau`:
 | `SPACING` | `nil` | `"clear"` (roomier, bigger padding) or `"default"` (compact). |
 | `FONT` | `12187365977` (Rubik) | Font for the tables (`nil` for Iris's font, Code): a Roblox font name, e.g. `"RobotoMono"`, `"BuilderSans"`, `"Ubuntu"`, `"Arial"` (`"?"` prints every name), or a Creator Store font's asset id (the number in its store link), e.g. `12187365977` for [Rubik](https://create.roblox.com/store/asset/12187365977/Rubik), the font Deadline's own menus appear to use. |
 | `FONT_WEIGHT` | `"Regular"` | Weight of the table text: `"Thin"`, `"ExtraLight"`, `"Light"`, `"Regular"`, `"Medium"`, `"SemiBold"`, `"Bold"`, `"ExtraBold"` or `"Heavy"`, for fonts that have that weight. |
-| `HEADER_WEIGHT` | `"Bold"` | Weight of the table headers, in `FONT`; `nil` = same as `FONT_WEIGHT`. With a table font set, headers use this instead of the bold older Iris versions give them. |
+| `HEADER_WEIGHT` | `"Bold"` | Weight of the table headers, in `FONT`; `nil` = same as `FONT_WEIGHT`. With a table font set, headers use this instead of the bold older Iris versions give them. Sortable headers (tables with 2+ rows) are buttons, so they use Iris's own font (`CONSOLE_FONT`) instead. |
 | `TEXT_SIZE` | `14` | Text size in pixels, for everything. |
 | `CONSOLE_FONT` | `"BuilderSansBold"` | Font of every Iris window: the client Luau console itself, plus the stat printer's titles, buttons and section headers. A built-in Roblox font name in quotes, with any weight in the name (`"BuilderSansBold"`, `"GothamBold"`, `"SourceSansBold"`); `nil` leaves it alone. Rubik can't be used here: it isn't built in, and loading it by asset id needs the `Font` type. |
 | `NUMBER_FONT` | `"RobotoMono"` (`nil` = same as `FONT`) | A second font, by name or asset id like `FONT`, for table cells that are only a number: `12,345`, `3.721`, `61.28%`, `$1,234`, `2h 3m 20s`, `7,305 st`. |
@@ -126,11 +127,17 @@ The consoles run scripts in Fiu, a Luau interpreter written in Luau. Iris itself
 
 ### The 255-line limit
 
-The game's Fiu build fails to load any function spanning more than 255 source lines (see the main README's [Fiu section](README.md#the-fiu-255-line-limit)). A file's top level is a function that runs from its first line to its last, and wrapping the code in another function does not help, so the whole pasted file must be **255 lines or fewer**. To keep room:
+The game's Fiu build fails to load any function spanning more than 255 source lines (see the main README's [Fiu section](README.md#the-fiu-255-line-limit)). A file's top level is a function that runs from its first line to its last, so the viewer is split in two:
+
+- **The top level** (settings, `parse`, `viewer.receive`) ends at the line `return (function(drawing) drawing() end)(function() -- drawing ...`. The compiler puts that call, and the `return`, on the line where its argument list opens, and adds no hidden return after a chunk that ends in `return`, so the top level stops there.
+- **The drawing function** (everything from `local depth = 0` to the closing `end)`) is the function passed to that call, with its own 255 lines. It sees every local the top level declared.
+
+The same works in `client_autorun.txt`, where the whole viewer becomes one function passed to `run(...)`. To keep room in each part:
 
 - Put explanations here, not in the file. A comment at the end of a code line is free; a comment on its own line costs a line.
 - No blank lines.
-- Check with `python tools/check_fiu_compat.py` (CI runs it too).
+- Keep the split call's argument list opening on its own first line: a plain call such as `draw_part()` at the end of the file would move the top level's end back to the last line.
+- Check with `python tools/check_fiu_compat.py -v iris_viewer.luau` (CI runs it too). It prints each function's lines, e.g. `main chunk (lines 1-81)`.
 
 ## Troubleshooting
 
