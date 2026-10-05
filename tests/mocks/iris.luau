@@ -49,7 +49,8 @@ local iris = {
   Connect = function(self, fn) __frame_fn = fn end,
   PushConfig = function(t)
     if t.TextSize == nil then -- a push for one widget's colors, not the theme
-      table.insert(__drawn, string.format("PushConfig %s button=%s", tostring(__next_id), tostring(t.ButtonColor)))
+      table.insert(__drawn, string.format("PushConfig %s %s", tostring(__next_id),
+        t.ButtonColor and ("button=" .. tostring(t.ButtonColor)) or ("width=" .. tostring(t.ContentWidth))))
     else
       table.insert(__drawn, string.format("PushConfig %s size=%s font=%s color=%s", tostring(__next_id),
         tostring(t.TextSize), tostring(t.TextFont), tostring(t.TextColor)))

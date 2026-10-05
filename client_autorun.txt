@@ -424,24 +424,24 @@ local function draw_blocks(blocks, ui)
 end
 return (function(windows) windows() end)(function() -- windows: a third part with its own 255 lines (IRIS_VIEWER.md)
 -- Iris's own close button (title bar, top right) can't be seen in-game: its X is a Studio-only image and
--- its background is see-through until hovered. So each window gets its own Close button, red if Color3 exists,
--- on its own row at the right: a blank and the button, spaced by the window's width (Iris before 2.4 can't
--- right-align, and the sandbox can't measure widgets, so the widths are estimates for text size 14).
-local CLOSE_WIDTH, WINDOW_EDGES = 44, 31 -- pixels: the button, and the window's padding + scrollbar
+-- its background is see-through until hovered. So each window gets its own Close button, red if Color3 exists.
 local CLOSE_COLORS = Color3 and { ButtonColor = Color3.fromRGB(170, 35, 25), ButtonHoveredColor = Color3.fromRGB(205, 50, 35),
     ButtonActiveColor = Color3.fromRGB(135, 25, 18) }
-local function close_button(key, window, help) -- closes `window` when clicked; the red push covers this button alone
-    local sized, width = pcall(function() return window.state.size.value.X end)
-    set_id(key .. ":closerow"); open(iris.SameLine({ sized and type(width) == "number" and math.max(0, width - WINDOW_EDGES - CLOSE_WIDTH) or nil }))
-    set_id(key .. ":closegap"); iris.Text({ "" })
-    local red = CLOSE_COLORS and iris.PushConfig
-    if red then set_id(key .. ":closecolors"); red = pcall(iris.PushConfig, CLOSE_COLORS) end
-    set_id(key .. ":close")
-    local ok, button = pcall(iris.SmallButton, { "Close" })
-    if red then pcall(iris.PopConfig) end -- popped even if the button failed, or it would color everything after it
-    if not ok then error(button, 0) end
-    if tip(button, help).clicked() then window.state.isOpened:set(false) end
-    close()
+local FULL_WIDTH = (function() -- the Export box as wide as its window (Iris's ContentWidth is 65%); nil without UDim
+    local ok, width = pcall(function() return UDim and UDim.new(1, 0) or UDim2.new(1, 0, 0, 0).X end)
+    return ok and width and { ContentWidth = width } or nil
+end)()
+local function configured(key, config, widget, args) -- widget(args) with `config` pushed for it alone
+    local pushed = config and iris.PushConfig
+    if pushed then set_id(key .. ":config"); pushed = pcall(iris.PushConfig, config) end
+    set_id(key)
+    local ok, drawn = pcall(widget, args)
+    if pushed then pcall(iris.PopConfig) end -- popped even if the widget failed, or it would style everything after it
+    if not ok then error(drawn, 0) end
+    return drawn
+end
+local function close_button(key, window, help) -- closes `window` when clicked
+    if tip(configured(key .. ":close", CLOSE_COLORS, iris.SmallButton, { "Close" }), help).clicked() then window.state.isOpened:set(false) end
 end
 local function export_text(report, ui) -- the whole report as tab-separated lines: pasted into a spreadsheet, each cell lands in its own column
     local lines, clean = { report.title }, function(value) return (tostring(value or ""):gsub("[\t\r\n]", " ")) end
@@ -470,8 +470,7 @@ local function draw_export(report) -- the Export window: a text box to select an
     if window.state.isOpened.value and window.state.isUncollapsed.value then
         close_button(report.key .. ":export", window, "Close this window (Export opens it again)")
         set_id(report.key .. ":exporthelp"); iris.Text({ "Click in the box, press Ctrl+A then Ctrl+C, and paste into Excel or Google Sheets. Export again after a Refresh or a new sort.", true })
-        set_id(report.key .. ":exportbox")
-        local box = iris.InputText({ "", "", false, true }) -- Text, TextHint, ReadOnly, MultiLine
+        local box = configured(report.key .. ":exportbox", FULL_WIDTH, iris.InputText, { "", "", false, true }) -- Text, TextHint, ReadOnly, MultiLine
         if ui.export_new then box.state.text:set(ui.export) end
         ui.export_new = nil
     end
@@ -492,8 +491,8 @@ local function draw_report(report, index)
     end
     if report.popup then report.popup = false; window.state.isOpened:set(true) end
     if window.state.isOpened.value and window.state.isUncollapsed.value then
-        close_button(report.key, window, "Close this window (the Stat printer window's Show opens it again)")
         set_id(report.key .. ":bar"); open(iris.SameLine())
+        close_button(report.key, window, "Close this window (the Stat printer window's Show opens it again)")
         if report.refresh ~= "" then
             set_id(report.key .. ":refresh")
             if tip(iris.SmallButton({ "Refresh" }), "Ask the server for a fresh copy of this report").clicked() and fire_server then

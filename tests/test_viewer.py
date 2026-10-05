@@ -248,8 +248,22 @@ __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame
         self.assertEqual(len(closes), len(windows))  # the hub, the report and its Export window
         self.assertGreaterEqual(len(windows), 3)
         for i in closes:  # red for this button alone
-            self.assertRegex(frame[i - 1], r"^PushConfig \S+:closecolors button=rgb\(170,35,25\)$")
+            self.assertRegex(frame[i - 1], r"^PushConfig \S+:close:config button=rgb\(170,35,25\)$")
             self.assertEqual(frame[i + 1], "PopConfig")
+
+    def test_export_box_is_as_wide_as_its_window(self):
+        udim = "local UDim = { new = function(scale, offset) return 'udim(' .. scale .. ',' .. offset .. ')' end }\n"
+        for extra, width in ((udim, "udim(1,0)"), ("", None)):  # no UDim type: Iris's own width
+            with self.subTest(width=width):
+                output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE), prelude=viewer_prelude(extra=extra),
+                                    after="__frame(); __click('dsp:stats:Tester:export'); __frame(); __dump()")
+                frame = drawn(output)
+                i = next(i for i, line in enumerate(frame) if line.startswith("InputText "))
+                if width:
+                    self.assertEqual(frame[i - 1], f"PushConfig dsp:stats:Tester:exportbox:config width={width}")
+                    self.assertEqual(frame[i + 1], "PopConfig")
+                else:
+                    self.assertFalse(frame[i - 1].startswith("PushConfig"))
 
     def test_close_button_closes_its_window(self):
         output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(),
@@ -260,17 +274,7 @@ __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame
     def test_close_button_without_color3_is_plain(self):
         output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra="local Color3 = nil\n"),
                             after="__frame(); __dump()")
-        self.assertEqual(drawn(output)[:4], ["Window Stat printer", "SameLine nil", "Text ", "SmallButton Close"])  # no red push
-
-    def test_close_button_sits_at_the_right_of_the_window(self):
-        vector2 = "local Vector2 = { new = function(x, y) return { X = x, Y = y } end }\n"
-        output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE), prelude=viewer_prelude(extra=vector2),
-                            after="__frame(); __dump()")
-        frame = drawn(output)
-        i = frame.index("Window Stats: Tester")
-        # Its own row: a blank, then the button, spaced by the window's width (1180) less the edges and the button.
-        self.assertEqual(frame[i + 1:i + 3], ["SameLine 1105", "Text "])
-        self.assertEqual(frame[i + 4], "SmallButton Close")
+        self.assertEqual(drawn(output)[:2], ["Window Stat printer", "SmallButton Close"])  # no red push
 
     def test_theme_defaults_are_rubik_with_robotomono_numbers(self):
         output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
