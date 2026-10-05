@@ -264,6 +264,8 @@ local function parse(text)
             count = count + 1
             current = { columns = f, rows = {}, slots = {}, header = table.concat(f) ~= "", key = report.key .. ":" .. count .. ":" .. #f }
             table.insert(container.blocks, current)
+        elseif kind == "tips" and current then
+            current.tips = f -- hover text per column header
         elseif kind == "row" and current then
             local cells = { search = string.lower(table.concat(f, " ")), number = {} } -- number: cells that are only a number
             for c, value in ipairs(f) do cells[c] = { value }; cells.number[c] = value:find("%d") and not value:find("[^%d%s,%.%%%$%+%-:/()hmstXP]") end
@@ -417,9 +419,10 @@ local function draw_table(tbl, ui)
         if not tbl.head.is_head then tbl.head.is_head, tbl.head.rich_for = true, nil end -- (older viewers' header rows lack it; restyle them)
         local ids, sort = slot_ids(tbl, 0), ui.sorts[tbl.key]
         for c = 1, n do
-            if #tbl.rows < 2 then cell(ids[c], styled(tbl.head, c, shared.iris_viewer_fonts)) -- nothing to sort: plain header
+            local about = tbl.tips and tbl.tips[c] ~= "" and tbl.tips[c] or nil -- what the column means (server's tips line)
+            if #tbl.rows < 2 then cell(ids[c], styled(tbl.head, c, shared.iris_viewer_fonts), nil, about) -- nothing to sort: plain header
             elseif cell(ids[c], { rich(tbl.columns[c] .. (sort and sort.col == c and (sort.desc and " \u{25BC}" or " \u{25B2}") or "")) },
-                iris.SmallButton, SORT_TIP).clicked() then
+                iris.SmallButton, about and (about .. "\n\n" .. SORT_TIP) or SORT_TIP).clicked() then
                 ui.sorts[tbl.key], ui.pages[tbl.key] = next_sort(tbl, sort, c), 1
             end
         end
@@ -526,7 +529,8 @@ local function draw_report(report, index)
         draw_blocks(report.blocks, ui)
         for _, section in ipairs(report.sections) do
             set_id(section.key)
-            local header = open(tip(iris.CollapsingHeader({ rich(section.title) }), section.tip)) -- tip: sent by the server
+            local header = open(iris.CollapsingHeader({ rich(section.title) }))
+            tip(header, not header.state.isUncollapsed.value and section.tip or nil) -- only while closed: open, Iris counts the whole section as the header
             if section.open and not ui.seen[section.key] then header.state.isUncollapsed:set(true) end
             ui.seen[section.key] = true -- after the first report, keep what the user opened or closed
             if header.state.isUncollapsed.value then draw_blocks(section.blocks, ui) end

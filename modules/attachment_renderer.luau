@@ -14,15 +14,16 @@ local NAME_COLUMN_MAX = 72 -- longer names overflow their own row instead of wid
 local ATTACHMENT_COLUMNS = { "#", "Attachment", "Kills", "Top gun", "Top gun kills", "Other guns", "Guns" }
 local ONE_GUN_COLUMNS = { "#", "Attachment", "Kills" }
 local BY_GUN_COLUMNS = { "#", "Attachment", "Kills", "All guns" }
-local TIPS = {
-    attachments = "Every attachment this player has kills with, most kills first\n"
-        .. "Kills: kills with it equipped, on every gun   Top gun: the gun it got the most kills on\n"
-        .. "Other guns: the next guns by kills   Guns: how many guns it has kills on\n"
-        .. "Click a column header to sort by it",
-    one_gun = "Every attachment this player has kills with on this gun, most kills first\n"
-        .. "Kills: kills on this gun with it equipped   Click a column header to sort by it",
-    by_gun = "Attachments with kills on this gun, most first\nKills: kills on this gun with it equipped",
-    all_guns = "   All guns: its kills on every gun",
+local TIPS = { -- hover text for the viewer's section headers
+    attachments = "Every attachment this player has kills with, most kills first. Hover a column's name for what it means",
+    one_gun = "Every attachment this player has kills with on this gun, most kills first",
+    by_gun = "Attachments with kills on this gun, most first",
+}
+local COLUMN_TIPS = { -- hover text for the viewer's table headers
+    ["#"] = "Rank by kills", ["Kills"] = "Kills with it equipped (in a gun's table: on that gun)",
+    ["Top gun"] = "The gun it got the most kills on", ["Top gun kills"] = "Its kills on that gun",
+    ["Other guns"] = "The next guns by kills", ["Guns"] = "How many guns it has kills on",
+    ["All guns"] = "Its kills on every gun",
 }
 
 -- deps = { weapon_data = WeaponData, labels = AttachmentLabels object, formatters = Formatters,
@@ -124,7 +125,7 @@ function AttachmentRenderer:guns_view(by_gun, opts)
             heading = name .. ": " .. count,
             title = name .. " (" .. count .. ")",
             open = g == 1,
-            tip = TIPS.by_gun .. (all_guns and TIPS.all_guns or ""),
+            tip = TIPS.by_gun,
             columns = all_guns and BY_GUN_COLUMNS or ONE_GUN_COLUMNS,
             rows = rows,
             line = by_gun_line,
@@ -173,7 +174,7 @@ function AttachmentRenderer:add_view(report, view)
     if view.intro then report:text(view.intro) end
     for _, tbl in ipairs(view.tables) do
         report:section(tbl.title, tbl.open, tbl.tip)
-        report:columns(tbl.columns)
+        report:columns_with_tips(tbl.columns, COLUMN_TIPS)
         for _, cells in ipairs(tbl.rows) do report:row(cells) end
     end
 end

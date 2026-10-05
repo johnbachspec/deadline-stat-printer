@@ -15,20 +15,14 @@ local DEATHS_WITH_NOTE   = "Deaths w/ = deaths while carrying the weapon in any 
 local SECTION_TIPS       = { -- hover text for the viewer's section headers
     overall = "Lifetime totals from this player's profile: kills, deaths, headshots, wallbangs, money, XP and time played",
     averages = "Lifetime totals divided by matches played or by minutes alive",
-    weapons = table.concat({ -- one column per line
-        "One row per weapon. % columns are shares of the weapons listed.",
-        "",
-        "Deaths w/  -  deaths while carrying it in any slot (a death counts for every weapon carried)",
-        "Deaths by  -  deaths to it",
-        "w-KDR  -  kills / Deaths w/",
-        "% allK  -  share of kills",
-        "Rds. ct  -  rounds fired",
-        "K/Min  -  kills per minute used",
-        "RFpK  -  rounds fired per kill",
-        "Time used  -  time held",
-        "% allT  -  share of time held",
-        "Type  -  caliber or class",
-    }, "\n"),
+    weapons = "One row per weapon; % columns are shares of the weapons listed. Hover a column's name for what it means",
+}
+local WEAPON_TIPS        = { -- hover text for the viewer's weapon table headers
+    ["Deaths w/"] = "Deaths while carrying it in any slot (a death counts for every weapon carried)",
+    ["Deaths by"] = "Deaths to it", ["w-KDR"] = "Kills / Deaths w/", ["% allK"] = "Share of kills",
+    ["Rds. ct"] = "Rounds fired", ["K/Min"] = "Kills per minute used", ["RFpK"] = "Rounds fired per kill",
+    ["Weapon XP"] = "Weapon XP earned", ["Time used"] = "Time held", ["% allT"] = "Share of time held",
+    ["Type"] = "Caliber or class",
 }
 
 -- deps = { formatters = ..., grid_width = 166 (optional) }
@@ -211,7 +205,7 @@ function Renderer:add_to_report(report, data)
         report:row({ column[1][1], column[1][2], column[2][1], column[2][2] })
     end
     report:section(string.format("Detailed weapon stats (%d weapons)", #data.weapon_list), true, SECTION_TIPS.weapons)
-    report:columns(WEAPON_COLUMNS)
+    report:columns_with_tips(WEAPON_COLUMNS, WEAPON_TIPS)
     for _, w in ipairs(data.weapon_list) do
         report:row(self:weapon_cells(w))
     end

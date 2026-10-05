@@ -48,16 +48,27 @@ print("AGAIN " .. (__sent - before))"""
         after = """__frame(); print("-- idle"); __dump()
 __hover("dsp:stats:Tester:refresh"); __frame(); print("-- hover"); __dump()
 __hover("dsp:hub:clear"); __frame(); print("-- hub"); __dump()
-__hover("dsp:stats:Tester:1"); __frame(); print("-- section"); __dump()"""
+__hover("dsp:stats:Tester:1"); __frame(); print("-- open section"); __dump()
+__widgets["dsp:stats:Tester:1"].state.isUncollapsed.value = false
+__hover("dsp:stats:Tester:1"); __frame(); print("-- section"); __dump()
+local weapons
+for id in pairs(__widgets) do weapons = weapons or id:match("^(dsp:stats:Tester:%d+:13):0:3$") end
+__hover(weapons .. ":0:3"); __frame(); print("-- column"); __dump()"""
         output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE), prelude=viewer_prelude(), after=after)
         steps = dict(part.split("\n", 1) for part in output.split("-- ")[1:])
         self.assertFalse([line for line in drawn(steps["idle"]) if line.startswith("Tooltip")])
         self.assertEqual([line for line in drawn(steps["hover"]) if line.startswith("Tooltip")],
                          ["Tooltip Ask the server for a fresh copy of this report"])
         self.assertIn("Tooltip Forget every report received so far", drawn(steps["hub"]))
+        # Open, Iris counts the whole section as its header, so its tip would cover the table: none.
+        self.assertFalse([line for line in drawn(steps["open section"]) if line.startswith("Tooltip")])
         section_tips = [line for line in drawn(steps["section"]) if line.startswith("Tooltip")]
         self.assertEqual(len(section_tips), 1)  # each section header has its own text, sent by the server
         self.assertIn("Lifetime totals from this player's profile", section_tips[0])
+        column_tips = [line for line in drawn(steps["column"]) if line.startswith("Tooltip")]
+        self.assertEqual(len(column_tips), 1)  # a column header: what it means, then how sorting works
+        self.assertTrue(column_tips[0].startswith("Tooltip Deaths while carrying it in any slot"), column_tips[0])
+        self.assertIn("Sort by this column", column_tips[0])
 
     def test_long_reports_arrive_in_parts_and_page_and_filter(self):
         after = r"""

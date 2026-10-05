@@ -7,9 +7,11 @@
 --   report  <id> <title> <refresh> <popup>   first line; the viewer's Refresh button
 --                                            sends <refresh> back; popup 1 opens the window
 --   section <title> <open 1|0> <tip>         collapsing header holding what follows; tip
---                                            (may be empty) shows when it is hovered
+--                                            (may be empty) shows when it is hovered, closed
 --   text    <text>
 --   columns <name>...                        starts a table (all names "": no header row)
+--   tips    <tip>...                         hover text for the columns line before it, per
+--                                            column ("" for none); older viewers skip it
 --   row     <cell>...
 -- Backslash, tab and newline inside a field are escaped as \\ \t \n. Each message
 -- is "dsp1|<id>|<part>|<parts>|<text>", PART_SIZE bytes of the text at most.
@@ -69,6 +71,15 @@ end
 
 function IrisReport:columns(names)
     return self:add("columns", table.unpack(names))
+end
+
+-- names: column names; tips: {name = hover text}. Adds the columns line, and a tips line if any name has one.
+function IrisReport:columns_with_tips(names, tips)
+    self:columns(names)
+    local out, any = {}, false
+    for i, name in ipairs(names) do out[i] = tips[name] or ""; any = any or out[i] ~= "" end
+    if any then self:add("tips", table.unpack(out)) end
+    return self
 end
 
 function IrisReport:row(cells)
