@@ -277,6 +277,19 @@ __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame
                 else:  # still plain text (no rich text in what you copy)
                     self.assertEqual(frame[i - 1], "PushConfig dsp:stats:Tester:exportbox:config width=nil")
 
+    def test_a_cut_off_column_header_leads_its_tooltip_with_its_name(self):
+        vector2 = "local Vector2 = { new = function(x, y) return { X = x, Y = y } end }\n"
+        after = """__frame(); __widgets["dsp:stats:Tester"].state.size.value = { X = 900, Y = 640 }; __frame()
+local weapons
+for id in pairs(__widgets) do weapons = weapons or id:match("^(dsp:stats:Tester:%d+:13):0:3$") end
+__hover(weapons .. ":0:3"); __hover(weapons .. ":0:1"); __frame(); __dump()"""
+        output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE), prelude=viewer_prelude(extra=vector2), after=after)
+        tips = [line for line in drawn(output) if line.startswith("Tooltip ")]
+        # 13 columns in a 900-wide window: about 9 characters each. "Weapon" fits and "Deaths w/" (9, bold) doesn't.
+        self.assertEqual(len(tips), 2, tips)
+        self.assertTrue(tips[0].startswith("Tooltip Sort by this column"), tips[0])  # Weapon: no tip of its own, and not cut
+        self.assertTrue(tips[1].startswith("Tooltip Deaths w/: Deaths while carrying it"), tips[1])
+
     def test_close_button_closes_its_window(self):
         output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(),
                             after="__frame(); __click('dsp:hub:close'); __frame()\n"

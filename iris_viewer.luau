@@ -108,6 +108,7 @@ if #viewer.order == 0 and fire_server then pcall(fire_server, "dsp1|hello") end 
 return (function(drawing) drawing() end)(function() -- drawing: its own function with its own 255 lines (IRIS_VIEWER.md)
 local depth = 0 -- open Iris containers, so an error can close them again
 local CHAR_PX = 7 -- about how wide a character of 14px text is: a cell with more text than its column fits shows it all on hover
+local HEAD_WIDTH = 1.2 -- a header (bold, in a button) is about this much wider per character; one that doesn't fit leads its tooltip with its name
 local function open(widget) depth = depth + 1; return widget end
 local function close() depth = depth - 1; iris.End() end
 local function slot_ids(tbl, slot) -- widget ids for one visible row (slot 0 is the header)
@@ -218,8 +219,10 @@ local function draw_table(tbl, ui)
         if not tbl.head then tbl.head = { number = {}, bold = not NEW_TABLES }; for c, name in ipairs(tbl.columns) do tbl.head[c] = { name } end end
         if not tbl.head.is_head then tbl.head.is_head, tbl.head.rich_for = true, nil end -- (older viewers' header rows lack it; restyle them)
         local ids, sort = slot_ids(tbl, 0), ui.sorts[tbl.key]
+        local room = ui.width and (ui.width - 40) / n / CHAR_PX -- characters a column shows
         for c = 1, n do
             local about = tbl.tips and tbl.tips[c] ~= "" and tbl.tips[c] or nil -- what the column means (server's tips line)
+            if room and tbl.columns[c] ~= "" and #tbl.columns[c] * HEAD_WIDTH + 1 > room then about = about and (tbl.columns[c] .. ": " .. about) or tbl.columns[c] end
             if #tbl.rows < 2 then cell(ids[c], styled(tbl.head, c, shared.iris_viewer_fonts), nil, about) -- nothing to sort: plain header
             elseif cell(ids[c], { rich(tbl.columns[c] .. (sort and sort.col == c and (sort.desc and " \u{25BC}" or " \u{25B2}") or "")) },
                 iris.SmallButton, about and (about .. "\n\n" .. SORT_TIP) or SORT_TIP).clicked() then
