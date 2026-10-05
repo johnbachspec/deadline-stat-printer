@@ -1,7 +1,7 @@
 -- modules/attachment_renderer.luau
 -- Shows aggregated attachment rows (from attachment_aggregator): a readable
--- table with in-game names (printed, or added to an Iris report), or Lua-table
--- lines that tests/fixtures are made from.
+-- table with in-game names (printed, or added to an Iris report), the same rows
+-- grouped by gun, or Lua-table lines that tests/fixtures are made from.
 -- NOTE: Deadline's Luau console uses a Lua 5.x-style VM ('Fiu') that does not
 -- accept Luau type annotations, so this file intentionally has none.
 
@@ -42,13 +42,15 @@ local function text_width(s)
     return (utf8 and utf8.len(s)) or #s
 end
 
--- deps = { weapon_data = WeaponData, names = attachment_names module or nil }
+-- deps = { weapon_data = WeaponData, names = attachment_names module or nil,
+--         top_guns = how many guns a row lists (default 3; 1 = the top gun only) }
 function AttachmentRenderer.new(deps)
     local names = deps.names
     return setmetatable({
         weapon_data = deps.weapon_data,
         names = (names and names.NAMES) or {},
         names_version = names and names.VERSION,
+        top_guns = math.max(1, tonumber(deps.top_guns) or 3),
     }, AttachmentRenderer)
 end
 
@@ -64,6 +66,41 @@ function AttachmentRenderer:gun_name(gun_id)
     return self.weapon_data.display_name(gun_id)
 end
 
+-- The other guns after the top one, up to top_guns in all: "M4A1 (40), MP5 (3), +2 more".
+function AttachmentRenderer:other_guns(item)
+    local guns, parts = item.guns or {}, {}
+    for i = 2, math.min(#guns, self.top_guns) do
+        table.insert(parts, string.format("%s (%d)", self:gun_name(guns[i].id), guns[i].kills))
+    end
+    if #guns > self.top_guns and self.top_guns > 1 then
+        table.insert(parts, string.format("+%d more", #guns - self.top_guns))
+    end
+    return table.concat(parts, ", ")
+end
+
+-- Only the rows whose in-game name contains `search` (case-insensitive); "" or nil keeps all.
+function AttachmentRenderer:matching(aggregated, search)
+    local query = string.lower(search or "")
+    if query == "" then return aggregated end
+    local items = {}
+    for _, item in ipairs(aggregated.items) do
+        if string.find(string.lower(self:item_name(item)), query, 1, true) then
+            table.insert(items, item)
+        end
+    end
+    return { items = items, legacy_merged = aggregated.legacy_merged }
+end
+
+-- What a view is limited to, for titles: ' on AKM matching "eotech"', or "".
+-- opts = { gun = current gun id or nil, search = text or nil }
+function AttachmentRenderer:scope(opts)
+    opts = opts or {}
+    local parts = {}
+    if opts.gun then table.insert(parts, "on " .. self:gun_name(opts.gun)) end
+    if (opts.search or "") ~= "" then table.insert(parts, string.format('matching "%s"', opts.search)) end
+    return #parts > 0 and (" " .. table.concat(parts, " ")) or ""
+end
+
 function AttachmentRenderer:names_source()
     if self.names_version then
         return "names: deadline-balancing " .. tostring(self.names_version)
@@ -71,35 +108,99 @@ function AttachmentRenderer:names_source()
     return "names: prettified ids (attachment_names module not loaded)"
 end
 
-function AttachmentRenderer:render_table(aggregated)
-    local items = aggregated.items
+-- Names padded to one width (capped at NAME_COLUMN_MAX): name(i) for entry i.
+local function name_column(self, entries, item_of)
     local names, width = {}, 0
-    for i, item in ipairs(items) do
-        names[i] = self:item_name(item)
+    for i, entry in ipairs(entries) do
+        names[i] = self:item_name(item_of and item_of(entry) or entry)
         width = math.min(math.max(width, text_width(names[i])), NAME_COLUMN_MAX)
     end
-    print(string.format("\n================ ALL %d ATTACHMENTS BY KILLS ================", #items))
+    return function(i) return names[i] .. string.rep(" ", math.max(0, width - text_width(names[i]))) end
+end
+
+-- opts (optional): { gun, search } the rows were limited to, for the title. With a
+-- gun, Kills are kills on that gun and the gun columns are left out.
+function AttachmentRenderer:render_table(aggregated, opts)
+    opts = opts or {}
+    local items = aggregated.items
+    local name = name_column(self, items)
+    local scope = self:scope(opts)
+    print(string.format("\n================ %s%d ATTACHMENTS BY KILLS%s ================",
+        scope == "" and "ALL " or "", #items, string.upper(scope)))
     print("-- " .. self:names_source())
     for i, item in ipairs(items) do
-        print(string.format("#%-3d %s | Kills: %-6d | Top Gun: %s (%d)",
-            i,
-            names[i] .. string.rep(" ", math.max(0, width - text_width(names[i]))),
-            item.kills,
-            self:gun_name(item.top_gun),
-            item.top_gun_kills))
+        local line = string.format("#%-3d %s | Kills: %-6d", i, name(i), item.kills)
+        if not opts.gun then
+            line = line .. string.format(" | Top Gun: %s (%d)", self:gun_name(item.top_gun), item.top_gun_kills)
+            local others = self:other_guns(item)
+            if others ~= "" then line = line .. " | Also: " .. others end
+        end
+        print(line)
+    end
+end
+
+-- The rows grouped by gun (attachment_aggregator.by_gun), each gun's attachments
+-- by kills on that gun. With opts.gun the rows only hold that gun's kills, so the
+-- "All guns" total is left out.
+function AttachmentRenderer:render_by_gun(by_gun, opts)
+    local all_guns = not (opts and opts.gun)
+    print(string.format("\n================ ATTACHMENT KILLS BY GUN%s: %d GUNS ================",
+        string.upper(self:scope(opts)), #by_gun))
+    print("-- " .. self:names_source())
+    for _, gun in ipairs(by_gun) do
+        print(string.format("\n---- %s: %d attachment%s ----", self:gun_name(gun.id), #gun.items, #gun.items == 1 and "" or "s"))
+        local name = name_column(self, gun.items, function(entry) return entry.item end)
+        for i, entry in ipairs(gun.items) do
+            print(string.format("#%-3d %s | Kills: %-6d", i, name(i), entry.kills)
+                .. (all_guns and string.format(" | All guns: %d", entry.item.kills) or ""))
+        end
     end
 end
 
 -- The same table for iris_viewer.luau; `report` is a modules/iris_report.luau report.
-function AttachmentRenderer:add_to_report(report, aggregated)
+-- opts as for render_table.
+function AttachmentRenderer:add_to_report(report, aggregated, opts)
+    opts = opts or {}
     local items = aggregated.items
+    local scope = self:scope(opts)
     report:text(self:names_source())
-    report:section(string.format("All %d attachments by kills", #items), true, "Every attachment this player has kills with, most kills first\n"
-        .. "Kills: kills with it equipped   Top gun: the weapon it got the most kills on, with those kills")
-    report:columns({ "Attachment", "Kills", "Top gun (kills)" })
+    if opts.gun then
+        report:section(string.format("%d attachments%s by kills", #items, scope), true,
+            "Every attachment this player has kills with on this gun, most kills first\n"
+            .. "Kills: kills on this gun with it equipped   Click a column header to sort by it")
+        report:columns({ "#", "Attachment", "Kills" })
+        for i, item in ipairs(items) do
+            report:row({ tostring(i), self:item_name(item), tostring(item.kills) })
+        end
+        return
+    end
+    report:section(string.format("%s%d attachments%s by kills", scope == "" and "All " or "", #items, scope), true,
+        "Every attachment this player has kills with, most kills first\n"
+        .. "Kills: kills with it equipped, on every gun   Top gun: the gun it got the most kills on\n"
+        .. "Other guns: the next guns by kills   Guns: how many guns it has kills on\n"
+        .. "Click a column header to sort by it")
+    report:columns({ "#", "Attachment", "Kills", "Top gun", "Top gun kills", "Other guns", "Guns" })
     for i, item in ipairs(items) do
-        report:row({ string.format("%d. %s", i, self:item_name(item)), tostring(item.kills),
-            string.format("%s (%d)", self:gun_name(item.top_gun), item.top_gun_kills) })
+        report:row({ tostring(i), self:item_name(item), tostring(item.kills), self:gun_name(item.top_gun),
+            tostring(item.top_gun_kills), self:other_guns(item), tostring(#(item.guns or {})) })
+    end
+end
+
+-- The by-gun view for iris_viewer.luau: one section per gun, the first one open.
+function AttachmentRenderer:add_by_gun_to_report(report, by_gun, opts)
+    local all_guns = not (opts and opts.gun) -- as in render_by_gun
+    report:text(self:names_source())
+    report:text(string.format("%d guns%s, most-used first. Open a gun to see its attachments.", #by_gun, self:scope(opts)))
+    for g, gun in ipairs(by_gun) do
+        report:section(string.format("%s (%d attachment%s)", self:gun_name(gun.id), #gun.items, #gun.items == 1 and "" or "s"), g == 1,
+            "Attachments with kills on this gun, most first\n"
+            .. "Kills: kills on this gun with it equipped" .. (all_guns and "   All guns: its kills on every gun" or ""))
+        report:columns(all_guns and { "#", "Attachment", "Kills", "All guns" } or { "#", "Attachment", "Kills" })
+        for i, entry in ipairs(gun.items) do
+            local row = { tostring(i), self:item_name(entry.item), tostring(entry.kills) }
+            if all_guns then table.insert(row, tostring(entry.item.kills)) end
+            report:row(row)
+        end
     end
 end
 

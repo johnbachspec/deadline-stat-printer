@@ -1,9 +1,9 @@
 -- iris_viewer.luau: shows the stat printer's reports in Iris windows. Paste it whole into the
 -- CLIENT Luau console (there is no require there). How it works and how to change it: IRIS_VIEWER.md.
--- Must stay 255 lines or fewer (Fiu load limit), so notes go in IRIS_VIEWER.md, not in comments here.
+-- Fiu load limit: the top level and the drawing function below each get 255 lines; notes go in IRIS_VIEWER.md.
 local PAGE_ROWS = 50   -- table rows per page; longer tables get Prev / Next and Show all buttons
 local FILTER_ROWS = 12 -- tables with more rows than this get a filter box
-local WINDOW_SIZES = { stats = { 1180, 640 }, attachments = { 820, 640 }, caps = { 380, 320 } }
+local WINDOW_SIZES = { stats = { 1180, 640 }, attachments = { 1000, 640 }, caps = { 380, 320 } }
 local DEFAULT_SIZE = { 700, 500 }
 local ONLY_FOR = {} -- player names, e.g. { "bachancuc123" }: in Client Autorun, only they get the viewer; {} = everyone
 local allowed = #ONLY_FOR == 0; for _, name in ipairs(ONLY_FOR) do allowed = allowed or name == tostring(local_player) end
@@ -20,6 +20,7 @@ if not viewer then
 end
 local UNESCAPE = { ["\\"] = "\\", t = "\t", n = "\n" }
 local RICH_ESCAPES, EMPTY = { ["<"] = "&lt;", [">"] = "&gt;", ["&"] = "&amp;" }, { "" }
+local SORT_TIP = "Sort by this column. Click again to reverse, a third time for the original order"
 local function fields(line)
     local out = {}
     for field in (line .. "\t"):gmatch("([^\t]*)\t") do table.insert(out, (field:gsub("\\(.)", UNESCAPE))) end
@@ -72,11 +73,12 @@ viewer.receive = function(message) -- one message per part: "dsp1|<id>|<part>|<p
     if not ok then return print("[viewer] could not read report " .. id .. ": " .. tostring(report)) end
     local old = viewer.reports[report.id]
     if not old then table.insert(viewer.order, report.id) end
-    report.ui = old and old.ui or { pages = {}, filters = {}, seen = {} } -- kept across refreshes
+    report.ui = old and old.ui or { pages = {}, filters = {}, seen = {}, sorts = {} } -- kept across refreshes
     local got_time, time_text = pcall(function() return os.date("%H:%M:%S") end)
     report.received = got_time and tostring(time_text) or "?"
     viewer.reports[report.id] = report
 end
+return (function(drawing) drawing() end)(function() -- drawing: its own function with its own 255 lines (IRIS_VIEWER.md)
 local depth = 0 -- open Iris containers, so an error can close them again
 local function open(widget) depth = depth + 1; return widget end
 local function close() depth = depth - 1; iris.End() end
@@ -89,11 +91,12 @@ local function slot_ids(tbl, slot) -- widget ids for one visible row (slot 0 is 
     end
     return ids
 end
-local function cell(id, args)
+local function cell(id, args, widget, help) -- widget: iris.Text, or iris.SmallButton for a sortable header; returns it
     if not NEW_TABLES then iris.NextColumn() end
     set_id(id)
-    iris.Text(args)
+    local drawn = tip((widget or iris.Text)(args), help) -- the tooltip goes before NextColumn, in this cell
     if NEW_TABLES then iris.NextColumn() end
+    return drawn
 end
 local function styled(row, c, fonts) -- a cell's iris.Text args: rich text in its font (iris_theme.luau), bold for old headers
     local tag = fonts and (row.is_head and fonts.header or (row.number and row.number[c]) and fonts.number or fonts.text) -- (older rows: no .number)
@@ -106,14 +109,46 @@ local function styled(row, c, fonts) -- a cell's iris.Text args: rich text in it
     end
     return row.rich[c]
 end
+local function sort_key(row, c) -- number cells by value ("1h 2m 3s" in seconds), others as lower-case text
+    local text = row[c] and row[c][1] or ""
+    if not (row.number and row.number[c]) then return string.lower(text) end
+    local seconds, units = 0, 0
+    if text:find("^[%d%shms]+$") then
+        for n, unit in text:gmatch("(%d+)([hms])") do seconds, units = seconds + tonumber(n) * (unit == "h" and 3600 or unit == "m" and 60 or 1), units + 1 end
+    end
+    return units > 0 and seconds or tonumber((text:gsub(",", ""):match("%-?%d+%.?%d*"))) or 0
+end
+local function sorted_rows(tbl, ui) -- rows in the order a header click picked; sorted once per click or new report
+    local sort = ui.sorts[tbl.key]
+    if not sort then return tbl.rows end
+    if sort.source ~= tbl.rows then
+        local keyed = {}
+        for i, row in ipairs(tbl.rows) do keyed[i] = { row = row, key = sort_key(row, sort.col), i = i } end
+        table.sort(keyed, function(a, b)
+            if a.key == b.key then return a.i < b.i end -- ties keep the server's order
+            if type(a.key) ~= type(b.key) then return type(a.key) < type(b.key) end -- numbers before text
+            return (a.key < b.key) ~= sort.desc
+        end)
+        sort.source, sort.rows = tbl.rows, {}
+        for i, k in ipairs(keyed) do sort.rows[i] = k.row end
+    end
+    return sort.rows
+end
+local function next_sort(tbl, sort, c) -- a header click: number columns most first, text A-Z; again reverses; a third time, server order
+    local first = (tbl.rows[1] and tbl.rows[1].number and tbl.rows[1].number[c]) and true or false
+    if not sort or sort.col ~= c then return { col = c, desc = first } end
+    if sort.desc == first then return { col = c, desc = not first } end
+    return nil
+end
 local function visible_rows(tbl, ui)
-    if #tbl.rows <= FILTER_ROWS then return tbl.rows end
+    local all = sorted_rows(tbl, ui)
+    if #all <= FILTER_ROWS then return all end
     set_id(tbl.key .. ":filter")
     local query = string.lower(tip(iris.InputText({ "Filter", "type to filter rows" }), "Show only rows containing this text (any column)").state.text.value or "")
     local cache = ui.filters[tbl.key]
-    if not (cache and cache.query == query and cache.source == tbl.rows) then
-        cache = { query = query, source = tbl.rows, rows = {} }
-        for _, row in ipairs(tbl.rows) do
+    if not (cache and cache.query == query and cache.source == all) then
+        cache = { query = query, source = all, rows = {} }
+        for _, row in ipairs(all) do
             if row.search:find(query, 1, true) then table.insert(cache.rows, row) end
         end
         ui.filters[tbl.key] = cache
@@ -152,8 +187,14 @@ local function draw_table(tbl, ui)
     if tbl.header then -- the header row, made here so reports received by an older viewer have it too; Iris 2.4+ styles it, older gets bold
         if not tbl.head then tbl.head = { number = {}, bold = not NEW_TABLES }; for c, name in ipairs(tbl.columns) do tbl.head[c] = { name } end end
         if not tbl.head.is_head then tbl.head.is_head, tbl.head.rich_for = true, nil end -- (older viewers' header rows lack it; restyle them)
-        local ids = slot_ids(tbl, 0)
-        for c = 1, n do cell(ids[c], styled(tbl.head, c, shared.iris_viewer_fonts)) end
+        local ids, sort = slot_ids(tbl, 0), ui.sorts[tbl.key]
+        for c = 1, n do
+            if #tbl.rows < 2 then cell(ids[c], styled(tbl.head, c, shared.iris_viewer_fonts)) -- nothing to sort: plain header
+            elseif cell(ids[c], { tbl.columns[c] .. (sort and sort.col == c and (sort.desc and " \u{25BC}" or " \u{25B2}") or "") },
+                iris.SmallButton, SORT_TIP).clicked() then
+                ui.sorts[tbl.key], ui.pages[tbl.key] = next_sort(tbl, sort, c), 1
+            end
+        end
     end
     local first, fonts = (page - 1) * per_page, shared.iris_viewer_fonts
     for slot = 1, math.min(per_page, #rows - first) do
@@ -169,6 +210,7 @@ local function draw_blocks(blocks, ui)
 end
 local function draw_report(report, index)
     local ui = report.ui
+    ui.sorts = ui.sorts or {} -- (reports kept from an older viewer lack it)
     set_id(report.key)
     local window = open(iris.Window({ report.title }))
     if not ui.placed then
@@ -253,3 +295,4 @@ viewer.show = function() viewer.show_hub = true; for _, r in pairs(viewer.report
 viewer.error = nil; viewer.show()
 print(string.format("[viewer] ready (Iris %s tables), %d reports so far. Run a stat script in the server console;"
     .. " shared.iris_viewer.show() reopens closed windows.", NEW_TABLES and "2.4+" or "pre-2.4", #viewer.order))
+end)

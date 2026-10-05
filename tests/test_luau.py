@@ -14,7 +14,7 @@ import build_attachment_names as names_builder  # noqa: E402
 import check_fiu_compat  # noqa: E402
 import build_client_autorun as client_autorun  # noqa: E402
 
-TABLE_ROW = re.compile(r"^#\d+\s+(.*?)\s*\| Kills: (\d+)\s*\| Top Gun: (.*) \((\d+)\)$")
+TABLE_ROW = re.compile(r"^#\d+\s+(.*?)\s*\| Kills: (\d+)\s*\| Top Gun: (.*?) \((\d+)\)(?: \| Also: .*)?$")
 
 
 def weapon_display_names():
@@ -103,6 +103,73 @@ class TestAttachmentPrinter(unittest.TestCase):
         self.assertEqual(sorted(r[1:] for r in printed),
                          sorted(r[1:] for r in expected_table_rows(self.rows, with_names=False)))
         self.assertIn("Aft Mk20 Gas Block", [r[0] for r in printed])
+
+
+ATTACHMENT_PROFILE = """{ weapon = {
+  AK_762 = { attachment_stats = { ["10mm_thread_protector"] = { kills = 10 }, ["15mm_cqr"] = { kills = 4 } } },
+  AKMN = { attachment_stats = { ["15mm_cqr"] = { kills = 3 } } },
+  M4A1 = { attachment_stats = { ["10mm_thread_protector"] = { kills = 7 } } },
+  SCALAR = { attachment_stats = { ["10mm_thread_protector"] = { kills = 2 } } },
+  MP5 = { attachment_stats = { ["10mm_thread_protector"] = { kills = 1 } } },
+} }"""
+
+
+@needs_luau
+class TestAttachmentViews(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.players = players_lua(ATTACHMENT_PROFILE)
+
+    def test_rows_list_the_next_guns(self):
+        output = run_script("print_attachment_stats.luau", self.players)
+        self.assertIn("10mm Thread Protector | Kills: 20     | Top Gun: AKM (10) | Also: M4A1 (7), Vector (2), +1 more",
+                      output)
+        self.assertIn("CQR 15mm              | Kills: 7      | Top Gun: AKM (7)", output)  # AKMN folds into AKM
+        self.assertEqual([r[1] for r in parse_table(output)], [20, 7])
+
+    def test_one_gun_only(self):
+        output = run_script("print_attachment_stats.luau", self.players,
+                            after="shared.print_attachment_stats('Tester', { gun = 'akmn' })")
+        part = output.split("ATTACHMENTS BY KILLS ON AKM")[1]
+        self.assertIn("#1   10mm Thread Protector | Kills: 10", part)
+        self.assertIn("#2   CQR 15mm              | Kills: 7", part)
+        self.assertNotIn("Top Gun", part)
+
+    def test_search_and_unknown_gun(self):
+        output = run_script("print_attachment_stats.luau", self.players,
+                            after="shared.print_attachment_stats('Tester', { search = 'CQR' })\n"
+                                  "shared.print_attachment_stats('Tester', { gun = 'Nope' })")
+        part = output.split('1 ATTACHMENTS BY KILLS MATCHING "CQR"')[1].split("[iris]")[0]
+        self.assertEqual([r[0] for r in parse_table(part)], ["CQR 15mm"])
+        self.assertIn('No attachment kills on Nope. "Nope" is not a gun this script knows', output)
+
+    def test_grouped_by_gun(self):
+        output = run_script("print_attachment_stats.luau", self.players,
+                            after="shared.print_attachment_stats('Tester', { view = 'guns' })\n"
+                                  "shared.print_attachment_stats('Tester', { view = 'nope' })")
+        part = output.split("ATTACHMENT KILLS BY GUN: 4 GUNS")[1]
+        guns = re.findall(r"^---- (.*): (\d+) attachments? ----$", part, re.M)
+        self.assertEqual(guns, [("AKM", "2"), ("M4A1", "1"), ("Vector", "1"), ("MP5", "1")])
+        self.assertIn("#2   CQR 15mm              | Kills: 7      | All guns: 7", part)
+        self.assertIn('Unknown view "nope"', output)
+
+    def test_iris_windows_for_each_view_and_refresh(self):
+        after = """
+shared.print_attachment_stats("Tester", { view = "guns", gun = "M4A1" })
+__frame(); __dump()
+local before = __sent
+__click("dsp:attachments:Tester:by gun M4A1:refresh"); __frame()
+print("REFRESHED " .. (__sent - before))"""
+        output = run_script("print_attachment_stats.luau", self.players, prelude=viewer_prelude(), after=after)
+        frame = drawn(output)
+        self.assertIn("Window Attachments: Tester", frame)
+        self.assertIn("Window Attachments: Tester (by gun M4A1)", frame)
+        tables = grids(output)
+        main = next(rows for rows in tables.values() if rows[0][:3] == ["#", "Attachment", "Kills"] and len(rows[0]) == 7)
+        self.assertEqual(main[1], ["1", "10mm Thread Protector", "20", "AKM", "10", "M4A1 (7), Vector (2), +1 more", "4"])
+        by_gun = next(rows for rows in tables.values() if rows[0] == ["#", "Attachment", "Kills"])
+        self.assertEqual(by_gun[1:], [["1", "10mm Thread Protector", "7"]])  # one gun: no "All guns" total
+        self.assertIn("REFRESHED 1", output)
 
 
 @needs_luau
@@ -340,7 +407,7 @@ local function __make(kind, container)
     local text, parent = args and args[1], __stack[#__stack]
     if text == "boom" then error("boom") end
     if __pushed and __pushed.reject then error("Unable to assign property FontFace. Font expected, got EnumItem") end
-    if kind == "Text" and parent and parent.kind == "Table" then
+    if (kind == "Text" or kind == "SmallButton") and parent and parent.kind == "Table" then  -- sortable headers are buttons
       if not __new_tables then parent.row = math.ceil(parent.index / parent.n); parent.col = (parent.index - 1) % parent.n + 1 end
       __grids[parent.id] = __grids[parent.id] or {}
       local g = __grids[parent.id]; g[parent.row] = g[parent.row] or {}; g[parent.row][parent.col] = text
@@ -470,7 +537,7 @@ class TestIrisViewer(unittest.TestCase):
                 self.assertEqual((vector[1], vector[-1]), ("950", "SMG"))
                 recap = only_table(output, 6)
                 self.assertEqual(recap[1][:2], ["Kills:", "3,000"])
-                self.assertEqual("<b>weapon</b>" in output, not new_tables)  # pre-2.4 Iris: bold header row
+                self.assertNotIn("<b>weapon</b>", output)  # a sortable header is a button, not bold text
 
     def test_refresh_asks_the_server_for_a_new_copy(self):
         after = """__frame()
@@ -533,6 +600,76 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
         self.assertIn("SmallButton Pages", drawn(pages["all"]))
         self.assertNotIn("SmallButton Next >", drawn(pages["all"]))
 
+    def test_clicking_a_header_sorts_the_table(self):
+        after = r"""
+local R = require("x/modules/iris_report.luau")
+local function send(extra)
+  local report = R.new("attachments:Sort", "Sort", nil)
+  report:section("All", true)
+  report:columns({ "Name", "Kills", "Time", "Walked" })
+  report:row({ "bravo", "1,200", "1h  0m  0s", "7,305 st" })
+  report:row({ "alpha", "1,200", "2m 30s", "12 st" })
+  report:row({ "charlie", "95", "45s", "300 st" })
+  report:row({ "delta", "N/A", "1h 30m  0s", "1 st" })
+  if extra then report:row(extra) end
+  for _, m in ipairs(report:messages()) do __deliver(m) end
+end
+local key = "dsp:attachments:Sort:2:4:0:"
+send(); __frame(); print("-- start"); __dump()
+__click(key .. "2"); __frame(); __frame(); print("-- kills"); __dump()
+__click(key .. "2"); __frame(); __frame(); print("-- kills again"); __dump()
+__click(key .. "2"); __frame(); __frame(); print("-- kills third"); __dump()
+__click(key .. "1"); __frame(); __frame(); print("-- name"); __dump()
+__click(key .. "3"); __frame(); __frame(); print("-- time"); __dump()
+__click(key .. "4"); __frame(); __frame(); print("-- walked"); __dump()
+send({ "echo", "1", "1s", "99,999 st" }); __frame(); print("-- refreshed"); __dump()
+__hover(key .. "4"); __frame(); print("-- hover"); __dump()
+"""
+        output = run_script("iris_viewer.luau", "nil", prelude=IRIS_MOCKS.replace("__NEW_TABLES__", "true"), after=after)
+        steps = dict(part.split("\n", 1) for part in output.split("-- ")[1:])
+
+        def names(step):
+            return [row[0] for row in only_table(steps[step], 4)[1:]]
+
+        self.assertEqual(names("start"), ["bravo", "alpha", "charlie", "delta"])
+        self.assertEqual(names("kills"), ["bravo", "alpha", "charlie", "delta"])  # most first; ties keep order; text last
+        self.assertEqual(only_table(steps["kills"], 4)[0][:2], ["Name", "Kills \u25bc"])
+        self.assertEqual(names("kills again"), ["charlie", "bravo", "alpha", "delta"])  # text stays last
+        self.assertEqual(only_table(steps["kills again"], 4)[0][1], "Kills \u25b2")
+        self.assertEqual(names("kills third"), ["bravo", "alpha", "charlie", "delta"])  # back to the server's order
+        self.assertEqual(names("name"), ["alpha", "bravo", "charlie", "delta"])  # text: A-Z first
+        self.assertEqual(names("time"), ["delta", "bravo", "alpha", "charlie"])  # "1h 30m 0s" > "1h 0m 0s" > "2m 30s"
+        self.assertEqual(names("walked"), ["bravo", "charlie", "alpha", "delta"])  # "st" is not seconds
+        self.assertEqual(names("refreshed"), ["echo", "bravo", "charlie", "alpha", "delta"])  # a new copy keeps the sort
+        self.assertIn("Tooltip Sort by this column. Click again to reverse, a third time for the original order",
+                      drawn(steps["hover"]))
+
+    def test_sorting_works_with_paging_filter_and_old_tables(self):
+        after = r"""
+local R = require("x/modules/iris_report.luau")
+local report = R.new("attachments:Big", "Big", nil)
+report:section("All", true)
+report:columns({ "Name", "Kills" })
+for i = 1, 120 do report:row({ "row " .. i, tostring(i) }) end
+for _, m in ipairs(report:messages()) do __deliver(m) end
+__frame()
+__click("dsp:attachments:Big:2:2:0:2"); __frame(); __frame(); print("-- sorted"); __dump()
+__widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame(); print("-- filtered"); __dump()
+"""
+        for new_tables in (True, False):
+            with self.subTest(new_tables=new_tables):
+                output = run_script("iris_viewer.luau", "nil",
+                                    prelude=IRIS_MOCKS.replace("__NEW_TABLES__", "true" if new_tables else "false"),
+                                    after=after)
+                steps = dict(part.split("\n", 1) for part in output.split("-- ")[1:])
+                sorted_rows = only_table(steps["sorted"], 2)
+                self.assertEqual(sorted_rows[0], ["Name", "Kills \u25bc"])
+                self.assertEqual([r[1] for r in sorted_rows[1:4]], ["120", "119", "118"])
+                self.assertEqual(len(sorted_rows), 1 + 50)  # still paged
+                filtered = [r[0] for r in only_table(steps["filtered"], 2)[1:]]
+                self.assertEqual(filtered, ["row 119", "row 118", "row 117", "row 116", "row 115", "row 114",
+                                            "row 113", "row 112", "row 111", "row 110", "row 11"])
+
     def test_only_for_limits_the_viewer_to_named_players(self):
         viewer = (ROOT / "iris_viewer.luau").read_text(encoding="utf-8")
         self.assertIn("local ONLY_FOR = {}", viewer)
@@ -571,8 +708,8 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
         vector = next(row for row in weapons if "Vector" in row[0])
         self.assertEqual(vector[:2], ['<font family="rbxassetid://12187365977" weight="400">Vector</font>',
                                       '<font face="RobotoMono" weight="400">950</font>'])  # content Regular
-        self.assertEqual(weapons[0][0], '<font family="rbxassetid://12187365977" weight="700">weapon</font>')  # headers Bold
-        self.assertNotIn("<b>", output)  # a header font replaces the old bold headers
+        self.assertEqual(weapons[0][0], "weapon")  # a sortable header is a button, in Iris's own font
+        self.assertNotIn("<b>", output)
 
     def test_console_font_sets_every_iris_window(self):
         # Iris's global font reaches the client console window too; without the Font type
@@ -680,7 +817,7 @@ end"""
                 self.assertIn("titles and buttons: Iris's font", output)
                 self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)")
                 weapons = only_table(output, 13)
-                self.assertEqual(weapons[0][0], f"{text}weapon</font>")  # header (bold tags removed by grids())
+                self.assertEqual(weapons[0][0], "weapon")  # sortable header: a button in Iris's font
                 vector = next(row for row in weapons if row[0] == f"{text}Vector</font>")
                 self.assertEqual((vector[1], vector[12]), (f"{number}950</font>", f"{text}SMG</font>"))
                 self.assertEqual(only_table(output, 6)[1][:2], [f"{text}Kills:</font>", f"{number}3,000</font>"])
@@ -760,13 +897,17 @@ __frame(); __dump()"""
         self.assertFalse(any(line.startswith("Text Error") for line in drawn(output)))
         text = '<font family="rbxassetid://12187365977">'
         weapons = only_table(output, 13)
-        self.assertEqual(weapons[0][0], f"{text}weapon</font>")
+        self.assertEqual(weapons[0][0], "weapon")
         self.assertIn([f"{text}Vector</font>", f"{text}950</font>"], [row[:2] for row in weapons])
 
     def test_header_rows_from_an_older_viewer_get_the_header_weight(self):
         # An older viewer built and styled header rows without the is_head marker; they must
         # switch to HEADER_WEIGHT instead of keeping the content weight they were cached with.
+        # (Only a table with one row keeps a text header; longer ones get sort buttons.)
         after = """
+local R = require("x/modules/iris_report.luau")
+local one = R.new("one", "One", nil); one:section("S", true); one:columns({ "weapon", "kills" }); one:row({ "M4A1 Block", "5" })
+for _, m in ipairs(one:messages()) do __deliver(m) end
 local fonts = shared.iris_viewer_fonts
 for _, report in pairs(shared.iris_viewer.reports) do
   for _, section in ipairs(report.sections) do
@@ -782,9 +923,8 @@ for _, report in pairs(shared.iris_viewer.reports) do
   end
 end
 __frame(); __dump()"""
-        output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
-                            prelude=viewer_prelude(False, extra=self.theme_source()), after=after)
-        weapons = only_table(output, 13)
+        output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(False, extra=self.theme_source()), after=after)
+        weapons = only_table(output, 2)
         self.assertEqual(weapons[0][0], '<font family="rbxassetid://12187365977" weight="700">weapon</font>')
         self.assertEqual(weapons[1][0][:57], '<font family="rbxassetid://12187365977" weight="400">M4A1')
 

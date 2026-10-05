@@ -1,11 +1,18 @@
 name: Set up Luau
 description: Installs the luau and luau-compile CLIs and points LUAU_BIN at them (read by tools/deadline_data.py).
+inputs:
+  version:
+    description: >-
+      Luau release to install. Pinned, not "latest": tools/check_fiu_compat.py reads
+      luau-compile's bytecode, and 0.712 is the last release that writes version 6, the
+      format it understands (0.713 writes 7, 0.716 writes 9, 0.741 writes 14).
+    default: "0.712"
 runs:
   using: composite
   steps:
     - shell: bash
       run: |
-        curl -sSfL -o "$RUNNER_TEMP/luau.zip" https://github.com/luau-lang/luau/releases/latest/download/luau-ubuntu.zip
+        curl -sSfL -o "$RUNNER_TEMP/luau.zip" "https://github.com/luau-lang/luau/releases/download/${{ inputs.version }}/luau-ubuntu.zip"
         unzip -q -o "$RUNNER_TEMP/luau.zip" -d "$RUNNER_TEMP/luau"
         chmod +x "$RUNNER_TEMP/luau/luau" "$RUNNER_TEMP/luau/luau-compile"
         echo "LUAU_BIN=$RUNNER_TEMP/luau" >> "$GITHUB_ENV"
