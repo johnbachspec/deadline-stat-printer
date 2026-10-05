@@ -21,7 +21,7 @@ concurrency:
 
 jobs:
   sync:
-    runs-on: ubuntu-24.04 # pinned: ubuntu-latest becomes Ubuntu 26 from 2026-10-19; move up on purpose, after a test run
+    runs-on: ubuntu-26.04 # pinned: move up on purpose, after a manual Check run on the new image
     steps:
       - uses: actions/checkout@v5
 
