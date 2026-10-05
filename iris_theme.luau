@@ -49,7 +49,7 @@ local DEADLINE_GREYS = {
     TableBorderStrongColor = 60, TableBorderLightColor = 36, TableRowBgColor = 0, TableRowBgAltColor = 255,
 }
 local DEADLINE_TRANSPARENCIES = {
-    WindowBgTransparency = 0.04, TitleBgTransparency = 0, TitleBgActiveTransparency = 0,
+    WindowBgTransparency = 0, TitleBgTransparency = 0, -- opaque: a window behind must not show through TitleBgActiveTransparency = 0,
     ButtonTransparency = 0, HeaderTransparency = 0, FrameBgTransparency = 0,
     TableRowBgTransparency = 1, TableRowBgAltTransparency = 0.95,
 }

@@ -61,7 +61,7 @@ def render(pairs):
 
 def split_markers(text):
     if BEGIN not in text or END not in text:
-        raise SystemExit(f"{BEGIN} / {END} markers not found in {dd.ATTACHMENT_DATA_LUAU.name}")
+        raise dd.DataError(f"{BEGIN} / {END} markers not found in {dd.ATTACHMENT_DATA_LUAU.name}")
     body_start = text.index("\n", text.index(BEGIN)) + 1
     body_end = text.index(END)
     return text[:body_start], text[body_start:body_end], text[body_end:]
@@ -86,4 +86,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+    raise SystemExit(dd.run_cli(main, sys.argv))

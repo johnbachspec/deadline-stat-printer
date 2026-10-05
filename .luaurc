@@ -1,0 +1,11 @@
+{
+    "languageMode": "nonstrict",
+    "lint": { "*": true, "LocalShadow": false, "SameLineStatement": false, "FunctionUnused": false },
+    "globals": [
+        "Color3", "Enum", "Font", "Vector2", "Vector3",
+        "chat", "config", "create_instance", "fire_server", "game", "game_data", "gamemode", "iris",
+        "local_player", "map", "on_client_event", "on_player_died", "on_player_joined", "on_player_left",
+        "on_player_spawned", "on_server_event", "players", "query", "script", "shared", "sharedvars",
+        "sharedvars_descriptions", "sound", "spawning", "tags", "task", "time", "weapons"
+    ]
+}

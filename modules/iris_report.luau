@@ -38,6 +38,17 @@ function IrisReport.new(id, title, refresh)
     return self
 end
 
+-- The `refresh` field for IrisReport.new: what the viewer's Refresh button sends back,
+-- "<kind>|<field>|<field>...". IrisBridge.serve's build gets the fields back as its
+-- arguments. "|" inside a field is dropped, since it separates them.
+function IrisReport.refresh_request(kind, ...)
+    local parts = { kind }
+    for i = 1, select("#", ...) do
+        parts[i + 1] = (tostring((select(i, ...)) or ""):gsub("|", ""))
+    end
+    return table.concat(parts, "|")
+end
+
 function IrisReport:add(kind, ...)
     local fields = { kind }
     for i = 1, select("#", ...) do

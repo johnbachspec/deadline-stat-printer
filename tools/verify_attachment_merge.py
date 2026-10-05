@@ -58,4 +58,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+    raise SystemExit(dd.run_cli(main, sys.argv))

@@ -21,7 +21,7 @@ class TestRenameHelpers(unittest.TestCase):
 
     def test_parse_renames_rejects_bad_files(self):
         for text in ["old,new\na,b\n", "old_name,new_name\na,b\na,c\n", "old_name,new_name\na\n", 'old_name,new_name\na",b\n']:
-            with self.assertRaises(SystemExit):
+            with self.assertRaises(dd.DataError):
                 dd.parse_renames(text)
 
     def test_resolve_follows_chains_and_survives_cycles(self):
@@ -42,7 +42,7 @@ class TestRenameHelpers(unittest.TestCase):
             path.write_text("old_name,new_name\na,b\nb,c\n", encoding="utf-8")
             self.assertEqual(rename.read_renames(path), {"a": "c", "b": "c"})
             path.write_text("old_name,new_name\na,b\na,c\n", encoding="utf-8")
-            with self.assertRaises(SystemExit):  # the same duplicate check the Luau alias builder uses
+            with self.assertRaises(dd.DataError):  # the same duplicate check the Luau alias builder uses
                 rename.read_renames(path)
 
 
@@ -107,7 +107,7 @@ class TestGroupValidation(unittest.TestCase):
                                   ("SCARH,X\naft_stock_connector,X\n", "not a known"),
                                   ("aft_stock_connector,X\naft_stock_connector,X\n", "twice")]:
                 path.write_text("id,group\n" + body, encoding="utf-8")
-                with self.assertRaises(SystemExit) as ctx:
+                with self.assertRaises(dd.DataError) as ctx:
                     names_builder.load_groups(names, path)
                 self.assertIn(problem, str(ctx.exception))
 

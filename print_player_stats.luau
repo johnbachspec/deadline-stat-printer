@@ -79,7 +79,7 @@ end
 local function iris_report(data, filter, target, sort_by)
     local name = tostring(data.player_name)
     local report = IrisReport.new("stats:" .. name, "Stats: " .. name,
-        table.concat({ "stats", name, filter, target, sort_by }, "|"))
+        IrisReport.refresh_request("stats", name, filter, target, sort_by))
     if target ~= "" or filter ~= "" then
         local shown = target ~= "" and target or (filter .. " weapons")
         report:text("Weapon table: only " .. shown .. ". The recap covers every weapon.")
@@ -109,7 +109,7 @@ local function print_player_stats(player, options_or_filter, target_override, so
 
     local target_p = PlayerLookup.find(players, player)
     if not target_p then
-        print(string.format("Player '%s' not found or has no profile stats.", tostring(player)))
+        print(PlayerLookup.not_found(player))
         return nil
     end
 
@@ -134,8 +134,8 @@ if shared then
 end
 
 if SHOW_IN ~= "console" then
-    IrisBridge.serve(CONSOLE, "stats", function(arg)
-        local name, filter, target, sort_by = arg:match("^(.-)|(.-)|(.-)|(.*)$")
+    IrisBridge.serve(CONSOLE, "stats", function(name, filter, target, sort_by)
+        filter, target, sort_by = filter or "", target or "", sort_by or ""
         local player = name and PlayerLookup.find(players, name)
         if player then
             return iris_report(collect(player, filter, target, sort_by), filter, target, sort_by)

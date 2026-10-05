@@ -8,6 +8,7 @@ luau-compile).
 import csv
 import io
 import re
+import sys
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -34,6 +35,22 @@ EXPECTED_MERGES_CSV = FIXTURES / "expected_merges.csv"
 UPSTREAM_BASE = "https://raw.githubusercontent.com/recoil-group/deadline-balancing/main/"
 
 
+# --- errors ----------------------------------------------------------------
+
+class DataError(ValueError):
+    """A data file is missing, malformed, or doesn't agree with the others."""
+
+
+def run_cli(main, *args):
+    """Runs a tool's main(*args): a DataError ends it with "error: ..." and exit code 1
+    instead of a traceback. Library code raises; only the tools decide to exit."""
+    try:
+        return main(*args)
+    except DataError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
+
 # --- CSV -------------------------------------------------------------------
 
 def read_table(path, header):
@@ -45,7 +62,7 @@ def read_table(path, header):
 def parse_table(text, header, name):
     rows = list(csv.reader(io.StringIO(text)))
     if not rows or [c.strip() for c in rows[0][:len(header)]] != list(header):
-        raise SystemExit(f"unexpected header in {name}: {rows[0] if rows else None} (expected {list(header)})")
+        raise DataError(f"unexpected header in {name}: {rows[0] if rows else None} (expected {list(header)})")
     return [[c.strip() for c in r] for r in rows[1:] if any(c.strip() for c in r)]
 
 
@@ -56,13 +73,13 @@ def parse_renames(text, name="renames.csv"):
     rows = parse_table(text, ["old_name", "new_name"], name)
     pairs = [(r[0], r[1]) for r in rows if len(r) == 2 and r[0] and r[1]]
     if len(pairs) != len(rows):
-        raise SystemExit(f"malformed (non old,new) rows in {name}")
+        raise DataError(f"malformed (non old,new) rows in {name}")
     dupes = sorted(k for k, c in Counter(o for o, _ in pairs).items() if c > 1)
     if dupes:
-        raise SystemExit(f"duplicate old_name entries in {name}: {dupes}")
+        raise DataError(f"duplicate old_name entries in {name}: {dupes}")
     for o, n in pairs:
         if any(c in o + n for c in '"\\'):
-            raise SystemExit(f"id needs Luau escaping: {o!r} -> {n!r}")
+            raise DataError(f"id needs Luau escaping: {o!r} -> {n!r}")
     return sorted(pairs, key=lambda p: p[0].lower())
 
 
@@ -96,7 +113,11 @@ def final_renames(pairs):
 
 def load_weapon_aliases(path=WEAPON_DATA_LUAU):
     """Legacy gun id -> current gun id, read from WeaponData.ALIASES in modules/weapon_data.luau."""
-    return dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"', luau_table_body(path, "WeaponData.ALIASES")))
+    try:
+        body = luau_table_body(path, "WeaponData.ALIASES")
+    except LookupError as error:
+        raise DataError(str(error)) from error
+    return dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"', body))
 
 
 # --- downloads -------------------------------------------------------------

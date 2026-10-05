@@ -70,7 +70,7 @@ viewer.receive = function(message) -- one message per part: "dsp1|<id>|<part>|<p
     for i = 1, parts do if not pending[i] then return end end
     viewer.parts[id] = nil
     local ok, report = pcall(parse, table.concat(pending))
-    if not ok then return print("[viewer] could not read report " .. id .. ": " .. tostring(report)) end
+    if not ok then print("[viewer] could not read report " .. id .. ": " .. tostring(report)); return end
     local old = viewer.reports[report.id]
     if not old then table.insert(viewer.order, report.id) end
     report.ui = old and old.ui or { pages = {}, filters = {}, seen = {}, sorts = {} } -- kept across refreshes
@@ -115,7 +115,7 @@ local function sort_key(row, c) -- number cells by value ("1h 2m 3s" in seconds)
     if not (row.number and row.number[c]) then return string.lower(text) end
     local seconds, units = 0, 0
     if text:find("^[%d%shms]+$") then
-        for n, unit in text:gmatch("(%d+)([hms])") do seconds, units = seconds + tonumber(n) * (unit == "h" and 3600 or unit == "m" and 60 or 1), units + 1 end
+        for n, unit in text:gmatch("(%d+)([hms])") do seconds, units = seconds + (tonumber(n) or 0) * (unit == "h" and 3600 or unit == "m" and 60 or 1), units + 1 end
     end
     return units > 0 and seconds or tonumber((text:gsub(",", ""):match("%-?%d+%.?%d*"))) or 0
 end
@@ -267,7 +267,7 @@ local function draw_report(report, index)
         end
         set_id(report.key .. ":export")
         if tip(iris.SmallButton({ "Export" }), "Show this report as text to copy into Excel or Google Sheets").clicked() then ui.export, ui.export_new = export_text(report, ui), true end
-        set_id(report.key .. ":updated"); iris.Text({ "updated " .. report.received })
+        set_id(report.key .. ":updated"); iris.Text({ "Updated " .. report.received })
         close()
         draw_blocks(report.blocks, ui)
         for _, section in ipairs(report.sections) do

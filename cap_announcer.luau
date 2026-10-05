@@ -107,7 +107,7 @@ local last = {} -- player id -> captures at the previous check; nil until first 
 local recent = {} -- "12:03:10  Alice captured a point (2 this match)", newest first
 
 local function captures_report()
-    local report = IrisReport.new("caps", "Captures", "caps|")
+    local report = IrisReport.new("caps", "Captures", IrisReport.refresh_request("caps"))
     report:section("Captures this match", true, "Objective captures per player since the match started, most first")
     local rows = standings()
     if #rows == 0 then report:text("No captures yet this match") end
@@ -170,7 +170,7 @@ end
 local chat_connection = nil
 if CHAT_COMMAND ~= "" and chat and chat.player_chatted then
     chat_connection = chat.player_chatted:Connect(function(sender, channel, content)
-        if type(content) == "string" and string.lower(string.match(content, "^%s*(.-)%s*$")) == CHAT_COMMAND then
+        if type(content) == "string" and string.lower(string.match(content, "^%s*(.-)%s*$") or "") == CHAT_COMMAND then
             announce(standings_text())
         end
     end)

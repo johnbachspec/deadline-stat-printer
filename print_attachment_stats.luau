@@ -128,7 +128,7 @@ local function iris_report(player, view, opts)
         :gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
     local report = IrisReport.new("attachments:" .. name .. (suffix ~= "" and (":" .. suffix) or ""),
         "Attachments: " .. name .. (suffix ~= "" and (" (" .. suffix .. ")") or ""),
-        table.concat({ "attachments", name, opts.gun_name, opts.search, opts.view }, "|"))
+        IrisReport.refresh_request("attachments", name, opts.gun_name, opts.search, opts.view))
     renderer:add_view(report, view)
     return report
 end
@@ -146,7 +146,7 @@ end
 local function print_attachment_stats(target_player, options)
     local player = PlayerLookup.find(players, target_player)
     if not player then
-        print("Could not retrieve player profile stats.")
+        print(PlayerLookup.not_found(target_player))
         return nil
     end
     local opts = settings(options)
@@ -174,10 +174,9 @@ if shared then
 end
 
 if SHOW_IN ~= "console" then
-    IrisBridge.serve(CONSOLE, "attachments", function(arg)
-        -- Viewers from before the gun / search / view options send only the name.
-        local name, gun, search, view = arg:match("^(.-)|(.-)|(.-)|(.*)$")
-        local player = PlayerLookup.find(players, name or arg)
+    IrisBridge.serve(CONSOLE, "attachments", function(name, gun, search, view)
+        -- Viewers holding a report from before the gun / search / view options send only the name.
+        local player = PlayerLookup.find(players, name)
         if not player then return nil end
         local opts = settings({ gun = gun, search = search, view = view })
         if opts.view == "fixture" then return nil end

@@ -102,11 +102,11 @@ These follow from how the game records stats, so they're worth knowing:
 
 | Stat | Meaning |
 | --- | --- |
-| `deaths w/` | Deaths while carrying the weapon in **any** slot. The game increments this for every weapon carried at death, so one death counts toward up to four weapons (which is why the table has no total row). |
-| `deaths by` | How many times that weapon killed you. |
+| `Deaths w/` | Deaths while carrying the weapon in **any** slot. The game increments this for every weapon carried at death, so one death counts toward up to four weapons (which is why the table has no total row). |
+| `Deaths by` | How many times that weapon killed you. |
 | `w-KDR` | `kills with weapon / deaths while carrying it`. Falls back to the kill count if there are no such deaths. |
 | `Rounds / Kill`, `RFpK` | Rounds fired per kill. The profile stores no hit counts, so true accuracy can't be computed. |
-| `Time Alive`, `time used`, `rds. ct` | Time alive with a weapon equipped, and rounds fired, summed across all weapons. **These are floors:** the game only saves a life's time / rounds / distance when that life ends in a real death — surviving to the end of a match, a map reset, or leaving the server discards them, while kills are counted immediately. Per-minute stats, `Avg Lifespan`, `RFpK` and `Rounds / Kill` are all skewed by this. Tracking also only began in July 2024. |
+| `Time Alive`, `Time used`, `Rds. ct` | Time alive with a weapon equipped, and rounds fired, summed across all weapons. **These are floors:** the game only saves a life's time / rounds / distance when that life ends in a real death — surviving to the end of a match, a map reset, or leaving the server discards them, while kills are counted immediately. Per-minute stats, `Avg Lifespan`, `RFpK` and `Rounds / Kill` are all skewed by this. Tracking also only began in July 2024. |
 | `Grenades + old RPG` | Kills the game counted toward the account total but never stored under a weapon. Thrown-grenade kills are still recorded with no weapon name today; rocket launcher kills were too until April 2025 (they now land on `RPG7` / `PSRL`). |
 | `% allK`, `% allT` | Relative to the weapons shown in the table (so they respect the filter). The recap above the table is always account-wide. |
 | `Level` | The game's level, from its progression table (caps at 85). |
@@ -126,6 +126,7 @@ iris_theme.luau                       <- CLIENT console: colors, spacing, font a
 client_autorun.txt                    <- GENERATED: theme + viewer in one piece for the Client Autorun tab
 IRIS_VIEWER.md                        <- guide and maintenance notes for iris_viewer.luau
 .githooks/pre-push                    <- runs CI's checks before a push (git config core.hooksPath .githooks)
+.luaurc                               <- the console's globals and lint settings, for luau-analyze
 modules/                                 downloaded by the entry points at run time; one job each
   iris_report.luau           <- builds a report for iris_viewer, encodes it, sends it (fire_client)
   iris_bridge.luau           <- server side of the viewer: publish (send, keep, status line), Refresh, late viewers
@@ -169,6 +170,7 @@ tests/                           python -m unittest discover -s tests
   test_caps.py, test_explorer.py <- capture announcer, console explorer
   test_entry_scripts.py       <- the entry scripts' copied loader and REPO_BASE stay identical
   test_fiu.py                 <- Fiu load limit and the pinned Luau
+  test_lint.py                <- luau-analyze finds no warnings in any script or module
   test_data.py                <- data files and generated Luau
   test_tools.py               <- unit tests for tools/
   fixtures/attachment_stats_output.txt <- saved "fixture" view output

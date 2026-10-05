@@ -87,7 +87,7 @@ class TestAttachmentPrinter(unittest.TestCase):
     def test_names_are_unique_and_from_game_data(self):
         names = [r[0] for r in self.printed]
         self.assertEqual(len(names), len(set(names)))
-        self.assertIn("-- names: deadline-balancing", self.output)
+        self.assertIn("-- Names: deadline-balancing", self.output)
 
     def test_groups_show_one_row_with_kills_counted_once(self):
         rows = {r[0]: r for r in self.printed}
@@ -107,12 +107,12 @@ class TestAttachmentPrinter(unittest.TestCase):
         output = run_script("print_attachment_stats.luau", self.players, settings=CONSOLE_TABLES,
                             after="shared.print_attachment_stats('Tester'); shared.print_attachment_stats('Nobody')")
         self.assertEqual(output.count("ATTACHMENTS BY KILLS"), 2)
-        self.assertIn("Could not retrieve player profile stats.", output)
+        self.assertIn('Player "Nobody" not found, or has no profile stats.', output)
 
     def test_runs_without_the_names_module(self):
         output = all_rows(run_script("print_attachment_stats.luau", self.players, settings=CONSOLE_TABLES, after=ALL_ROWS,
                                      missing_modules=("attachment_names",)))
-        self.assertIn("-- names: prettified ids", output)
+        self.assertIn("-- Names: prettified ids", output)
         printed = parse_table(output)
         # Same numbers as without groups (groups come with the names module); names are prettified ids.
         self.assertEqual(sorted(r[1:] for r in printed),

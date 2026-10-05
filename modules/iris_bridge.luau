@@ -47,7 +47,9 @@ local function answer(state, sender, message)
         end
         return
     end
-    local report = build(arg)
+    local fields = {}
+    for field in (arg .. "|"):gmatch("([^|]*)|") do table.insert(fields, field) end
+    local report = build(table.unpack(fields))
     if report then
         local _, _, messages = report:send({ player })
         keep(state, report.id, messages)
@@ -79,7 +81,9 @@ local function state_of(console)
     return state
 end
 
--- Registers build(arg) -> report (or nil) for Refresh requests of this kind.
+-- Registers build(...) -> report (or nil) for Refresh requests of this kind. It gets the
+-- fields the report's IrisReport.refresh_request was made with, as strings ("" when empty;
+-- viewers holding a report from an older script version may send fewer).
 function IrisBridge.serve(console, kind, build)
     local state = state_of(console)
     if not state then return false end

@@ -326,7 +326,7 @@ def main() -> int:
             for path in arguments.targets
             for rename in rename_sheet(path, mapping, not arguments.dry_run)
         ]
-    except (Exception, SystemExit) as error:  # deadline_data reports bad files with SystemExit
+    except Exception as error:  # includes deadline_data.DataError for a bad rename list
         print(f"Error: {error}", file=sys.stderr)
         return 1
 

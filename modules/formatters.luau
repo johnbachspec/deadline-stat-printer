@@ -20,22 +20,13 @@ function Formatters.format_currency(amount)
     return "$" .. Formatters.format_num(amount)
 end
 
--- seconds -> "1h  2m  3s" / " 2m  3s" / " 3s"
-function Formatters.format_use_time(total_seconds)
-    local sec = tonumber(total_seconds) or 0
+-- seconds -> "1h 2m 3s" / "2m 3s" / "3s": the one duration format, in every table and the recap.
+function Formatters.format_duration(total_seconds)
+    local sec = math.max(0, tonumber(total_seconds) or 0)
     local hours = math.floor(sec / 3600)
     local mins = math.floor((sec % 3600) / 60)
     local secs = math.floor(sec % 60)
-    if hours > 0 then return string.format("%dh %2dm %2ds", hours, mins, secs) end
-    if mins > 0 then return string.format("%2dm %2ds", mins, secs) end
-    return string.format("%2ds", secs)
-end
-
--- seconds -> "2m 3s" / "3s"
-function Formatters.format_duration_short(total_seconds)
-    local sec = tonumber(total_seconds) or 0
-    local mins = math.floor(sec / 60)
-    local secs = math.floor(sec % 60)
+    if hours > 0 then return string.format("%dh %dm %ds", hours, mins, secs) end
     if mins > 0 then return string.format("%dm %ds", mins, secs) end
     return string.format("%ds", secs)
 end

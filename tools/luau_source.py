@@ -11,7 +11,7 @@ def luau_table_body(path, name):
     """The text between `<name> = {` and its closing `}` line in a Luau file."""
     match = re.search(re.escape(name) + r" = \{(.*?)\n\}", Path(path).read_text(encoding="utf-8"), re.S)
     if not match:
-        raise SystemExit(f"{name} table not found in {Path(path).name}")
+        raise LookupError(f"{name} table not found in {Path(path).name}")
     return match.group(1)
 
 

@@ -53,9 +53,9 @@ end
 -- Where the names came from, for the line above every attachment table.
 function AttachmentLabels:source()
     if self.version then
-        return "names: deadline-balancing " .. tostring(self.version)
+        return "Names: deadline-balancing " .. tostring(self.version)
     end
-    return "names: prettified ids (attachment_names module not loaded)"
+    return "Names: prettified ids (attachment_names module not loaded)"
 end
 
 return AttachmentLabels

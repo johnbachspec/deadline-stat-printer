@@ -14,5 +14,5 @@ runs:
       run: |
         curl -sSfL -o "$RUNNER_TEMP/luau.zip" "https://github.com/luau-lang/luau/releases/download/${{ inputs.version }}/luau-ubuntu.zip"
         unzip -q -o "$RUNNER_TEMP/luau.zip" -d "$RUNNER_TEMP/luau"
-        chmod +x "$RUNNER_TEMP/luau/luau" "$RUNNER_TEMP/luau/luau-compile"
+        chmod +x "$RUNNER_TEMP/luau/luau" "$RUNNER_TEMP/luau/luau-compile" "$RUNNER_TEMP/luau/luau-analyze"
         echo "LUAU_BIN=$RUNNER_TEMP/luau" >> "$GITHUB_ENV"

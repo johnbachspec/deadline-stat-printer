@@ -45,4 +45,13 @@ function PlayerLookup.find(players, target)
     return nil
 end
 
+-- What the scripts print when find() returns nil for `target`.
+function PlayerLookup.not_found(target)
+    if target == nil then
+        return "No human player in the server to report on."
+    end
+    local name = type(target) == "string" and target or tostring(target.name or target)
+    return string.format('Player "%s" not found, or has no profile stats.', name)
+end
+
 return PlayerLookup

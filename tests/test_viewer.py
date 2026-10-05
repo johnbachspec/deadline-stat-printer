@@ -23,7 +23,7 @@ class TestIrisViewer(unittest.TestCase):
                 self.assertIn("[iris] sent Tester's stats to 1 of 1 players", output)  # just where it went
                 self.assertIn("Window Stats: Tester", drawn(output))
                 weapons = only_table(output, 13)
-                self.assertEqual(weapons[0][:3], ["weapon", "kills", "deaths w/"])
+                self.assertEqual(weapons[0][:3], ["Weapon", "Kills", "Deaths w/"])
                 vector = next(row for row in weapons if row[0] == "Vector")
                 self.assertEqual((vector[1], vector[-1]), ("950", "SMG"))
                 recap = only_table(output, 6)
@@ -159,8 +159,8 @@ __dump()"""
         lines = text.split("\n")
         self.assertEqual(lines[0], "Stats: Tester")
         self.assertIn("Kills:\t3,000", text)  # the recap's label / value pairs
-        header = next(line for line in lines if line.startswith("weapon\t"))
-        self.assertEqual(header.split("\t")[:3], ["weapon", "kills", "deaths w/"])
+        header = next(line for line in lines if line.startswith("Weapon\t"))
+        self.assertEqual(header.split("\t")[:3], ["Weapon", "Kills", "Deaths w/"])
         vector = next(line for line in lines if line.startswith("Vector\t"))
         self.assertEqual(vector.split("\t")[1], "950")
         self.assertEqual(len(vector.split("\t")), len(header.split("\t")))  # one cell per column
@@ -247,7 +247,7 @@ __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame
         vector = next(row for row in weapons if "Vector" in row[0])
         self.assertEqual(vector[:2], ['<font family="rbxassetid://12187365977" weight="400">Vector</font>',
                                       '<font face="RobotoMono" weight="400">950</font>'])  # content Regular
-        self.assertEqual(weapons[0][0], "weapon")  # a sortable header is a button, in Iris's own font
+        self.assertEqual(weapons[0][0], "Weapon")  # a sortable header is a button, in Iris's own font
         self.assertNotIn("<b>", output)
 
     def test_console_font_sets_every_iris_window(self):
@@ -356,7 +356,7 @@ end"""
                 self.assertIn("titles and buttons: Iris's font", output)
                 self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)")
                 weapons = only_table(output, 13)
-                self.assertEqual(weapons[0][0], "weapon")  # sortable header: a button in Iris's font
+                self.assertEqual(weapons[0][0], "Weapon")  # sortable header: a button in Iris's font
                 vector = next(row for row in weapons if row[0] == f"{text}Vector</font>")
                 self.assertEqual((vector[1], vector[12]), (f"{number}950</font>", f"{text}SMG</font>"))
                 self.assertEqual(only_table(output, 6)[1][:2], [f"{text}Kills:</font>", f"{number}3,000</font>"])
@@ -400,11 +400,11 @@ local Font = {
                 self.assertEqual(vector[1], f"{tag}950</font>")       # kills
                 self.assertEqual(vector[4], f"{tag}2.375</font>")     # w-KDR
                 self.assertEqual(vector[5], f"{tag}31.67%</font>")    # % allK
-                self.assertEqual(vector[10], f"{tag}1h 30m  0s</font>")  # time used
+                self.assertEqual(vector[10], f"{tag}1h 30m 0s</font>")  # time used
                 self.assertEqual(vector[12], "SMG")                   # words keep the main font
                 recap = only_table(output, 6)
                 self.assertEqual(recap[1][:2], ["Kills:", f"{tag}3,000</font>"])
-                self.assertEqual(only_table(output, 13)[0][1], "kills")  # headers too
+                self.assertEqual(only_table(output, 13)[0][1], "Kills")  # headers too
 
     def test_client_autorun_file_runs_theme_and_viewer(self):
         self.assertEqual((ROOT / "client_autorun.txt").read_text(encoding="utf-8"), client_autorun.build(),
@@ -436,7 +436,7 @@ __frame(); __dump()"""
         self.assertFalse(any(line.startswith("Text Error") for line in drawn(output)))
         text = '<font family="rbxassetid://12187365977">'
         weapons = only_table(output, 13)
-        self.assertEqual(weapons[0][0], "weapon")
+        self.assertEqual(weapons[0][0], "Weapon")
         self.assertIn([f"{text}Vector</font>", f"{text}950</font>"], [row[:2] for row in weapons])
 
     def test_header_rows_from_an_older_viewer_get_the_header_weight(self):

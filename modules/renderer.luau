@@ -9,16 +9,16 @@ Renderer.__index = Renderer
 
 local DEFAULT_GRID_WIDTH = 166
 local ROW_FORMAT         = "%-20s %10s %11s %11s %10s %10s %12s %8s %8s %14s %16s %10s  %-8.8s"
-local WEAPON_COLUMNS     = { "weapon", "kills", "deaths w/", "deaths by", "w-KDR", "% allK", "rds. ct", "K/Min",
-    "RFpK", "weapon XP", "time used", "% allT", "type" }
-local DEATHS_WITH_NOTE   = "deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)"
+local WEAPON_COLUMNS     = { "Weapon", "Kills", "Deaths w/", "Deaths by", "w-KDR", "% allK", "Rds. ct", "K/Min",
+    "RFpK", "Weapon XP", "Time used", "% allT", "Type" }
+local DEATHS_WITH_NOTE   = "Deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)"
 local SECTION_TIPS       = { -- hover text for the viewer's section headers
     overall = "Lifetime totals from this player's profile: kills, deaths, headshots, wallbangs, money, XP and time played",
     averages = "Lifetime totals divided by matches played or by minutes alive",
     weapons = "One row per weapon; % columns are shares of the weapons listed\n"
-        .. "deaths w/: deaths while carrying it   deaths by: deaths to it   w-KDR: kills / deaths w/\n"
-        .. "% allK: share of kills   rds. ct: rounds fired   K/Min: kills per minute used\n"
-        .. "RFpK: rounds fired per kill   time used / % allT: time held and its share   type: caliber",
+        .. "Deaths w/: deaths while carrying it   Deaths by: deaths to it   w-KDR: kills / deaths w/\n"
+        .. "% allK: share of kills   Rds. ct: rounds fired   K/Min: kills per minute used\n"
+        .. "RFpK: rounds fired per kill   Time used / % allT: time held and its share   Type: caliber",
 }
 
 -- deps = { formatters = ..., grid_width = 166 (optional) }
@@ -65,7 +65,7 @@ function Renderer:recap_cells(data)
             { "HS %:", string.format("%.2f%%", s.hs_pct) },
             { "Matches Played:", fmt.format_num(s.matches) },
             { "Total Money Spent:", fmt.format_currency(s.spent) },
-            { "Time Alive:", fmt.format_use_time(s.alive_sec) },
+            { "Time Alive:", fmt.format_duration(s.alive_sec) },
             { "Status:", status },
             { "Owned Weapons:", fmt.format_num(s.collection.weapons) },
         },
@@ -94,14 +94,14 @@ function Renderer:recap_cells(data)
     }
     local averages = {
         { { "Kills / Match:", string.format("%.2f", s.kills_per_match) },
-          { "Points / Match:", fmt.format_num(s.xp_per_match) } },
+          { "XP / Match:", fmt.format_num(s.xp_per_match) } },
         { { "Kills / Min:", string.format("%.3f", s.kills_per_min) },
-          { "EXP / Min:", fmt.format_num(s.xp_per_min) } },
+          { "XP / Min:", fmt.format_num(s.xp_per_min) } },
         { { "HS / Match:", string.format("%.2f", s.hs_per_match) },
           { "Wall / Match:", string.format("%.2f", s.wall_per_match) } },
         { { "Obj. / Match:", string.format("%.5f", s.points_per_match) }, -- as many decimals as KDR
           { "HE / Match:", string.format("%.2f", s.he_per_match) } },
-        { { "Avg Lifespan:", fmt.format_duration_short(s.lifespan) },
+        { { "Avg Lifespan:", fmt.format_duration(s.lifespan) },
           { "Dist / Match:", fmt.format_num(s.distance_per_match) .. " st" } },
     }
     return totals, averages
@@ -160,7 +160,7 @@ function Renderer:weapon_cells(w)
         string.format("%.2f", x.kills_per_min),
         string.format("%.2f", x.rounds_per_kill),
         fmt.format_num(x.xp),
-        fmt.format_use_time(x.use_time),
+        fmt.format_duration(x.use_time),
         string.format("%.2f%%", x.time_share),
         w.caliber_type,
     }

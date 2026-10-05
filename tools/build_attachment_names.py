@@ -109,7 +109,7 @@ def load_groups(names, path=dd.GROUPS_CSV):
         if list(groups.values()).count(product) < 2:
             problems.append(f"group {product!r} has only one piece")
     if problems:
-        raise SystemExit(f"{path.name}:\n  " + "\n  ".join(problems))
+        raise dd.DataError(f"{path.name}:\n  " + "\n  ".join(problems))
     return groups
 
 
@@ -246,4 +246,4 @@ def main(argv):
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv))
+    raise SystemExit(dd.run_cli(main, sys.argv))
