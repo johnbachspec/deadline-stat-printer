@@ -90,10 +90,21 @@ function IrisReport:messages()
     return messages
 end
 
+-- The server's latest copy of each report, kept in the bridge (see serve) so a viewer
+-- that starts later can ask for them: "dsp1|hello" gets every one resent to it.
+local function remember(bridge, id, messages)
+    bridge.latest = bridge.latest or {}
+    bridge.latest_order = bridge.latest_order or {}
+    if not bridge.latest[id] then table.insert(bridge.latest_order, id) end
+    bridge.latest[id] = messages
+end
+
 -- Sends the report to each player (players.get(...) objects). Returns how many got
--- it and the first error, if any player's fire_client failed.
+-- it and the first error, if any player's fire_client failed. Once serve has run in
+-- this script, the report is also kept for viewers that start later.
 function IrisReport:send(recipients)
     local messages, sent, problem = self:messages(), 0, nil
+    if IrisReport.bridge then remember(IrisReport.bridge, self.id, messages) end
     for _, player in ipairs(recipients or {}) do
         local ok, err = pcall(function()
             for _, message in ipairs(messages) do
@@ -112,12 +123,14 @@ function IrisReport.sent_line(what, sent, recipients, problem)
 end
 
 -- A Refresh request "dsp1|refresh|<kind>|<arg>" from a viewer: build(arg) makes the
--- new report, which goes back to that player only.
+-- new report, which goes back to that player only. "dsp1|hello", sent by a viewer
+-- when it starts, gets every kept report resent to that player.
 local function answer(bridge, sender, message)
     if type(message) ~= "string" then return end
+    local hello = message == "dsp1|hello"
     local kind, arg = message:match("^dsp1|refresh|([^|]*)|?(.*)$")
     local build = kind and bridge.handlers[kind]
-    if not build then return end
+    if not (build or hello) then return end
     local player = sender
     if type(sender) ~= "table" then -- the event may pass a name instead of a player
         player = bridge.players.get(type(sender) == "string" and sender or sender.Name)
@@ -127,6 +140,13 @@ local function answer(bridge, sender, message)
     if clock then -- each player's same request at most every min_interval seconds, so clicks cannot flood the server
         if bridge.last[key] and clock() - bridge.last[key] < bridge.min_interval then return end
         bridge.last[key] = clock()
+    end
+    if hello then
+        for _, id in ipairs(bridge.latest_order or {}) do
+            local messages = bridge.latest[id]
+            pcall(function() for _, m in ipairs(messages) do player.fire_client(m) end end)
+        end
+        return
     end
     local report = player and build(arg)
     if report then report:send({ player }) end
@@ -154,6 +174,7 @@ function IrisReport.serve(console, kind, build)
     bridge.answer = answer
     bridge.players = console.players
     bridge.handlers[kind] = build
+    IrisReport.bridge = bridge -- so send keeps a copy for viewers that start later
     return true
 end
 

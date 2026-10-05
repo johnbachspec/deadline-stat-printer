@@ -62,6 +62,7 @@ local TARGET_GUN = ""            -- one gun only ("AKM", "AK_762" or "AKMN"): ki
 local SEARCH     = ""            -- only names containing this text, e.g. "eotech", "suppressor"
 local VIEW       = "attachments" -- "attachments": one row each; "guns": grouped by gun
 local TOP_GUNS   = 3             -- guns listed per row; 1 = the top gun only
+local CONSOLE_ROWS = 50          -- rows printed in the console (per gun in "guns"); 0 = all
 ```
 
 The `"guns"` view lists every gun the player has attachment kills on, starting with the most-used, and under each gun its attachments by kills on that gun, plus each attachment's total on every gun.
@@ -125,6 +126,7 @@ iris_viewer.luau                      <- CLIENT console: shows the reports above
 iris_theme.luau                       <- CLIENT console: colors, spacing, font and text size for those windows
 client_autorun.txt                    <- GENERATED: theme + viewer in one piece for the Client Autorun tab
 IRIS_VIEWER.md                        <- guide and maintenance notes for iris_viewer.luau
+.githooks/pre-push                    <- runs CI's checks before a push (git config core.hooksPath .githooks)
 modules/                                 downloaded by the entry points at run time
   iris_report.luau           <- builds reports for iris_viewer and sends them (fire_client); Refresh
   weapon_data.luau           <- gun ids: legacy aliases, display names, types (shared by both reports)
@@ -178,7 +180,7 @@ python tools/check_fiu_compat.py
 python -m unittest discover -s tests
 ```
 
-The tests run the console scripts themselves, so they need the `luau` and `luau-compile` CLIs (from a [Luau release](https://github.com/luau-lang/luau/releases), 0.712 or older: later releases write a bytecode format `check_fiu_compat.py` can't read, so CI pins 0.712) in `luau_bin/`, on `PATH`, or in the folder `$LUAU_BIN` points to; without them those tests are skipped. To refresh the fixture, run `print_attachment_stats_delimited.luau` in-game and save its output as `tests/fixtures/attachment_stats_output.txt`.
+The tests run the console scripts themselves, so they need the `luau` and `luau-compile` CLIs (from a [Luau release](https://github.com/luau-lang/luau/releases), 0.712 or older: later releases write a bytecode format `check_fiu_compat.py` can't read, so CI pins 0.712) in `luau_bin/`, on `PATH`, or in the folder `$LUAU_BIN` points to; without them those tests are skipped. Run `git config core.hooksPath .githooks` once per clone to have `.githooks/pre-push` run the Fiu check, the `client_autorun.txt` check and the tests before every push (skip once with `git push --no-verify`). To refresh the fixture, run `print_attachment_stats_delimited.luau` in-game and save its output as `tests/fixtures/attachment_stats_output.txt`.
 
 ### The Fiu 255-line limit
 

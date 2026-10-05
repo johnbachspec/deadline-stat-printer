@@ -288,6 +288,7 @@ viewer.receive = function(message) -- one message per part: "dsp1|<id>|<part>|<p
     report.received = got_time and tostring(time_text) or "?"
     viewer.reports[report.id] = report
 end
+if #viewer.order == 0 and fire_server then pcall(fire_server, "dsp1|hello") end -- the server resends reports sent before this viewer started
 return (function(drawing) drawing() end)(function() -- drawing: its own function with its own 255 lines (IRIS_VIEWER.md)
 local depth = 0 -- open Iris containers, so an error can close them again
 local function open(widget) depth = depth + 1; return widget end
@@ -418,6 +419,7 @@ local function draw_blocks(blocks, ui)
         if block.text then set_id(block.key); iris.Text(block.text) else draw_table(block, ui) end
     end
 end
+return (function(windows) windows() end)(function() -- windows: a third part with its own 255 lines (IRIS_VIEWER.md)
 local function export_text(report, ui) -- the whole report as tab-separated lines: pasted into a spreadsheet, each cell lands in its own column
     local lines, clean = { report.title }, function(value) return (tostring(value or ""):gsub("[\t\r\n]", " ")) end
     local function add(blocks)
@@ -541,5 +543,6 @@ viewer.show = function() viewer.show_hub = true; for _, r in pairs(viewer.report
 viewer.error = nil; viewer.show()
 print(string.format("[viewer] ready (Iris %s tables), %d reports so far. Run a stat script in the server console;"
     .. " shared.iris_viewer.show() reopens closed windows.", NEW_TABLES and "2.4+" or "pre-2.4", #viewer.order))
+end)
 end)
 end)

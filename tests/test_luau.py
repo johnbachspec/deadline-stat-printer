@@ -57,14 +57,31 @@ def parse_table(output):
             for m in map(TABLE_ROW.match, output.splitlines()) if m]
 
 
+ALL_ROWS = "print('-- ALL ROWS --'); shared.print_attachment_stats(nil, { rows = 0 })"
+
+
+def all_rows(output):
+    """The part of the output printed by ALL_ROWS (every row, not just the first CONSOLE_ROWS)."""
+    return output.split("-- ALL ROWS --", 1)[1]
+
+
 @needs_luau
 class TestAttachmentPrinter(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.rows = dd.load_fixture()
         cls.players = players_lua(fixture_profile_lua(cls.rows))
-        cls.output = run_script("print_attachment_stats.luau", cls.players)
+        cls.first_run = run_script("print_attachment_stats.luau", cls.players, after=ALL_ROWS)
+        cls.output = all_rows(cls.first_run)
         cls.printed = parse_table(cls.output)
+
+    def test_console_prints_the_first_rows_only(self):
+        first = self.first_run.split("-- ALL ROWS --", 1)[0]
+        self.assertEqual(len(parse_table(first)), 50)  # CONSOLE_ROWS
+        hidden = len(self.printed) - 50
+        self.assertIn(f"... {hidden} more not printed here: the Iris window has every row", first)
+        self.assertNotIn("more not printed here", self.output)
+        self.assertEqual(parse_table(first), self.printed[:50])  # the same top rows
 
     def test_every_row_matches_the_python_replay(self):
         self.assertEqual(len(self.printed), len(set(self.printed)))
@@ -96,7 +113,8 @@ class TestAttachmentPrinter(unittest.TestCase):
         self.assertIn("Could not retrieve player profile stats.", output)
 
     def test_runs_without_the_names_module(self):
-        output = run_script("print_attachment_stats.luau", self.players, missing_modules=("attachment_names",))
+        output = all_rows(run_script("print_attachment_stats.luau", self.players, after=ALL_ROWS,
+                                     missing_modules=("attachment_names",)))
         self.assertIn("-- names: prettified ids", output)
         printed = parse_table(output)
         # Same numbers as without groups (groups come with the names module); names are prettified ids.
@@ -644,6 +662,19 @@ __hover(key .. "4"); __frame(); print("-- hover"); __dump()
         self.assertIn("Tooltip Sort by this column. Click again to reverse, a third time for the original order",
                       drawn(steps["hover"]))
 
+    def test_reports_sent_before_the_viewer_starts_arrive_when_it_does(self):
+        # e.g. Client Autorun starts the viewer after the stat scripts already ran: its hello
+        # gets the server's kept copies resent.
+        viewer = (ROOT / "iris_viewer.luau").read_text(encoding="utf-8")
+        after = ("print('VIEWER BEFORE: ' .. tostring(shared.iris_viewer))\n"
+                 ";(function()\n" + viewer + "\nend)()\n__frame(); __dump()")
+        output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
+                            prelude=IRIS_MOCKS.replace("__NEW_TABLES__", "true"), after=after)
+        self.assertIn("VIEWER BEFORE: nil", output)  # nobody was listening when the report was sent
+        self.assertIn("Window Stats: Tester", drawn(output))
+        vector = next(row for row in only_table(output, 13) if row[0] == "Vector")
+        self.assertEqual(vector[1], "950")
+
     def test_export_shows_the_report_as_tab_separated_text(self):
         after = """__frame()
 __click("dsp:stats:Tester:export"); __frame()
@@ -1029,6 +1060,22 @@ class TestFiuLoadCompatibility(unittest.TestCase):
             good = Path(tmp) / "good.luau"
             good.write_text('local s = "x"\nprint(s)\n', encoding="utf-8")
             self.assertEqual(check_fiu_compat.check_file(LUAU_COMPILE, good), [])
+
+
+class TestLuauPin(unittest.TestCase):
+    """CI's Luau must write bytecode the Fiu checker can read (newer releases changed the format)."""
+
+    def test_newer_bytecode_gets_a_clear_message(self):
+        with self.assertRaises(ValueError) as caught:
+            check_fiu_compat.read_protos(bytes([14, 3, 0]))
+        self.assertIn("bytecode version 14", str(caught.exception))
+        self.assertIn(check_fiu_compat.PINNED_LUAU, str(caught.exception))
+
+    def test_ci_installs_the_luau_the_checker_expects(self):
+        action = (ROOT / ".github" / "actions" / "setup-luau" / "action.yml").read_text(encoding="utf-8")
+        pinned = re.search(r'default:\s*"([^"]+)"', action).group(1)
+        self.assertEqual(pinned, check_fiu_compat.PINNED_LUAU,
+                         "setup-luau installs a different Luau than check_fiu_compat.py names")
 
 
 if __name__ == "__main__":

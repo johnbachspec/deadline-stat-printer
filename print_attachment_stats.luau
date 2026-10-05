@@ -13,6 +13,7 @@
 --   shared.print_attachment_stats("Name", { gun = "AKM" })          -- kills on one gun only
 --   shared.print_attachment_stats("Name", { search = "eotech" })    -- names containing a text
 --   shared.print_attachment_stats("Name", { view = "guns" })        -- grouped by gun
+--   shared.print_attachment_stats("Name", { rows = 0 })             -- print every row here
 
 local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
 
@@ -41,6 +42,10 @@ local VIEW = "attachments"
 -- How many guns each attachment row lists: its top gun, then "Also: ..." with
 -- the next ones. 1 = the top gun only.
 local TOP_GUNS = 3
+
+-- How many rows to print in this console (per gun in the "guns" view); 0 = all.
+-- The Iris window always gets every row, and its Export button copies them.
+local CONSOLE_ROWS = 50
 -- ========================
 
 -- Resolves module locally if present in the Roblox hierarchy, falling back to remote URL.
@@ -86,7 +91,8 @@ local function settings(options)
         print(string.format('Unknown view "%s": use "attachments" or "guns". Showing attachments.', view))
         view = "attachments"
     end
-    return { gun_name = pick(options.gun, TARGET_GUN), search = pick(options.search, SEARCH), view = view }
+    return { gun_name = pick(options.gun, TARGET_GUN), search = pick(options.search, SEARCH), view = view,
+        rows = tonumber(options.rows) or CONSOLE_ROWS }
 end
 
 local function aggregate(player, opts)
@@ -115,8 +121,8 @@ local function iris_report(player, aggregated, opts)
 end
 
 -- target_player: a player, a name, or nil for the first human in the server.
--- options (optional): { gun = "AKM", search = "eotech", view = "guns" }, each
--- overriding the config above for this call.
+-- options (optional): { gun = "AKM", search = "eotech", view = "guns", rows = 0 },
+-- each overriding the config above for this call.
 local function print_attachment_stats(target_player, options)
     local player = PlayerLookup.find(players, target_player)
     if not player then

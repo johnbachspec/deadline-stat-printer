@@ -113,6 +113,7 @@ IrisReport.serve("stats", build)  <-- fire_server("dsp1|refresh|stats|...") --- 
 - **Building a report.** `modules/iris_report.luau` is a small builder: `IrisReport.new(id, title, refresh)`, then `:section(title, open, tip)`, `:text(text)`, `:columns(names)`, `:row(cells)`. The renderers add to it (`Renderer:add_to_report`, `AttachmentRenderer:add_to_report`), from the same cells the console output uses, so the two never disagree.
 - **Sending.** A report is encoded as text, one line per item with tab-separated fields (`report`, `section`, `text`, `columns`, `row`; backslash, tab and newline escaped). Text is used rather than tables because it survives whatever the game does to `fire_client` arguments. It goes out in parts of at most 4000 bytes, never splitting a UTF-8 character, each as `dsp1|<id>|<part>|<parts>|<text>`. The format is described at the top of `modules/iris_report.luau`.
 - **Receiving.** The viewer keeps its state in `shared.iris_viewer`. It connects to `on_server_event` and `iris:Connect` only the first time it runs in a session; those connections call `viewer.receive` and `viewer.draw`, which a later paste replaces. That is why pasting again updates the viewer instead of drawing everything twice.
+- **Starting late.** A report reaches only viewers already running when it is sent. So the server keeps its latest copy of each report (`IrisReport:send` stores them in `shared.iris_report_bridge` once a script has called `IrisReport.serve`), and a viewer that starts with no reports sends `dsp1|hello`, which gets all of them resent to that player. Reports from scripts run before you joined, or before Client Autorun started the viewer, still open.
 - **Refresh.** A report's `refresh` field (e.g. `stats|Name|||KILLS`) is sent back with `fire_server`. `IrisReport.serve` registers a builder per kind; its one `on_client_event` listener is connected once per server and finds builders through `shared.iris_report_bridge`, so re-running a server script replaces its handler. The answer goes only to the player who asked, and the same request from the same player is ignored for half a second.
 
 ## Iris under Fiu
@@ -131,7 +132,10 @@ The consoles run scripts in Fiu, a Luau interpreter written in Luau. Iris itself
 The game's Fiu build fails to load any function spanning more than 255 source lines (see the main README's [Fiu section](README.md#the-fiu-255-line-limit)). A file's top level is a function that runs from its first line to its last, so the viewer is split in two:
 
 - **The top level** (settings, `parse`, `viewer.receive`) ends at the line `return (function(drawing) drawing() end)(function() -- drawing ...`. The compiler puts that call, and the `return`, on the line where its argument list opens, and adds no hidden return after a chunk that ends in `return`, so the top level stops there.
-- **The drawing function** (everything from `local depth = 0` to the closing `end)`) is the function passed to that call, with its own 255 lines. It sees every local the top level declared. It is nearly full (lines 82-334, a span of 252), so the next drawing feature needs a third part: split it the same way, with the second half passed as another function.
+- **The table part** (from `local depth = 0`: widgets, sorting, filtering, paging, `draw_table`) is the function passed to that call, with its own 255 lines. It ends the same way, at `return (function(windows) windows() end)(function() -- windows ...`.
+- **The windows part** (Export, the report windows, the hub, `viewer.draw`) is the function passed to that second call, with its own 255 lines. The file ends with one `end)` per part.
+
+Each part sees every local declared in the parts before it. About 120 lines are free in each (`python tools/check_fiu_compat.py -v iris_viewer.luau` prints each part's lines); when one fills up, split it again the same way.
 
 The same works in `client_autorun.txt`, where the whole viewer becomes one function passed to `run(...)`. To keep room in each part:
 
@@ -148,7 +152,7 @@ The same works in `client_autorun.txt`, where the whole viewer becomes one funct
 | Nothing happens after pasting, not even `[viewer] ready` | Your name is not in `ONLY_FOR` | Add it (exact spelling) or set `ONLY_FOR = {}` |
 | `[viewer] iris, on_server_event or shared is missing` | Pasted into the server console | Use the client console |
 | No window opens; server says `sent ... to 0 of N players (fire_client failed: ...)` | The server could not send | Send the error text along with a bug report |
-| No window opens; the hub says `Messages received: 0` | Nothing reached the client | Paste the viewer **before** running the server script; reports are sent once |
+| No window opens; the hub says `Messages received: 0` | Nothing reached the client | Run the stat script again. A viewer that starts with no reports asks the server for the ones it missed, but only from servers that ran a script since this update |
 | The hub says `Messages received: N, last one not a report: ...` | Messages arrive in an unexpected shape | Report the text shown after "last one not a report" |
 | `Error: ...` in the hub | A window failed to draw | Report the text; the other windows keep working |
 | A table looks scrambled | Possibly the wrong table style for this Iris | Report the "Iris ... tables" part of the ready message |

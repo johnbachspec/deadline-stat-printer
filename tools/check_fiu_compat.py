@@ -37,6 +37,8 @@ import deadline_data as dd
 ROOT = dd.ROOT
 MAX_LINEGAPLOG2 = 24
 MAX_SPAN = 255
+MAX_BYTECODE_VERSION = 6  # the format read_protos understands
+PINNED_LUAU = "0.712"     # the last Luau release that writes it
 
 
 def game_loaded_files():
@@ -87,6 +89,10 @@ def read_protos(bytecode):
     version = r.byte()
     if version == 0:
         raise ValueError(bytecode[1:].decode("utf-8", "replace"))
+    if version > MAX_BYTECODE_VERSION:
+        raise ValueError(f"luau-compile wrote bytecode version {version}, but this checker reads versions up to "
+                         f"{MAX_BYTECODE_VERSION}. Use Luau {PINNED_LUAU} or older (the release CI pins in "
+                         ".github/actions/setup-luau/action.yml); luau 0.713 and later write newer versions.")
     types_version = r.byte() if version >= 4 else 0
     strings = [None]
     for _ in range(r.varint()):
@@ -202,7 +208,11 @@ def main(argv):
             shown = path.resolve().relative_to(ROOT)
         except ValueError:
             shown = path
-        problems = check_file(compiler, path, verbose)
+        try:
+            problems = check_file(compiler, path, verbose)
+        except ValueError as error:  # bytecode this checker can't read, e.g. from a newer Luau
+            print(f"cannot check {shown}: {error}")
+            return 2
         print(f"{'FAIL' if problems else 'ok  '} {shown}")
         for problem in problems:
             print(f"       {problem}")

@@ -130,7 +130,7 @@ function Renderer:recap_cells(data)
           { "EXP / Min:", fmt.format_num(safe_div(xp, alive_min)) } },
         { { "HS / Match:", string.format("%.2f", safe_div(headshots, matches)) },
           { "Wall / Match:", string.format("%.2f", safe_div(wallbangs, matches)) } },
-        { { "Obj. / Match:", string.format("%.2f", safe_div(points, matches)) },
+        { { "Obj. / Match:", string.format("%.5f", safe_div(points, matches)) }, -- as many decimals as KDR
           { "HE / Match:", string.format("%.2f", safe_div(he_kills, matches)) } },
         { { "Avg Lifespan:", fmt.format_duration_short(safe_div(alive_sec, deaths, alive_sec)) },
           { "Dist / Match:", fmt.format_num(safe_div(distance, matches)) .. " st" } },

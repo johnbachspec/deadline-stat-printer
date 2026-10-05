@@ -1,0 +1,27 @@
+#!/bin/sh
+# Runs CI's checks before every push: the Fiu load check, client_autorun.txt being up to
+# date, and the tests. A failure stops the push, so a broken change never leaves this machine.
+#   Turn on (once per clone):  git config core.hooksPath .githooks
+#   Skip once:                 git push --no-verify
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+python=""
+for candidate in python python3 py; do
+    if "$candidate" -c "" > /dev/null 2>&1; then python=$candidate; break; fi
+done
+if [ -z "$python" ]; then
+    echo "pre-push: no Python found, checks skipped"
+    exit 0
+fi
+
+run() {
+    if ! output=$("$python" "$@" 2>&1); then
+        printf '%s\n' "$output" | tail -n 25
+        echo "pre-push: '$*' failed, push stopped (skip once with: git push --no-verify)"
+        exit 1
+    fi
+}
+run tools/check_fiu_compat.py
+run tools/build_client_autorun.py --check
+run -m unittest discover -s tests
+echo "pre-push: Fiu check, client_autorun.txt and tests passed"

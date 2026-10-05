@@ -118,15 +118,32 @@ local function name_column(self, entries, item_of)
     return function(i) return names[i] .. string.rep(" ", math.max(0, width - text_width(names[i]))) end
 end
 
--- opts (optional): { gun, search } the rows were limited to, for the title. With a
--- gun, Kills are kills on that gun and the gun columns are left out.
+-- The first `rows` entries (all of them when rows is 0 or nil), and how many were left out.
+local function first_rows(entries, rows)
+    rows = tonumber(rows) or 0
+    if rows <= 0 or #entries <= rows then return entries, 0 end
+    local shown = {}
+    for i = 1, rows do shown[i] = entries[i] end
+    return shown, #entries - rows
+end
+
+local function print_hidden(hidden)
+    if hidden > 0 then
+        print(string.format("... %d more not printed here: the Iris window has every row (Export copies them),"
+            .. " or set CONSOLE_ROWS = 0", hidden))
+    end
+end
+
+-- opts (optional): { gun, search } the rows were limited to, for the title, and
+-- rows: how many to print (0 or nil = all). With a gun, Kills are kills on that
+-- gun and the gun columns are left out.
 function AttachmentRenderer:render_table(aggregated, opts)
     opts = opts or {}
-    local items = aggregated.items
+    local items, hidden = first_rows(aggregated.items, opts.rows)
     local name = name_column(self, items)
     local scope = self:scope(opts)
     print(string.format("\n================ %s%d ATTACHMENTS BY KILLS%s ================",
-        scope == "" and "ALL " or "", #items, string.upper(scope)))
+        scope == "" and "ALL " or "", #aggregated.items, string.upper(scope)))
     print("-- " .. self:names_source())
     for i, item in ipairs(items) do
         local line = string.format("#%-3d %s | Kills: %-6d", i, name(i), item.kills)
@@ -137,11 +154,12 @@ function AttachmentRenderer:render_table(aggregated, opts)
         end
         print(line)
     end
+    print_hidden(hidden)
 end
 
 -- The rows grouped by gun (attachment_aggregator.by_gun), each gun's attachments
--- by kills on that gun. With opts.gun the rows only hold that gun's kills, so the
--- "All guns" total is left out.
+-- by kills on that gun, opts.rows of them per gun. With opts.gun the rows only hold
+-- that gun's kills, so the "All guns" total is left out.
 function AttachmentRenderer:render_by_gun(by_gun, opts)
     local all_guns = not (opts and opts.gun)
     print(string.format("\n================ ATTACHMENT KILLS BY GUN%s: %d GUNS ================",
@@ -149,11 +167,13 @@ function AttachmentRenderer:render_by_gun(by_gun, opts)
     print("-- " .. self:names_source())
     for _, gun in ipairs(by_gun) do
         print(string.format("\n---- %s: %d attachment%s ----", self:gun_name(gun.id), #gun.items, #gun.items == 1 and "" or "s"))
-        local name = name_column(self, gun.items, function(entry) return entry.item end)
-        for i, entry in ipairs(gun.items) do
+        local entries, hidden = first_rows(gun.items, opts and opts.rows)
+        local name = name_column(self, entries, function(entry) return entry.item end)
+        for i, entry in ipairs(entries) do
             print(string.format("#%-3d %s | Kills: %-6d", i, name(i), entry.kills)
                 .. (all_guns and string.format(" | All guns: %d", entry.item.kills) or ""))
         end
+        print_hidden(hidden)
     end
 end
 
