@@ -10,6 +10,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import deadline_data as dd
 from deadline_data import RENAMES_CSV
 
 HEADER_SEARCH_ROWS = 10
@@ -43,38 +44,14 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def read_renames(path: Path) -> dict[str, str]:
-    """Read the rename list, collapsing chains such as A -> B and B -> C into A -> C."""
+    """The rename list, with chains such as A -> B and B -> C collapsed into A -> C.
+
+    Parsing and checks are deadline_data's, shared with the Luau alias builder, so both
+    tools accept exactly the same files.
+    """
     if not path.is_file():
         raise FileNotFoundError(f"Rename list not found: {path}")
-    with path.open("r", encoding="utf-8-sig", newline="") as source:
-        rows = list(csv.reader(source))
-    if not rows or [value.strip() for value in rows[0][:2]] != ["old_name", "new_name"]:
-        raise ValueError(f"{path}: header row must be 'old_name,new_name'.")
-
-    direct: dict[str, str] = {}
-    for number, row in enumerate(rows[1:], start=2):
-        old, new = ([value.strip() for value in row] + ["", ""])[:2]
-        if not old and not new:
-            continue
-        if not old or not new:
-            raise ValueError(f"{path} row {number}: needs both an old and a new name.")
-        if old == new:
-            raise ValueError(f"{path} row {number}: {old!r} renames to itself.")
-        if direct.get(old, new) != new:
-            raise ValueError(
-                f"{path} row {number}: {old!r} already renames to {direct[old]!r}."
-            )
-        direct[old] = new
-
-    resolved: dict[str, str] = {}
-    for old in direct:
-        chain = [old]
-        while chain[-1] in direct:
-            chain.append(direct[chain[-1]])
-            if chain[-1] in chain[:-1]:
-                raise ValueError(f"{path}: rename chain loops: {' -> '.join(chain)}")
-        resolved[old] = chain[-1]
-    return resolved
+    return dd.final_renames(dd.load_renames(path))
 
 
 # CSV sheets
@@ -349,7 +326,7 @@ def main() -> int:
             for path in arguments.targets
             for rename in rename_sheet(path, mapping, not arguments.dry_run)
         ]
-    except Exception as error:
+    except (Exception, SystemExit) as error:  # deadline_data reports bad files with SystemExit
         print(f"Error: {error}", file=sys.stderr)
         return 1
 

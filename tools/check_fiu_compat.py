@@ -33,6 +33,7 @@ import sys
 from pathlib import Path
 
 import deadline_data as dd
+import luau_cli
 
 ROOT = dd.ROOT
 MAX_LINEGAPLOG2 = 24
@@ -53,7 +54,7 @@ def game_loaded_files():
 
 
 def find_compiler():
-    return dd.find_luau_tool("luau-compile")
+    return luau_cli.find_luau_tool("luau-compile")
 
 
 class Reader:

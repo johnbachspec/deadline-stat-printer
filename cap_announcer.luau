@@ -39,15 +39,17 @@ local function load_module(module_name)
 end
 
 -- The Iris window is optional: if the modules cannot load, chat announcements still work.
-local IrisReport, PlayerLookup = nil, nil
+local IrisReport, IrisBridge, PlayerLookup = nil, nil, nil
 if SEND_TO_IRIS then
-    local ok, report_module, lookup_module = pcall(function()
-        return load_module("iris_report"), load_module("player_lookup")
+    local ok, report_module, bridge_module, lookup_module = pcall(function()
+        return load_module("iris_report"), load_module("iris_bridge"), load_module("player_lookup")
     end)
-    if ok then IrisReport, PlayerLookup = report_module, lookup_module end
+    if ok then IrisReport, IrisBridge, PlayerLookup = report_module, bridge_module, lookup_module end
 end
+local CONSOLE = { players = players, shared = shared, on_client_event = on_client_event } -- for IrisBridge
 
-local function send(text)
+-- Posts a line to everyone (ANNOUNCE_IN) and prints it here.
+local function announce(text)
     print("[caps] " .. text)
     if ANNOUNCE_IN == "announcement" then
         pcall(function() chat.send_announcement(text) end)
@@ -122,7 +124,7 @@ local function update_iris(popup)
     if not IrisReport then return end
     local report = captures_report()
     report.popup = popup
-    report:send(PlayerLookup.humans(players))
+    IrisBridge.publish(CONSOLE, report, PlayerLookup.humans(players)) -- no status line: it updates on every capture
 end
 
 local function remember(text)
@@ -159,7 +161,7 @@ local function check()
         text = table.concat(names, " and ") .. " captured a point"
     end
     if text then
-        send(text)
+        announce(text)
         remember(text)
     end
     if text or reset then update_iris(false) end
@@ -169,7 +171,7 @@ local chat_connection = nil
 if CHAT_COMMAND ~= "" and chat and chat.player_chatted then
     chat_connection = chat.player_chatted:Connect(function(sender, channel, content)
         if type(content) == "string" and string.lower(string.match(content, "^%s*(.-)%s*$")) == CHAT_COMMAND then
-            send(standings_text())
+            announce(standings_text())
         end
     end)
 end
@@ -189,7 +191,7 @@ shared.caps = function()
     return standings()
 end
 if IrisReport then
-    IrisReport.serve({ players = players, shared = shared, on_client_event = on_client_event }, "caps",
+    IrisBridge.serve(CONSOLE, "caps",
         function() return captures_report() end)
     update_iris(true)
 end

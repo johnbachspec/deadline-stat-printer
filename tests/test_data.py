@@ -3,6 +3,8 @@ import re
 import unittest
 
 from support import dd
+import fixture_replay as fx  # noqa: E402
+import luau_source as luau  # noqa: E402
 
 import build_attachment_aliases as aliases_builder  # noqa: E402
 import build_attachment_names as names_builder  # noqa: E402
@@ -59,7 +61,7 @@ class TestNames(unittest.TestCase):
         # A missing id prints as a prettified id ("Fn SCAR Mk20 Gas Block"): add a rename to
         # data/renames.csv if the part still exists under a new id, else a row to extra_display_names.csv.
         aliases = dict(dd.load_renames())
-        unnamed = sorted({dd.resolve(r[0], aliases) for r in dd.load_fixture()} - set(self.shown))
+        unnamed = sorted({dd.resolve(r[0], aliases) for r in fx.load_fixture()} - set(self.shown))
         self.assertEqual(unnamed, [])
 
     def test_extra_names_never_override_balancing(self):
@@ -103,9 +105,9 @@ class TestNames(unittest.TestCase):
 class TestWeapons(unittest.TestCase):
     def setUp(self):
         self.aliases = dd.load_weapon_aliases()
-        self.types = dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"', dd.luau_table_body(dd.WEAPON_DATA_LUAU, "WeaponData.TYPES")))
+        self.types = dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"', luau.luau_table_body(dd.WEAPON_DATA_LUAU, "WeaponData.TYPES")))
         self.display = dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"',
-                                       dd.luau_table_body(dd.WEAPON_DATA_LUAU, "WeaponData.DISPLAY_NAMES")))
+                                       luau.luau_table_body(dd.WEAPON_DATA_LUAU, "WeaponData.DISPLAY_NAMES")))
 
     def test_legacy_ids_are_not_typed(self):
         # A legacy id listed in TYPES would win the name lookup over its alias and match no row.
@@ -125,17 +127,17 @@ class TestWeapons(unittest.TestCase):
 
 class TestExpectedMerges(unittest.TestCase):
     def test_replay_conserves_kills_and_matches_expected_merges(self):
-        rows = dd.load_fixture()
-        merged = dd.replay_merge(rows, dict(dd.load_renames()), dd.load_weapon_aliases())
+        rows = fx.load_fixture()
+        merged = fx.replay_merge(rows, dict(dd.load_renames()), dd.load_weapon_aliases())
         self.assertEqual(sum(r[1] for r in rows), sum(b["kills"] for b in merged.values()))
-        self.assertEqual(dd.merges_from_replay(merged), dd.load_expected_merges(),
+        self.assertEqual(fx.merges_from_replay(merged), fx.load_expected_merges(),
                          "review with tools/verify_attachment_merge.py, then run it with --write-expected")
 
     def test_hand_checked_anchors(self):
         # Fixed values, so a regenerated expected_merges.csv cannot silently drift.
-        expected = dd.load_expected_merges()
-        self.assertEqual(len(dd.load_fixture()), 1103)
-        self.assertEqual(sum(r[1] for r in dd.load_fixture()), 1717503)
+        expected = fx.load_expected_merges()
+        self.assertEqual(len(fx.load_fixture()), 1103)
+        self.assertEqual(sum(r[1] for r in fx.load_fixture()), 1717503)
         self.assertEqual(expected["kalis_scalar_std_bcg"], (705, "SCALAR", 705, {"vector_9mm_bolt", "vector_45acp_bolt"}))
         self.assertEqual(expected["vallais_super_fang_trigger"],
                          (13952, "SCARH", 13169, {"schmidt_super_scar_trigger", "vallais_super_fang_trigger"}))

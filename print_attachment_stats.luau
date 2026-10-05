@@ -1,9 +1,9 @@
 -- print_attachment_stats.luau
--- Prints every attachment a player has kills with, by in-game name, with the guns
--- it has the most kills on. Legacy attachment and gun ids are folded into their
--- current ids, and products made of several pieces print as one row. The table
--- also opens in an Iris window for anyone running iris_viewer.luau in their
--- client console.
+-- Lists every attachment a player has kills with, by in-game name, with the guns it
+-- has the most kills on. Legacy attachment and gun ids are folded into their current
+-- ids, and products made of several pieces show as one row. The table opens in an
+-- Iris window for anyone running iris_viewer.luau in their client console; this
+-- console gets one status line per report (SHOW_IN below).
 -- In the in-game Luau Server Console, run:
 --   require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_attachment_stats.luau")
 -- Afterwards, for the rest of the session:
@@ -13,18 +13,20 @@
 --   shared.print_attachment_stats("Name", { gun = "AKM" })          -- kills on one gun only
 --   shared.print_attachment_stats("Name", { search = "eotech" })    -- names containing a text
 --   shared.print_attachment_stats("Name", { view = "guns" })        -- grouped by gun
---   shared.print_attachment_stats("Name", { rows = 0 })             -- print every row here
+--   shared.print_attachment_stats("Name", { rows = 0 })             -- print every row here (SHOW_IN "both")
+--   shared.print_attachment_stats("Name", { view = "fixture" })     -- raw ids for tests/fixtures (console)
 
 local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
 
 -- In-game names come from modules/attachment_names.luau (about 180 KB), generated
 -- from recoil-group/deadline-balancing. Set to false to skip that download and
--- print prettified ids instead.
+-- show prettified ids instead.
 local LOAD_NAMES = true
 
--- "console" prints here, "iris" sends the table to every human's
--- iris_viewer.luau window (see README), "both" does both.
-local SHOW_IN = "both"
+-- "iris": the table goes to every human's iris_viewer.luau window (see README) and
+-- this console gets one status line. "both": the table is printed here too.
+-- "console": printed here only, for players without the viewer.
+local SHOW_IN = "iris"
 
 -- ===== User Config =====
 -- "" counts kills on every gun. Set to one gun to count only kills on it: raw id
@@ -37,14 +39,16 @@ local SEARCH = ""
 
 -- "attachments": one row per attachment, most kills first.
 -- "guns": the same kills grouped by gun, each gun's attachments most kills first.
+-- "fixture": every raw attachment id as Lua-table lines, printed here, for
+-- refreshing tests/fixtures/attachment_stats_output.txt (no groups, gun or search).
 local VIEW = "attachments"
 
 -- How many guns each attachment row lists: its top gun, then "Also: ..." with
 -- the next ones. 1 = the top gun only.
 local TOP_GUNS = 3
 
--- How many rows to print in this console (per gun in the "guns" view); 0 = all.
--- The Iris window always gets every row, and its Export button copies them.
+-- With SHOW_IN "both" or "console": how many rows to print here (per gun in the
+-- "guns" view); 0 = all. The Iris window always gets every row, and Export copies them.
 local CONSOLE_ROWS = 50
 -- ========================
 
@@ -61,12 +65,15 @@ local function load_module(module_name)
     return require(REPO_BASE .. module_name .. ".luau")
 end
 
-local AttachmentData = load_module("attachment_data")
-local WeaponData     = load_module("weapon_data")
-local Aggregator     = load_module("attachment_aggregator")
-local Renderer       = load_module("attachment_renderer")
-local PlayerLookup   = load_module("player_lookup")
-local IrisReport     = load_module("iris_report")
+local AttachmentData   = load_module("attachment_data")
+local WeaponData       = load_module("weapon_data")
+local Formatters       = load_module("formatters")
+local Aggregator       = load_module("attachment_aggregator")
+local AttachmentLabels = load_module("attachment_labels")
+local Renderer         = load_module("attachment_renderer")
+local PlayerLookup     = load_module("player_lookup")
+local IrisReport       = load_module("iris_report")
+local IrisBridge       = load_module("iris_bridge")
 
 local Names = nil
 if LOAD_NAMES then
@@ -74,11 +81,14 @@ if LOAD_NAMES then
     if ok and type(mod) == "table" then Names = mod end
 end
 
-local renderer = Renderer.new({ weapon_data = WeaponData, names = Names, top_guns = TOP_GUNS })
+local labels = AttachmentLabels.new(Names)
+local renderer = Renderer.new({ weapon_data = WeaponData, labels = labels, formatters = Formatters, top_guns = TOP_GUNS })
+local CONSOLE = { players = players, shared = shared, on_client_event = on_client_event } -- for IrisBridge
+local function name_of(item) return labels:name(item) end
 
-local VIEWS = { attachments = true, guns = true }
+local VIEWS = { attachments = true, guns = true, fixture = true }
 
--- The config, overridden by an options table { gun, search, view }. "|" is
+-- The config, overridden by an options table { gun, search, view, rows }. "|" is
 -- dropped since it separates the fields of a Refresh request.
 local function settings(options)
     options = type(options) == "table" and options or {}
@@ -88,7 +98,7 @@ local function settings(options)
     end
     local view = string.lower(pick(options.view, VIEW))
     if not VIEWS[view] then
-        print(string.format('Unknown view "%s": use "attachments" or "guns". Showing attachments.', view))
+        print(string.format('Unknown view "%s": use "attachments", "guns" or "fixture". Showing attachments.', view))
         view = "attachments"
     end
     return { gun_name = pick(options.gun, TARGET_GUN), search = pick(options.search, SEARCH), view = view,
@@ -100,24 +110,34 @@ local function aggregate(player, opts)
     local aggregated = Aggregator.aggregate(player.get_profile_stats() or {}, AttachmentData, WeaponData,
         Names and Names.GROUPS, gun)
     opts.gun = gun
-    return renderer:matching(aggregated, opts.search)
+    return Aggregator.matching(aggregated, name_of, opts.search)
+end
+
+local function view_of(aggregated, opts)
+    if opts.view == "guns" then
+        return renderer:guns_view(Aggregator.by_gun(aggregated), opts)
+    end
+    return renderer:attachments_view(aggregated, opts)
 end
 
 -- Refresh in the viewer asks for "attachments|<name>|<gun>|<search>|<view>".
 -- Each different view gets its own window.
-local function iris_report(player, aggregated, opts)
+local function iris_report(player, view, opts)
     local name = tostring(player.name)
     local suffix = table.concat({ opts.view == "guns" and "by gun" or "", opts.gun_name, opts.search }, " ")
         :gsub("^%s+", ""):gsub("%s+$", ""):gsub("%s+", " ")
     local report = IrisReport.new("attachments:" .. name .. (suffix ~= "" and (":" .. suffix) or ""),
         "Attachments: " .. name .. (suffix ~= "" and (" (" .. suffix .. ")") or ""),
         table.concat({ "attachments", name, opts.gun_name, opts.search, opts.view }, "|"))
-    if opts.view == "guns" then
-        renderer:add_by_gun_to_report(report, Aggregator.by_gun(aggregated), opts)
-    else
-        renderer:add_to_report(report, aggregated, opts)
-    end
+    renderer:add_view(report, view)
     return report
+end
+
+-- The fixture view: every raw id, no groups, printed here for copying.
+local function print_fixture(player)
+    local aggregated = Aggregator.aggregate(player.get_profile_stats() or {}, AttachmentData, WeaponData)
+    load_module("attachment_fixture").print(aggregated, player.name or "Player", 100)
+    return aggregated.items
 end
 
 -- target_player: a player, a name, or nil for the first human in the server.
@@ -130,6 +150,7 @@ local function print_attachment_stats(target_player, options)
         return nil
     end
     local opts = settings(options)
+    if opts.view == "fixture" then return print_fixture(player) end
     local aggregated = aggregate(player, opts)
     if #aggregated.items == 0 and (opts.gun or opts.search ~= "") then
         local known = opts.gun and WeaponData.TYPES[opts.gun] ~= nil
@@ -137,17 +158,13 @@ local function print_attachment_stats(target_player, options)
             (opts.gun and not known) and string.format(' "%s" is not a gun this script knows: use its'
                 .. ' name as in the stat panel ("AKM") or its id ("AK_762").', opts.gun_name) or ""))
     end
+    local view = view_of(aggregated, opts)
     if SHOW_IN ~= "iris" then
-        if opts.view == "guns" then
-            renderer:render_by_gun(Aggregator.by_gun(aggregated), opts)
-        else
-            renderer:render_table(aggregated, opts)
-        end
+        renderer:print_view(view, opts.rows)
     end
     if SHOW_IN ~= "console" then
-        local humans = PlayerLookup.humans(players)
-        local sent, problem = iris_report(player, aggregated, opts):send(humans)
-        print(IrisReport.sent_line(tostring(player.name) .. "'s attachments", sent, #humans, problem))
+        IrisBridge.publish(CONSOLE, iris_report(player, view, opts), PlayerLookup.humans(players),
+            tostring(player.name) .. "'s attachments")
     end
     return aggregated.items
 end
@@ -157,15 +174,15 @@ if shared then
 end
 
 if SHOW_IN ~= "console" then
-    IrisReport.serve({ players = players, shared = shared, on_client_event = on_client_event }, "attachments",
-        function(arg)
-            -- Viewers from before the gun / search / view options send only the name.
-            local name, gun, search, view = arg:match("^(.-)|(.-)|(.-)|(.*)$")
-            local player = PlayerLookup.find(players, name or arg)
-            if not player then return nil end
-            local opts = settings({ gun = gun, search = search, view = view })
-            return iris_report(player, aggregate(player, opts), opts)
-        end)
+    IrisBridge.serve(CONSOLE, "attachments", function(arg)
+        -- Viewers from before the gun / search / view options send only the name.
+        local name, gun, search, view = arg:match("^(.-)|(.-)|(.-)|(.*)$")
+        local player = PlayerLookup.find(players, name or arg)
+        if not player then return nil end
+        local opts = settings({ gun = gun, search = search, view = view })
+        if opts.view == "fixture" then return nil end
+        return iris_report(player, view_of(aggregate(player, opts), opts), opts)
+    end)
 end
 
 print_attachment_stats()

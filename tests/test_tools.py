@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 
 from support import dd
+import fixture_replay as fx  # noqa: E402
+import luau_source as luau  # noqa: E402
 
 import build_attachment_aliases as aliases_builder  # noqa: E402
 import build_attachment_names as names_builder  # noqa: E402
@@ -27,33 +29,49 @@ class TestRenameHelpers(unittest.TestCase):
         self.assertIn(dd.resolve("a", {"a": "b", "b": "a"}), {"a", "b"})
         self.assertEqual(dd.resolve("x", {"a": "b"}), "x")
 
+    def test_final_renames_collapses_chains_and_rejects_loops(self):
+        self.assertEqual(dd.final_renames([("a", "b"), ("b", "c"), ("x", "y")]), {"a": "c", "b": "c", "x": "y"})
+        for pairs in ([("a", "b"), ("b", "a")], [("a", "a")]):
+            with self.assertRaisesRegex(ValueError, "loops"):
+                dd.final_renames(pairs)
+
+    def test_rename_tool_reads_the_shared_rename_list(self):
+        import rename  # noqa: E402  (tools/rename.py)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "renames.csv"
+            path.write_text("old_name,new_name\na,b\nb,c\n", encoding="utf-8")
+            self.assertEqual(rename.read_renames(path), {"a": "c", "b": "c"})
+            path.write_text("old_name,new_name\na,b\na,c\n", encoding="utf-8")
+            with self.assertRaises(SystemExit):  # the same duplicate check the Luau alias builder uses
+                rename.read_renames(path)
+
 
 class TestReplay(unittest.TestCase):
     def test_merges_attachments_and_guns(self):
         rows = [("old_bolt", 5, "Vector", 5), ("new_bolt", 3, "SCALAR", 3), ("other", 2, "M4A1", 2)]
-        merged = dd.replay_merge(rows, {"old_bolt": "new_bolt"}, {"Vector": "SCALAR"})
+        merged = fx.replay_merge(rows, {"old_bolt": "new_bolt"}, {"Vector": "SCALAR"})
         self.assertEqual(merged["new_bolt"]["kills"], 8)
         self.assertEqual(dict(merged["new_bolt"]["guns"]), {"SCALAR": 8})
-        self.assertEqual(dd.merges_from_replay(merged), {"new_bolt": (8, "SCALAR", 8, {"old_bolt", "new_bolt"})})
+        self.assertEqual(fx.merges_from_replay(merged), {"new_bolt": (8, "SCALAR", 8, {"old_bolt", "new_bolt"})})
 
     def test_top_gun_ties_go_to_the_first_gun_alphabetically(self):
-        self.assertEqual(dd.top_gun({"M4A1": 5, "AK_762": 5, "UMP": 1}), ("AK_762", 5))
+        self.assertEqual(fx.top_gun({"M4A1": 5, "AK_762": 5, "UMP": 1}), ("AK_762", 5))
 
     def test_parse_fixture(self):
         text = ' ["a_b"]={kills=12,top_gun="SCARH",top_gun_kills=10}, ["c"]={kills=1,top_gun="M4A1",top_gun_kills=1}'
-        self.assertEqual(dd.parse_fixture(text), [("a_b", 12, "SCARH", 10), ("c", 1, "M4A1", 1)])
+        self.assertEqual(fx.parse_fixture(text), [("a_b", 12, "SCARH", 10), ("c", 1, "M4A1", 1)])
 
     def test_expected_merges_round_trip(self):
         merges = {"x": (3, "SCARH", 2, {"a", "b"})}
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "merges.csv"
-            dd.write_expected_merges(merges, path)
-            self.assertEqual(dd.load_expected_merges(path), merges)
+            fx.write_expected_merges(merges, path)
+            self.assertEqual(fx.load_expected_merges(path), merges)
 
 
 class TestLuauGeneration(unittest.TestCase):
     def test_luau_string_escaping(self):
-        s = dd.luau_string
+        s = luau.luau_string
         self.assertEqual(s('SLx 1.1"'), '"SLx 1.1\\""')
         self.assertEqual(s("a\\b"), '"a\\\\b"')
         self.assertEqual(s("{x}"), '"\\123x\\125"')
@@ -62,7 +80,7 @@ class TestLuauGeneration(unittest.TestCase):
 
     def test_pack_respects_the_line_budget(self):
         entries = [f"e{i}," for i in range(1000)]
-        rows = dd.pack(entries, 32)
+        rows = luau.pack(entries, 32)
         self.assertLessEqual(len(rows), 32)
         self.assertEqual(" ".join(r.strip() for r in rows).split(), entries)
 

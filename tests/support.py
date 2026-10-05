@@ -1,6 +1,7 @@
 """Shared test setup: makes tools/ importable and runs the console scripts under
 the luau CLI with the game console mocked (players, shared, and a require that
 serves modules/*.luau for the GitHub URLs the scripts load)."""
+import re
 import subprocess
 import sys
 import tempfile
@@ -11,9 +12,10 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 
 import deadline_data as dd  # noqa: E402
+import luau_cli  # noqa: E402
 
-LUAU = dd.find_luau_tool("luau")
-LUAU_COMPILE = dd.find_luau_tool("luau-compile")
+LUAU = luau_cli.find_luau_tool("luau")
+LUAU_COMPILE = luau_cli.find_luau_tool("luau-compile")
 
 needs_luau = unittest.skipUnless(LUAU, "luau CLI not found (set LUAU_BIN or add it to luau_bin/)")
 needs_luau_compile = unittest.skipUnless(LUAU_COMPILE, "luau-compile not found (set LUAU_BIN or add it to luau_bin/)")
@@ -42,12 +44,26 @@ def fixture_profile_lua(rows):
     return "{ weapon = {\n" + body + "\n} }"
 
 
-def run_script(script, players, after="", missing_modules=(), prelude=""):
+def with_settings(source, settings):
+    """`source` with each `local NAME = ...` setting line replaced, e.g. {"SHOW_IN": '"both"'}."""
+    for name, value in (settings or {}).items():
+        source, found = re.subn(rf"^local {name} = .*$", lambda _: f"local {name} = {value}", source, count=1, flags=re.M)
+        if not found:
+            raise AssertionError(f"no 'local {name} = ' setting to replace")
+    return source
+
+
+# The full console tables: the scripts print one status line by default (SHOW_IN = "iris").
+CONSOLE_TABLES = {"SHOW_IN": '"both"'}
+
+
+def run_script(script, players, after="", missing_modules=(), prelude="", settings=None):
     """Runs a console script (path relative to the repo root) and returns its printed output.
 
     `prelude` is Luau run first, e.g. `local config = {...}` to mock more console globals.
     `after` is Luau run once the script has finished (e.g. shared.print_x(...) calls).
     Modules named in `missing_modules` fail to load, like a failed download.
+    `settings` replaces the script's `local NAME = value` settings (see with_settings).
     """
     parts = ["local __module_sources = {}\n"]
     for path in sorted(dd.MODULES.glob("*.luau")):
@@ -66,7 +82,7 @@ def run_script(script, players, after="", missing_modules=(), prelude=""):
         "local script = nil\n"
         + prelude + "\n"
         "local __result = (function()\n"
-        + (ROOT / script).read_text(encoding="utf-8") +
+        + with_settings((ROOT / script).read_text(encoding="utf-8"), settings) +
         "\nend)()\n" + after + "\n")
     with tempfile.TemporaryDirectory() as tmp:
         harness = Path(tmp) / "harness.luau"

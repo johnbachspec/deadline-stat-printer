@@ -1,5 +1,5 @@
 """Replays the attachment merge (renames.csv + weapon renames) over a saved
-print_attachment_stats_delimited output and checks the result.
+output of print_attachment_stats.luau's "fixture" view and checks the result.
 
 Usage:
     python tools/verify_attachment_merge.py                    # check tests/fixtures/attachment_stats_output.txt
@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 import deadline_data as dd
+import fixture_replay as fx
 
 
 def main(argv):
@@ -26,9 +27,9 @@ def main(argv):
     if not log_path.is_file():
         print(f"FAIL  saved output not found: {log_path}")
         return 1
-    rows = dd.load_fixture(log_path)
-    merged = dd.replay_merge(rows, dict(dd.load_renames()), dd.load_weapon_aliases())
-    merges = dd.merges_from_replay(merged)
+    rows = fx.load_fixture(log_path)
+    merged = fx.replay_merge(rows, dict(dd.load_renames()), dd.load_weapon_aliases())
+    merges = fx.merges_from_replay(merged)
 
     print(f"{len(rows)} logged rows -> {len(merged)} current ids, {len(merges)} built from 2+ logged ids:")
     for canon in sorted(merges):
@@ -36,7 +37,7 @@ def main(argv):
         print(f"  {canon}: {kills} kills, top {gun} ({gun_kills}) <- {', '.join(sorted(sources))}")
 
     if "--write-expected" in argv:
-        dd.write_expected_merges(merges)
+        fx.write_expected_merges(merges)
         print(f"\nwrote {dd.EXPECTED_MERGES_CSV.relative_to(dd.ROOT)}")
         return 0
 
@@ -44,7 +45,7 @@ def main(argv):
     before, after = sum(r[1] for r in rows), sum(b["kills"] for b in merged.values())
     if before != after:
         failures.append(f"kills not conserved: {before} logged, {after} after merging")
-    expected = dd.load_expected_merges()
+    expected = fx.load_expected_merges()
     for canon in sorted(set(expected) | set(merges)):
         if expected.get(canon) != merges.get(canon):
             failures.append(f"{canon}: expected {expected.get(canon)}, got {merges.get(canon)}")

@@ -1,18 +1,18 @@
-"""Shared paths and helpers for the build tools and tests.
+"""The repo's data files, for the build tools and tests: their paths, CSV tables, the
+rename list, the weapon aliases, and downloads from recoil-group/deadline-balancing.
 
-Everything that reads the repo's data files (renames, the saved printer output
-used as a test fixture, weapon aliases) or writes generated Luau goes through
-here, so the tools and the tests agree on formats.
+Related modules: fixture_replay.py (the saved printer output the tests replay),
+luau_source.py (reading and writing Luau tables), luau_cli.py (finding luau and
+luau-compile).
 """
 import csv
 import io
-import math
-import os
 import re
-import shutil
 import urllib.request
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
+
+from luau_source import luau_table_body
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
@@ -80,114 +80,26 @@ def resolve(item_id, aliases):
     return item_id
 
 
+def final_renames(pairs):
+    """{old: final new id}, with chains (A -> B, B -> C) collapsed; ValueError if a chain loops."""
+    direct = dict(pairs)
+    final = {}
+    for old in direct:
+        chain = [old]
+        while chain[-1] in direct:
+            chain.append(direct[chain[-1]])
+            if chain[-1] in chain[:-1]:
+                raise ValueError(f"rename chain loops: {' -> '.join(chain)}")
+        final[old] = chain[-1]
+    return final
+
+
 def load_weapon_aliases(path=WEAPON_DATA_LUAU):
     """Legacy gun id -> current gun id, read from WeaponData.ALIASES in modules/weapon_data.luau."""
     return dict(re.findall(r'(\w+)\s*=\s*"([^"]*)"', luau_table_body(path, "WeaponData.ALIASES")))
 
 
-def luau_table_body(path, name):
-    match = re.search(re.escape(name) + r" = \{(.*?)\n\}", Path(path).read_text(encoding="utf-8"), re.S)
-    if not match:
-        raise SystemExit(f"{name} table not found in {Path(path).name}")
-    return match.group(1)
-
-
-# --- saved printer output (test fixture) -----------------------------------
-
-FIXTURE_ROW = re.compile(r'\["([^"]+)"\]=\{kills=(\d+),top_gun="([^"]+)",top_gun_kills=(\d+)\}')
-
-
-def parse_fixture(text):
-    """(attachment id, kills, top gun, top gun kills) rows from print_attachment_stats_delimited output."""
-    return [(a, int(k), g, int(gk)) for a, k, g, gk in FIXTURE_ROW.findall(text)]
-
-
-def load_fixture(path=FIXTURE_OUTPUT):
-    return parse_fixture(Path(path).read_text(encoding="utf-8"))
-
-
-def top_gun(guns):
-    """(gun, kills) with the most kills; ties go to the alphabetically first gun, as in Luau."""
-    return min(guns.items(), key=lambda g: (-g[1], g[0]))
-
-
-def replay_merge(rows, aliases, weapon_aliases):
-    """Mirror of the Luau aggregation over fixture rows.
-
-    Returns {current id: {"kills", "guns": {gun: kills}, "sources": {logged ids}}}.
-    """
-    merged = defaultdict(lambda: {"kills": 0, "guns": defaultdict(int), "sources": set()})
-    for att_id, kills, gun, _ in rows:
-        bucket = merged[resolve(att_id, aliases)]
-        bucket["kills"] += kills
-        bucket["guns"][weapon_aliases.get(gun, gun)] += kills
-        bucket["sources"].add(att_id)
-    return merged
-
-
-def merges_from_replay(merged):
-    """{current id: (kills, top gun, top gun kills, sources)} for ids built from 2+ logged ids."""
-    out = {}
-    for canon, b in merged.items():
-        if len(b["sources"]) > 1:
-            gun, gun_kills = top_gun(b["guns"])
-            out[canon] = (b["kills"], gun, gun_kills, set(b["sources"]))
-    return out
-
-
-def load_expected_merges(path=EXPECTED_MERGES_CSV):
-    rows = read_table(path, ["canonical_id", "kills", "top_gun", "top_gun_kills", "sources"])
-    return {r[0]: (int(r[1]), r[2], int(r[3]), set(r[4].split(";"))) for r in rows}
-
-
-def write_expected_merges(merges, path=EXPECTED_MERGES_CSV):
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        w = csv.writer(f, lineterminator="\n")
-        w.writerow(["canonical_id", "kills", "top_gun", "top_gun_kills", "sources"])
-        for canon in sorted(merges):
-            kills, gun, gun_kills, sources = merges[canon]
-            w.writerow([canon, kills, gun, gun_kills, ";".join(sorted(sources))])
-
-
-# --- generated Luau --------------------------------------------------------
-
-def luau_string(s):
-    """Double-quoted Luau literal; anything outside printable ASCII becomes 3-digit \\ddd byte escapes."""
-    out = []
-    for b in s.encode("utf-8"):
-        c = chr(b)
-        if c in '"\\':
-            out.append("\\" + c)
-        elif 32 <= b < 127 and c not in "{}":  # braces escaped so the file only has structural braces
-            out.append(c)
-        else:
-            out.append(f"\\{b:03d}")  # always 3 digits so a following digit is not absorbed
-    return '"' + "".join(out) + '"'
-
-
-def luau_entries(mapping):
-    return [f"[{luau_string(k)}] = {luau_string(v)}," for k, v in mapping]
-
-
-def pack(entries, max_lines, indent="    "):
-    """Joins entries onto at most `max_lines` lines. Deadline's Fiu VM cannot load a
-    function spanning more than 255 source lines, so big generated tables are packed."""
-    per_line = max(1, math.ceil(len(entries) / max_lines))
-    return [indent + " ".join(entries[i:i + per_line]) for i in range(0, len(entries), per_line)]
-
-
-# --- external programs and downloads ---------------------------------------
-
-def find_luau_tool(name):
-    """Path to a Luau CLI (luau, luau-compile) from $LUAU_BIN, luau_bin/, or PATH; None if missing."""
-    dirs = [os.environ.get("LUAU_BIN"), ROOT / "luau_bin"]
-    for d in dirs:
-        if d:
-            for candidate in (Path(d) / f"{name}.exe", Path(d) / name):
-                if candidate.is_file():
-                    return str(candidate)
-    return shutil.which(name)
-
+# --- downloads -------------------------------------------------------------
 
 def fetch_upstream(filename):
     """Raw bytes of a deadline-balancing file, or None (with a warning) if it cannot be downloaded."""

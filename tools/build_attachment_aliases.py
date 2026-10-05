@@ -18,6 +18,7 @@ are replaced; the rest of the module is left untouched.
 import sys
 
 import deadline_data as dd
+import luau_source as luau
 
 BEGIN = "-- BEGIN ATTACHMENT_ALIASES"
 END = "-- END ATTACHMENT_ALIASES"
@@ -55,7 +56,7 @@ def fetch_upstream():
 
 
 def render(pairs):
-    return "\n".join(["local ATTACHMENT_ALIASES = {"] + dd.pack(dd.luau_entries(pairs), ALIAS_LINES) + ["}", ""])
+    return "\n".join(["local ATTACHMENT_ALIASES = {"] + luau.pack(luau.luau_entries(pairs), ALIAS_LINES) + ["}", ""])
 
 
 def split_markers(text):

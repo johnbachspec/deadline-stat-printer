@@ -2,7 +2,8 @@
 -- Turns profile stats into one row per attachment: kills summed over every gun,
 -- legacy attachment ids folded into their current id (attachment_data), legacy
 -- gun ids folded into their current gun (weapon_data), and every gun it has kills
--- on, most first. by_gun regroups those rows into one list per gun.
+-- on, most first. by_gun regroups those rows into one list per gun, and matching
+-- keeps the rows whose name contains a search text.
 -- NOTE: Deadline's Luau console uses a Lua 5.x-style VM ('Fiu') that does not
 -- accept Luau type annotations, so this file intentionally has none.
 
@@ -145,6 +146,21 @@ function AttachmentAggregator.by_gun(aggregated)
     end
     table.sort(list, by_kills_then_id)
     return list
+end
+
+-- Only the rows whose name contains `search` (case-insensitive); "" or nil keeps all.
+-- name_of(item) gives a row's display name (AttachmentLabels:name), so the search
+-- matches what the tables show.
+function AttachmentAggregator.matching(aggregated, name_of, search)
+    local query = string.lower(search or "")
+    if query == "" then return aggregated end
+    local items = {}
+    for _, item in ipairs(aggregated.items) do
+        if string.find(string.lower(name_of(item)), query, 1, true) then
+            table.insert(items, item)
+        end
+    end
+    return { items = items, legacy_merged = aggregated.legacy_merged }
 end
 
 return AttachmentAggregator

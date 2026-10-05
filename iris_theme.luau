@@ -102,6 +102,7 @@ elseif COLORS then
 end
 if SPACING then copy(templates[SPACING == "clear" and "sizeClear" or "sizeDefault"]) end
 
+return (function(fonts) fonts() end)(function() -- fonts: a second part with its own 255 lines (IRIS_VIEWER.md)
 -- Table cells and headers get their font through rich text (<font face="...">), which
 -- needs no Font type. Weights are numbers there.
 local WEIGHTS = { Thin = 100, ExtraLight = 200, Light = 300, Regular = 400, Medium = 500, SemiBold = 600,
@@ -200,3 +201,4 @@ print(string.format("[theme] applied: colors %s, spacing %s, text size %s; table
     tostring(SPACING), tostring(TEXT_SIZE),
     tostring(FONT or "Iris's"), tostring(FONT_WEIGHT or "") .. (HEADER_WEIGHT and " (headers " .. HEADER_WEIGHT .. ")" or ""),
     tostring(NUMBER_FONT or "same"), tostring(NUMBER_WEIGHT or ""), chrome, console, console_colors))
+end)

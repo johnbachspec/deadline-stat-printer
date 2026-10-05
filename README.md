@@ -19,7 +19,7 @@ Prints detailed account and per-weapon statistics for Deadline (Roblox) players 
    local SORT_BY       = "KILLS" -- "KILLS" or "TYPE"
    ```
 
-3. A report prints for every human player currently in the server. Output appears in the Luau console itself (not the Roblox Studio Output window); the console is monospaced, but the 166-column grid will wrap if the console window is narrow. To see it in a resizable window instead, see [Iris Windows](#iris-windows).
+3. A report is made for every human player currently in the server. It opens in an Iris window for anyone running the viewer ([Iris Windows](#iris-windows)), and the console prints one status line per report saying where it went. To print the full report in the console instead (a monospaced 166-column grid that wraps if the console window is narrow), set `SHOW_IN = "both"` or `"console"` at the top of the script.
 
 After the script has run once, `shared.print_player_stats` stays available in the console for the rest of the session:
 
@@ -37,7 +37,7 @@ The reports can also open as windows built with [Iris](https://sirmallard.github
 1. In the **Luau client console**, paste the whole of `iris_viewer.luau` and run it (the client console has no `require`). A small "Stat printer" window opens. To never paste it again, copy `client_autorun.txt` (viewer and theme together) into the **Client Autorun** tab instead ([details](IRIS_VIEWER.md#starting-it-automatically-client-autorun)).
 2. In the server console, run `print_player_stats.luau`, `print_attachment_stats.luau` or `cap_announcer.luau` as usual.
 
-Each report opens in its own window, with collapsible sections, filterable and paged tables (click a column header to sort by it), a **Refresh** button, and an **Export** button that shows the report as text to copy into Excel or Google Sheets (Ctrl+A, Ctrl+C, paste: every value lands in its own cell). By default the scripts still print to the console as well; set `SHOW_IN` at the top of a script to `"iris"` for windows only or `"console"` for none. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
+Each report opens in its own window, with collapsible sections, filterable and paged tables (click a column header to sort by it), a **Refresh** button, and an **Export** button that shows the report as text to copy into Excel or Google Sheets (Ctrl+A, Ctrl+C, paste: every value lands in its own cell). The console just gets one status line per report, such as `[iris] sent bachancuc123's attachments to 1 of 1 players`. To print the full tables there too, set `SHOW_IN` at the top of a script to `"both"`, or to `"console"` for no windows, e.g. for players without the viewer. `explore_console.luau` and the attachment printer's `"fixture"` view stay console-only, because their output is meant to be copied.
 
 To pick colors, spacing, a font or a text size, paste `iris_theme.luau` into the client console as well ([details](IRIS_VIEWER.md#theme-colors-spacing-font-and-text-size)).
 
@@ -62,7 +62,7 @@ local TARGET_GUN = ""            -- one gun only ("AKM", "AK_762" or "AKMN"): ki
 local SEARCH     = ""            -- only names containing this text, e.g. "eotech", "suppressor"
 local VIEW       = "attachments" -- "attachments": one row each; "guns": grouped by gun
 local TOP_GUNS   = 3             -- guns listed per row; 1 = the top gun only
-local CONSOLE_ROWS = 50          -- rows printed in the console (per gun in "guns"); 0 = all
+local CONSOLE_ROWS = 50          -- with SHOW_IN "both"/"console": rows printed here (per gun in "guns"); 0 = all
 ```
 
 The `"guns"` view lists every gun the player has attachment kills on, starting with the most-used, and under each gun its attachments by kills on that gun, plus each attachment's total on every gun.
@@ -118,8 +118,7 @@ Career stats are not recorded in the lobby or in player-owned private servers, s
 
 ```
 print_player_stats.luau               <- weapon table entry point and config
-print_attachment_stats.luau           <- attachment table entry point
-print_attachment_stats_delimited.luau <- attachment data as Lua-table lines, to capture test fixtures
+print_attachment_stats.luau           <- attachment table entry point (its "fixture" view captures test fixtures)
 cap_announcer.luau                    <- announces who captured a point; live Captures window
 explore_console.luau                  <- read-only survey of what the console API returns
 iris_viewer.luau                      <- CLIENT console: shows the reports above in Iris windows
@@ -127,18 +126,22 @@ iris_theme.luau                       <- CLIENT console: colors, spacing, font a
 client_autorun.txt                    <- GENERATED: theme + viewer in one piece for the Client Autorun tab
 IRIS_VIEWER.md                        <- guide and maintenance notes for iris_viewer.luau
 .githooks/pre-push                    <- runs CI's checks before a push (git config core.hooksPath .githooks)
-modules/                                 downloaded by the entry points at run time
-  iris_report.luau           <- builds reports for iris_viewer and sends them (fire_client); Refresh
+modules/                                 downloaded by the entry points at run time; one job each
+  iris_report.luau           <- builds a report for iris_viewer, encodes it, sends it (fire_client)
+  iris_bridge.luau           <- server side of the viewer: publish (send, keep, status line), Refresh, late viewers
   weapon_data.luau           <- gun ids: legacy aliases, display names, types (shared by both reports)
   player_lookup.luau         <- finds the player a report is for (shared by all entry points)
   level_data.luau            <- XP thresholds and level calculation
-  formatters.luau            <- number / currency / time / padding helpers
+  formatters.luau            <- number / currency / time / padding and character-width helpers
   stats_aggregator.luau      <- merges raw profile stats into one per-weapon table
+  stats_summary.luau         <- the stat panel's numbers: ratios, averages, level, each weapon row's shares
   filters_sorters.luau       <- filtering and sorting of the weapon list
-  renderer.luau              <- weapon report layout, for the console and Iris
+  renderer.luau              <- stat panel layout and formatting, for the console and Iris
   attachment_data.luau       <- attachment aliases (GENERATED table) and resolver
-  attachment_aggregator.luau <- per-attachment kills, renames and groups applied
-  attachment_renderer.luau   <- attachment table (console and Iris) and Lua-table output
+  attachment_aggregator.luau <- per-attachment kills (renames and groups applied), by-gun rows, name search
+  attachment_labels.luau     <- what an attachment row is called: in-game name, product, or prettified id
+  attachment_renderer.luau   <- attachment views (rows built once), printed or added to an Iris report
+  attachment_fixture.luau    <- the "fixture" view: raw ids as Lua-table lines
   attachment_names.luau      <- GENERATED attachment id -> in-game name, and GROUPS
 data/
   balancing.csv              <- deadline-balancing item sheet; source of display names
@@ -146,7 +149,10 @@ data/
   extra_display_names.csv    <- hand-written names for old ids balancing.csv no longer lists
   attachment_groups.csv      <- pieces always equipped together, printed as one product row
 tools/
-  deadline_data.py            <- shared paths and helpers for the tools and tests
+  deadline_data.py            <- the repo's data files: paths, CSV tables, renames, weapon aliases, downloads
+  fixture_replay.py           <- the saved fixture and a Python mirror of the Luau merge
+  luau_source.py              <- reads Luau tables from source and writes generated Luau
+  luau_cli.py                 <- finds the luau / luau-compile programs
   check_fiu_compat.py         <- fails any script the game's Fiu VM would refuse to load
   build_attachment_names.py   <- regenerates modules/attachment_names.luau
   build_attachment_aliases.py <- regenerates / verifies the alias table in modules/attachment_data.luau
@@ -154,10 +160,18 @@ tools/
   verify_attachment_merge.py  <- replays the merge over a saved output and checks the totals
   rename.py                   <- applies data/renames.csv to the name column of CSV/Excel balancing sheets
 tests/                           python -m unittest discover -s tests
-  test_luau.py                <- runs the console scripts under the luau CLI with the console mocked (Iris and networking too)
+  support.py                  <- runs a console script under the luau CLI with the console mocked
+  iris_support.py, mocks/iris.luau <- the mock Iris and client console the viewer tests run against
+  profiles.py                 <- mock player profiles shared by the test files
+  test_attachments.py         <- attachment printer: names, merges, groups, views, fixture view
+  test_stat_panel.py          <- stat panel: recap and weapon table
+  test_viewer.py              <- iris_viewer and iris_theme: tables, sorting, Export, Refresh, themes
+  test_caps.py, test_explorer.py <- capture announcer, console explorer
+  test_entry_scripts.py       <- the entry scripts' copied loader and REPO_BASE stay identical
+  test_fiu.py                 <- Fiu load limit and the pinned Luau
   test_data.py                <- data files and generated Luau
   test_tools.py               <- unit tests for tools/
-  fixtures/attachment_stats_output.txt <- saved print_attachment_stats_delimited output
+  fixtures/attachment_stats_output.txt <- saved "fixture" view output
   fixtures/expected_merges.csv         <- which fixture rows each rename folds together, and the totals
 .github/
   workflows/sync-balancing.yml <- daily: pull deadline-balancing, regenerate, check, commit
@@ -180,7 +194,7 @@ python tools/check_fiu_compat.py
 python -m unittest discover -s tests
 ```
 
-The tests run the console scripts themselves, so they need the `luau` and `luau-compile` CLIs (from a [Luau release](https://github.com/luau-lang/luau/releases), 0.712 or older: later releases write a bytecode format `check_fiu_compat.py` can't read, so CI pins 0.712) in `luau_bin/`, on `PATH`, or in the folder `$LUAU_BIN` points to; without them those tests are skipped. Run `git config core.hooksPath .githooks` once per clone to have `.githooks/pre-push` run the Fiu check, the `client_autorun.txt` check and the tests before every push (skip once with `git push --no-verify`). To refresh the fixture, run `print_attachment_stats_delimited.luau` in-game and save its output as `tests/fixtures/attachment_stats_output.txt`.
+The tests run the console scripts themselves, so they need the `luau` and `luau-compile` CLIs (from a [Luau release](https://github.com/luau-lang/luau/releases), 0.712 or older: later releases write a bytecode format `check_fiu_compat.py` can't read, so CI pins 0.712) in `luau_bin/`, on `PATH`, or in the folder `$LUAU_BIN` points to; without them those tests are skipped. Run `git config core.hooksPath .githooks` once per clone to have `.githooks/pre-push` run the Fiu check, the `client_autorun.txt` check and the tests before every push (skip once with `git push --no-verify`). To refresh the fixture, run `shared.print_attachment_stats(nil, { view = "fixture" })` in-game after the attachment printer has run once, and save its output as `tests/fixtures/attachment_stats_output.txt`.
 
 ### The Fiu 255-line limit
 

@@ -33,6 +33,7 @@ import re
 import sys
 
 import deadline_data as dd
+import luau_source as luau
 
 NAME_LINES = 200
 MIN_NAMES = 1000  # sanity floor for a downloaded balancing.csv
@@ -202,17 +203,17 @@ def render(version, updated, names, groups):
         "",
         "-- attachment id -> in-game name",
         "local NAMES = {",
-    ] + dd.pack(dd.luau_entries(shown), NAME_LINES) + [
+    ] + luau.pack(luau.luau_entries(shown), NAME_LINES) + [
         "}",
         "",
         "-- piece id -> product, for products made of pieces always equipped together",
         "local GROUPS = {",
-    ] + dd.pack(dd.luau_entries(sorted(groups.items())), 8) + [
+    ] + luau.pack(luau.luau_entries(sorted(groups.items())), 8) + [
         "}",
         "",
         "return {",
-        f"    VERSION = {dd.luau_string(version)},",
-        f"    UPDATED = {dd.luau_string(updated)},",
+        f"    VERSION = {luau.luau_string(version)},",
+        f"    UPDATED = {luau.luau_string(updated)},",
         f"    COUNT = {len(shown)},",
         "    NAMES = NAMES,",
         "    GROUPS = GROUPS,",

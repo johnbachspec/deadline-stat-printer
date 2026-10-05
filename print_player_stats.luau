@@ -1,8 +1,8 @@
 -- print_player_stats.luau
 -- In the in-game Luau Server Console, run:
 --   require("https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/print_player_stats.luau")
--- Output appears in that console (not the Roblox Studio Output window), and in
--- an Iris window for anyone running iris_viewer.luau in their client console.
+-- The report opens in an Iris window for anyone running iris_viewer.luau in their
+-- client console; this console gets one status line per report (SHOW_IN below).
 
 local REPO_BASE = "https://raw.githubusercontent.com/johnbachspec/deadline-stat-printer/main/modules/"
 
@@ -19,14 +19,16 @@ local function load_module(module_name)
     return require(REPO_BASE .. module_name .. ".luau")
 end
 
-local WeaponData = load_module("weapon_data")
-local LevelData  = load_module("level_data")
-local Formatters = load_module("formatters")
-local Aggregator = load_module("stats_aggregator")
-local FilterSort = load_module("filters_sorters")
-local Renderer   = load_module("renderer")
+local WeaponData   = load_module("weapon_data")
+local LevelData    = load_module("level_data")
+local Formatters   = load_module("formatters")
+local Aggregator   = load_module("stats_aggregator")
+local StatsSummary = load_module("stats_summary")
+local FilterSort   = load_module("filters_sorters")
+local Renderer     = load_module("renderer")
 local PlayerLookup = load_module("player_lookup")
-local IrisReport = load_module("iris_report")
+local IrisReport   = load_module("iris_report")
+local IrisBridge   = load_module("iris_bridge")
 
 -- ===== User Config =====
 -- "" lists all weapons. Set to one weapon to show only that row: raw id
@@ -42,28 +44,34 @@ local FILTER_TYPE = ""
 -- "KILLS" -> by kills (default). "TYPE" -> by type, then kills.
 local SORT_BY = "KILLS"
 
--- "console" prints here, "iris" sends the report to every human's
--- iris_viewer.luau window (see README), "both" does both.
-local SHOW_IN = "both"
+-- "iris": the report goes to every human's iris_viewer.luau window (see README)
+-- and this console gets one status line. "both": the full report is printed here
+-- too. "console": printed here only, for players without the viewer.
+local SHOW_IN = "iris"
 -- ========================
 
-local renderer = Renderer.new({ formatters = Formatters, level_data = LevelData })
+local renderer = Renderer.new({ formatters = Formatters })
+local CONSOLE = { players = players, shared = shared, on_client_event = on_client_event } -- for IrisBridge
 
--- Everything one player's report shows.
+-- Everything one player's report shows, with its numbers worked out (StatsSummary).
 local function collect(player, filter, target, sort_by)
     local stats = player.get_profile_stats() or {}
     local combined = Aggregator.combine_weapon_stats(stats, WeaponData)
     local weapon_list, table_totals = FilterSort.build_weapon_list(combined, WeaponData, filter, target)
     FilterSort.sort(weapon_list, sort_by)
+    for _, w in ipairs(weapon_list) do
+        w.numbers = StatsSummary.weapon(w.data, table_totals.kills, table_totals.use_time) -- shares of the rows shown
+    end
     return {
         player_name = player.name,
-        player_stats = stats.player or {},
-        spendings = stats.spendings or {},
-        achievements = stats.achievements or {},
-        collection = Aggregator.collection(stats),
+        summary = StatsSummary.account({ -- account-wide, whatever the filter
+            player_stats = stats.player or {},
+            spendings = stats.spendings or {},
+            achievements = stats.achievements or {},
+            collection = Aggregator.collection(stats),
+            account_totals = Aggregator.account_totals(combined),
+        }, LevelData),
         weapon_list = weapon_list,
-        table_totals = table_totals,
-        account_totals = Aggregator.account_totals(combined),
     }
 end
 
@@ -110,9 +118,8 @@ local function print_player_stats(player, options_or_filter, target_override, so
         renderer:print_report(data)
     end
     if SHOW_IN ~= "console" then
-        local humans = PlayerLookup.humans(players)
-        local sent, problem = iris_report(data, filter, target, sort_by):send(humans)
-        print(IrisReport.sent_line(tostring(target_p.name) .. "'s stats", sent, #humans, problem))
+        IrisBridge.publish(CONSOLE, iris_report(data, filter, target, sort_by), PlayerLookup.humans(players),
+            tostring(target_p.name) .. "'s stats")
     end
     return data.weapon_list
 end
@@ -127,7 +134,7 @@ if shared then
 end
 
 if SHOW_IN ~= "console" then
-    IrisReport.serve({ players = players, shared = shared, on_client_event = on_client_event }, "stats", function(arg)
+    IrisBridge.serve(CONSOLE, "stats", function(arg)
         local name, filter, target, sort_by = arg:match("^(.-)|(.-)|(.-)|(.*)$")
         local player = name and PlayerLookup.find(players, name)
         if player then

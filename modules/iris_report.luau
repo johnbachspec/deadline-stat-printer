@@ -1,5 +1,6 @@
 -- modules/iris_report.luau
--- Builds a report for iris_viewer.luau and sends it to players' client consoles.
+-- Builds a report for iris_viewer.luau, encodes it, and sends it to players' client
+-- consoles. Publishing, Refresh and resending to late viewers: modules/iris_bridge.luau.
 -- Iris (the UI library) only exists on the client and profile stats only on the
 -- server, so the server scripts describe what to show and fire_client it as text,
 -- one line per item, fields separated by tabs:
@@ -28,7 +29,7 @@ local function escape(value)
 end
 
 -- id names the window ("stats:Name"); a later report with the same id replaces it.
--- refresh is "<kind>|<arg>" for IrisReport.serve, or nil for no Refresh button.
+-- refresh is "<kind>|<arg>" for IrisBridge.serve (modules/iris_bridge.luau), or nil for no Refresh button.
 function IrisReport.new(id, title, refresh)
     local self = setmetatable({ lines = {}, popup = true }, IrisReport)
     self.id = (tostring(id):gsub("|", "/"))
@@ -90,21 +91,12 @@ function IrisReport:messages()
     return messages
 end
 
--- The server's latest copy of each report, kept in the bridge (see serve) so a viewer
--- that starts later can ask for them: "dsp1|hello" gets every one resent to it.
-local function remember(bridge, id, messages)
-    bridge.latest = bridge.latest or {}
-    bridge.latest_order = bridge.latest_order or {}
-    if not bridge.latest[id] then table.insert(bridge.latest_order, id) end
-    bridge.latest[id] = messages
-end
-
 -- Sends the report to each player (players.get(...) objects). Returns how many got
--- it and the first error, if any player's fire_client failed. Once serve has run in
--- this script, the report is also kept for viewers that start later.
+-- it, the first error if any player's fire_client failed, and the messages sent.
+-- modules/iris_bridge.luau's publish is what scripts call: it also keeps the report
+-- for viewers that start later and prints where it went.
 function IrisReport:send(recipients)
     local messages, sent, problem = self:messages(), 0, nil
-    if IrisReport.bridge then remember(IrisReport.bridge, self.id, messages) end
     for _, player in ipairs(recipients or {}) do
         local ok, err = pcall(function()
             for _, message in ipairs(messages) do
@@ -113,69 +105,7 @@ function IrisReport:send(recipients)
         end)
         if ok then sent = sent + 1 else problem = problem or tostring(err) end
     end
-    return sent, problem
-end
-
--- One console line saying where a report went, so a missing window can be traced.
-function IrisReport.sent_line(what, sent, recipients, problem)
-    return string.format("[iris] sent %s to %d of %d players%s", what, sent, recipients,
-        problem and (" (fire_client failed: " .. problem .. ")") or "")
-end
-
--- A Refresh request "dsp1|refresh|<kind>|<arg>" from a viewer: build(arg) makes the
--- new report, which goes back to that player only. "dsp1|hello", sent by a viewer
--- when it starts, gets every kept report resent to that player.
-local function answer(bridge, sender, message)
-    if type(message) ~= "string" then return end
-    local hello = message == "dsp1|hello"
-    local kind, arg = message:match("^dsp1|refresh|([^|]*)|?(.*)$")
-    local build = kind and bridge.handlers[kind]
-    if not (build or hello) then return end
-    local player = sender
-    if type(sender) ~= "table" then -- the event may pass a name instead of a player
-        player = bridge.players.get(type(sender) == "string" and sender or sender.Name)
-    end
-    local clock = os and os.clock
-    local key = tostring(player and player.name) .. "|" .. message
-    if clock then -- each player's same request at most every min_interval seconds, so clicks cannot flood the server
-        if bridge.last[key] and clock() - bridge.last[key] < bridge.min_interval then return end
-        bridge.last[key] = clock()
-    end
-    if hello then
-        for _, id in ipairs(bridge.latest_order or {}) do
-            local messages = bridge.latest[id]
-            pcall(function() for _, m in ipairs(messages) do player.fire_client(m) end end)
-        end
-        return
-    end
-    local report = player and build(arg)
-    if report then report:send({ player }) end
-end
-
--- Registers build(arg) for Refresh requests of this kind. The listener is connected
--- once per server and finds handlers through `shared`, so running a script again
--- replaces its handler instead of answering twice.
--- console = { players = players, shared = shared, on_client_event = on_client_event }
-function IrisReport.serve(console, kind, build)
-    local store, event = console.shared, console.on_client_event
-    if type(store) ~= "table" then return false end
-    local bridge = store.iris_report_bridge
-    if not bridge then
-        if not event then return false end
-        bridge = { handlers = {}, last = {}, min_interval = 0.5 }
-        local ok = pcall(function()
-            event:Connect(function(sender, message)
-                pcall(bridge.answer, bridge, sender, message)
-            end)
-        end)
-        if not ok then return false end
-        store.iris_report_bridge = bridge
-    end
-    bridge.answer = answer
-    bridge.players = console.players
-    bridge.handlers[kind] = build
-    IrisReport.bridge = bridge -- so send keeps a copy for viewers that start later
-    return true
+    return sent, problem, messages
 end
 
 return IrisReport

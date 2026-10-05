@@ -95,9 +95,9 @@ The `"deadline"` colors are grey levels, so they need no `Color3` type either: i
 
 The rich-text tags are not checked: a font name Roblox doesn't know just draws in the normal font, with no message. Asset ids in rich text (`rbxassetid://...`) are the least certain part; if Rubik doesn't show, use a font name.
 
-The snippet stores the theme in `shared.iris_viewer_theme` (Iris style keys) and the table fonts in `shared.iris_viewer_fonts`. Each frame the viewer wraps its windows in `iris.PushConfig(theme)` / `iris.PopConfig()`, and Iris re-styles them when the theme changes. If Iris rejects a theme value, the viewer turns the theme off so the windows keep working. The snippet lives in its own file so it doesn't use up the viewer's [255 lines](#the-255-line-limit).
+The snippet stores the theme in `shared.iris_viewer_theme` (Iris style keys) and the table fonts in `shared.iris_viewer_fonts`. Each frame the viewer wraps its windows in `iris.PushConfig(theme)` / `iris.PopConfig()`, and Iris re-styles them when the theme changes. If Iris rejects a theme value, the viewer turns the theme off so the windows keep working. The snippet lives in its own file so it doesn't use up the viewer's [255 lines](#the-255-line-limit), and is split the same way: its fonts part (from "Table cells and headers get their font") is a second function with its own 255 lines.
 
-On the server side, `SHOW_IN` at the top of `print_player_stats.luau` and `print_attachment_stats.luau` is `"both"` (console text and windows), `"iris"` (windows only) or `"console"` (no windows). `cap_announcer.luau` has `SEND_TO_IRIS`.
+On the server side, `SHOW_IN` at the top of `print_player_stats.luau` and `print_attachment_stats.luau` is `"iris"` (windows, and one status line in the console; the default), `"both"` (the full tables in the console too) or `"console"` (no windows). `cap_announcer.luau` has `SEND_TO_IRIS`.
 
 ## How it works
 
@@ -105,16 +105,18 @@ On the server side, `SHOW_IN` at the top of `print_player_stats.luau` and `print
 server console                                   client console
 print_player_stats.luau                          iris_viewer.luau
   renderer:add_to_report(report, data)             on_server_event -> viewer.receive
-  report:send(humans) --- fire_client(text) --->     joins the parts, parses the report
+  IrisBridge.publish(...) -- fire_client(text) -->   joins the parts, parses the report
                                                    iris:Connect -> viewer.draw, every frame
-IrisReport.serve("stats", build)  <-- fire_server("dsp1|refresh|stats|...") --- Refresh button
+IrisBridge.serve("stats", build) <-- fire_server("dsp1|refresh|stats|...") -- Refresh button
+                                 <-- fire_server("dsp1|hello") ----------- a viewer starting empty
 ```
 
-- **Building a report.** `modules/iris_report.luau` is a small builder: `IrisReport.new(id, title, refresh)`, then `:section(title, open, tip)`, `:text(text)`, `:columns(names)`, `:row(cells)`. The renderers add to it (`Renderer:add_to_report`, `AttachmentRenderer:add_to_report`), from the same cells the console output uses, so the two never disagree.
+- **Building a report.** `modules/iris_report.luau` is a small builder: `IrisReport.new(id, title, refresh)`, then `:section(title, open, tip)`, `:text(text)`, `:columns(names)`, `:row(cells)`. The renderers add to it (`Renderer:add_to_report`, `AttachmentRenderer:add_view`), from the same cells the console output uses, so the two never disagree.
 - **Sending.** A report is encoded as text, one line per item with tab-separated fields (`report`, `section`, `text`, `columns`, `row`; backslash, tab and newline escaped). Text is used rather than tables because it survives whatever the game does to `fire_client` arguments. It goes out in parts of at most 4000 bytes, never splitting a UTF-8 character, each as `dsp1|<id>|<part>|<parts>|<text>`. The format is described at the top of `modules/iris_report.luau`.
+- **Publishing.** `modules/iris_bridge.luau` is the server's side of the conversation: `IrisBridge.publish(console, report, recipients, what)` sends a report, keeps its latest copy, and prints the one status line (`[iris] sent ... to N of M players`). Console globals come in as `console = { players, shared, on_client_event }`, so the modules never read globals themselves.
 - **Receiving.** The viewer keeps its state in `shared.iris_viewer`. It connects to `on_server_event` and `iris:Connect` only the first time it runs in a session; those connections call `viewer.receive` and `viewer.draw`, which a later paste replaces. That is why pasting again updates the viewer instead of drawing everything twice.
-- **Starting late.** A report reaches only viewers already running when it is sent. So the server keeps its latest copy of each report (`IrisReport:send` stores them in `shared.iris_report_bridge` once a script has called `IrisReport.serve`), and a viewer that starts with no reports sends `dsp1|hello`, which gets all of them resent to that player. Reports from scripts run before you joined, or before Client Autorun started the viewer, still open.
-- **Refresh.** A report's `refresh` field (e.g. `stats|Name|||KILLS`) is sent back with `fire_server`. `IrisReport.serve` registers a builder per kind; its one `on_client_event` listener is connected once per server and finds builders through `shared.iris_report_bridge`, so re-running a server script replaces its handler. The answer goes only to the player who asked, and the same request from the same player is ignored for half a second.
+- **Starting late.** A report reaches only viewers already running when it is sent. So the server keeps its latest copy of each report (`IrisBridge.publish` keeps them in `shared.iris_report_bridge`), and a viewer that starts with no reports sends `dsp1|hello`, which gets all of them resent to that player. Reports from scripts run before you joined, or before Client Autorun started the viewer, still open.
+- **Refresh.** A report's `refresh` field (e.g. `stats|Name|||KILLS`) is sent back with `fire_server`. `IrisBridge.serve` registers a builder per kind; its one `on_client_event` listener is connected once per server and finds builders through `shared.iris_report_bridge`, so re-running a server script replaces its handler. The answer goes only to the player who asked, and the same request from the same player is ignored for half a second.
 
 ## Iris under Fiu
 
@@ -175,6 +177,6 @@ on_server_event:Connect(function(...) print("[event]", select("#", ...), ...) en
 
 ## Changing it
 
-- `tests/test_luau.py` (`TestIrisViewer`) runs the viewer under the `luau` CLI against a mock Iris that places table cells the way both table styles do, checks every frame ends with every widget closed and every widget has an explicit id, and routes `fire_client` / `fire_server` between the server scripts and the viewer. Run `python -m unittest discover -s tests`.
+- `tests/test_viewer.py` runs the viewer under the `luau` CLI against a mock Iris that places table cells the way both table styles do, checks every frame ends with every widget closed and every widget has an explicit id, and routes `fire_client` / `fire_server` between the server scripts and the viewer. Run `python -m unittest discover -s tests`.
 - New kinds of content go in both halves: a builder method in `modules/iris_report.luau` and a branch in the viewer's `parse` and `draw_blocks`.
-- A new report only needs server code: build it with `IrisReport`, send it with `:send(PlayerLookup.humans(players))`, and register a Refresh builder with `IrisReport.serve`.
+- A new report only needs server code: build it with `IrisReport`, send it with `IrisBridge.publish(console, report, PlayerLookup.humans(players), what)`, and register a Refresh builder with `IrisBridge.serve`.
