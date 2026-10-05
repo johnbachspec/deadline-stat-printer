@@ -31,6 +31,10 @@ local function __make(kind, container)
       table.insert(__drawn, kind .. " " .. __esc(text))
     end
     if kind == "Table" then w.n, w.index, w.row, w.col = args[1], 0, 1, 1 end
+    if kind == "Table" and not __new_tables and not w.ColumnInstances then -- Iris 2.3: one frame per column, 1/n wide
+      w.ColumnInstances = {}
+      for i = 1, args[1] do w.ColumnInstances[i] = { Size = { X = 1 / args[1] } } end
+    end
     if container then table.insert(__stack, w) end
     return w
   end
@@ -59,6 +63,7 @@ local iris = {
   TemplateConfig = { colorDark = { TextColor = "white" }, colorLight = { TextColor = "black" },
     sizeDefault = { TextFont = "Enum.Font.Code", TextSize = 13 }, sizeClear = { TextFont = "Enum.Font.Ubuntu", TextSize = 15 } },
 }
+local UDim2 = { new = function(xs, xo, ys, yo) return { X = xs } end }
 local Enum = { Font = { Code = "Enum.Font.Code", Ubuntu = "Enum.Font.Ubuntu" } }
 local Color3 = { fromRGB = function(r, g, b) return "rgb(" .. r .. "," .. g .. "," .. b .. ")" end }
 local __font_mt = { __tostring = function(f) return "Font(" .. f.Family .. ")" end }

@@ -3,6 +3,7 @@
 -- Fiu load limit: the top level and the drawing function below each get 255 lines; notes go in IRIS_VIEWER.md.
 local PAGE_ROWS = 50   -- table rows per page; longer tables get Prev / Next and Show all buttons
 local FILTER_ROWS = 12 -- tables with more rows than this get a filter box
+local COLUMN_CHARS = { 4, 40 } -- (Iris before 2.4) each column's width follows its longest text, within these many characters
 local WINDOW_SIZES = { stats = { 1180, 640 }, attachments = { 1000, 640 }, caps = { 380, 320 } }
 local DEFAULT_SIZE = { 700, 500 }
 local ONLY_FOR = {} -- player names, e.g. { "bachancuc123" }: in Client Autorun, only they get the viewer; {} = everyone
@@ -157,6 +158,26 @@ local function visible_rows(tbl, ui)
     end
     return cache.rows
 end
+local function column_widths(tbl) -- shares of the table width, from each column's longest text (header included); worked out once per report
+    if tbl.widths then return tbl.widths end
+    local chars, total = {}, 0
+    for c, name in ipairs(tbl.columns) do chars[c] = #name + (tbl.header and 3 or 0) end -- (+3: a sort arrow and the button's padding)
+    for _, row in ipairs(tbl.rows) do
+        for c = 1, #chars do local value = row[c] and row[c][1] or ""; if #value > chars[c] then chars[c] = #value end end
+    end
+    for c = 1, #chars do chars[c] = math.min(math.max(chars[c], COLUMN_CHARS[1]), COLUMN_CHARS[2]); total = total + chars[c] end
+    tbl.widths = {}
+    for c = 1, #chars do tbl.widths[c] = chars[c] / total end
+    return tbl.widths
+end
+local function size_columns(widget, tbl) -- Iris before 2.4 gives every column 1/n of the width and never resizes its column frames, so set them once
+    if widget.dsp_sized == tbl or type(widget.ColumnInstances) ~= "table" or not UDim2 then return end
+    widget.dsp_sized = tbl -- (a refreshed report is a new tbl, with new widths)
+    for c, share in ipairs(column_widths(tbl)) do
+        local column = widget.ColumnInstances[c]
+        if column then pcall(function() column.Size = UDim2.new(share, 0, 0, 0) end) end
+    end
+end
 local function draw_table(tbl, ui)
     local rows = visible_rows(tbl, ui)
     local all = ui.pages[tbl.key .. ":all"] -- "Show all": one page with every row (costs frame rate on big tables)
@@ -184,7 +205,7 @@ local function draw_table(tbl, ui)
         open(iris.Table({ n, tbl.header, true, true, true, false, false, true }))
         if tbl.header then iris.SetHeaderColumnIndex(1) end
     else -- NumColumns, RowBg, BordersOuter, BordersInner
-        open(iris.Table({ n, true, true, true }))
+        size_columns(open(iris.Table({ n, true, true, true })), tbl) -- (2.4+ sizes columns by content itself: ProportionalWidth)
     end
     if tbl.header then -- the header row, made here so reports received by an older viewer have it too; Iris 2.4+ styles it, older gets bold
         if not tbl.head then tbl.head = { number = {}, bold = not NEW_TABLES }; for c, name in ipairs(tbl.columns) do tbl.head[c] = { name } end end
