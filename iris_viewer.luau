@@ -221,6 +221,19 @@ local function draw_blocks(blocks, ui)
     end
 end
 return (function(windows) windows() end)(function() -- windows: a third part with its own 255 lines (IRIS_VIEWER.md)
+-- Iris draws the title bar's close button invisible until the mouse is on it, and its X is a Studio-only
+-- image, so it is lit red instead (the collapse button shares these colors). Needs the Color3 type.
+local TITLE_BUTTONS = Color3 and { ButtonHoveredColor = Color3.fromRGB(196, 43, 28), ButtonHoveredTransparency = 0,
+    ButtonActiveColor = Color3.fromRGB(150, 30, 20), ButtonActiveTransparency = 0 }
+local function open_window(key, title) -- an Iris window with red title-bar buttons; the push covers the window alone, not what's in it
+    local red = TITLE_BUTTONS and iris.PushConfig
+    if red then set_id(key .. ":red"); red = pcall(iris.PushConfig, TITLE_BUTTONS) end
+    set_id(key)
+    local ok, widget = pcall(iris.Window, { title })
+    if red then pcall(iris.PopConfig) end -- popped even when the window failed, or it would color every window after it
+    if not ok then error(widget, 0) end
+    return open(widget)
+end
 local function export_text(report, ui) -- the whole report as tab-separated lines: pasted into a spreadsheet, each cell lands in its own column
     local lines, clean = { report.title }, function(value) return (tostring(value or ""):gsub("[\t\r\n]", " ")) end
     local function add(blocks)
@@ -239,8 +252,7 @@ local function export_text(report, ui) -- the whole report as tab-separated line
 end
 local function draw_export(report) -- the Export window: a text box to select and copy from
     local ui = report.ui
-    set_id(report.key .. ":exportwin")
-    local window = open(iris.Window({ "Export: " .. report.title }))
+    local window = open_window(report.key .. ":exportwin", "Export: " .. report.title)
     if ui.export_new then
         window.state.isOpened:set(true)
         pcall(function() window.state.size:set(Vector2.new(700, 500)) end) -- skipped if Vector2 is not available
@@ -257,8 +269,7 @@ end
 local function draw_report(report, index)
     local ui = report.ui
     ui.sorts = ui.sorts or {} -- (reports kept from an older viewer lack it)
-    set_id(report.key)
-    local window = open(iris.Window({ report.title }))
+    local window = open_window(report.key, report.title)
     if not ui.placed then
         ui.placed = true
         local size = WINDOW_SIZES[report.id:match("^[^:]*")] or DEFAULT_SIZE
@@ -293,8 +304,7 @@ local function draw_report(report, index)
     close()
 end
 local function draw_hub()
-    set_id("dsp:hub")
-    local hub = open(iris.Window({ "Stat printer" }))
+    local hub = open_window("dsp:hub", "Stat printer")
     if viewer.show_hub then viewer.show_hub = false; hub.state.isOpened:set(true) end
     if hub.state.isOpened.value and hub.state.isUncollapsed.value then
         if #viewer.order == 0 then

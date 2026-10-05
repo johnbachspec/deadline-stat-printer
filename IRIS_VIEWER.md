@@ -161,6 +161,7 @@ The same works in `client_autorun.txt`, where the whole viewer becomes one funct
 | The table font changed but titles and buttons didn't | The console has no `Font` type, so only `"Code"` and `"Ubuntu"` reach them | Expected; see [What the font reaches](#what-the-font-reaches) |
 | `[viewer] theme turned off, Iris rejected it: ...` (e.g. `Font expected, got EnumItem`) | A theme value this Iris can't use; the viewer dropped the theme so the windows keep working | Send the message; paste the theme again after a fix |
 | Theme pasted but nothing changed | Pasted before the viewer, or the viewer is from before themes existed | Paste the current `iris_viewer.luau`, then the theme |
+| No X or arrow in a window's title bar | Iris draws them with images that only exist in Roblox Studio | The buttons still work: the top-right corner lights up red under the mouse and closes the window; the top-left one collapses it. The hub's **Show** reopens a closed window |
 | Frame rate drops with a window open | Too many cells drawn per frame | Press **Pages** instead of Show all, lower `PAGE_ROWS`, or collapse sections you are not reading |
 
 To check the connection without the stat scripts, run in the server console:

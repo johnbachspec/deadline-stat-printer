@@ -4,7 +4,7 @@
 -- and fire_client / fire_server route between the server scripts and the viewer, as "Tester".
 local __new_tables = __NEW_TABLES__
 local __widgets, __stack, __next_id, __frame_fn, __clicks, __hovers = {}, {}, nil, nil, {}, {}
-local __drawn, __grids, __sent, __auto_ids, __configs, __pushed = {}, {}, 0, {}, 0, nil
+local __drawn, __grids, __sent, __auto_ids, __configs, __pushed = {}, {}, 0, {}, 0, {} -- __pushed: the PushConfig stack
 local function __state(v) return { value = v, set = function(self, x) self.value = x end } end
 local function __esc(s) return (tostring(s):gsub("\t", "<TAB>"):gsub("\n", "<NL>")) end
 local function __make(kind, container)
@@ -22,7 +22,7 @@ local function __make(kind, container)
     w.hovered = function() return __hovers[id] == true end
     local text, parent = args and args[1], __stack[#__stack]
     if text == "boom" then error("boom") end
-    if __pushed and __pushed.reject then error("Unable to assign property FontFace. Font expected, got EnumItem") end
+    if __pushed[1] and __pushed[1].reject then error("Unable to assign property FontFace. Font expected, got EnumItem") end
     if (kind == "Text" or kind == "SmallButton") and parent and parent.kind == "Table" then  -- sortable headers are buttons
       if not __new_tables then parent.row = math.ceil(parent.index / parent.n); parent.col = (parent.index - 1) % parent.n + 1 end
       __grids[parent.id] = __grids[parent.id] or {}
@@ -48,11 +48,16 @@ local iris = {
   end,
   Connect = function(self, fn) __frame_fn = fn end,
   PushConfig = function(t)
-    table.insert(__drawn, string.format("PushConfig %s size=%s font=%s color=%s", tostring(__next_id),
-      tostring(t.TextSize), tostring(t.TextFont), tostring(t.TextColor)))
-    __next_id = nil; __configs = __configs + 1; __pushed = t
+    if t.TextSize == nil then -- a push for one widget's colors, not the theme
+      table.insert(__drawn, string.format("PushConfig %s hover=%s active=%s", tostring(__next_id),
+        tostring(t.ButtonHoveredColor), tostring(t.ButtonActiveColor)))
+    else
+      table.insert(__drawn, string.format("PushConfig %s size=%s font=%s color=%s", tostring(__next_id),
+        tostring(t.TextSize), tostring(t.TextFont), tostring(t.TextColor)))
+    end
+    __next_id = nil; __configs = __configs + 1; table.insert(__pushed, t)
   end,
-  PopConfig = function() __configs = __configs - 1; __pushed = nil; table.insert(__drawn, "PopConfig") end,
+  PopConfig = function() __configs = __configs - 1; table.remove(__pushed); table.insert(__drawn, "PopConfig") end,
   UpdateGlobalConfig = function(t)
     print("GLOBAL" .. (t.TextFont and (" font=" .. tostring(t.TextFont)) or "") .. (t.TextColor and (" color=" .. tostring(t.TextColor)) or ""))
   end,
