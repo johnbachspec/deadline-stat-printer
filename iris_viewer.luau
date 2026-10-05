@@ -111,11 +111,12 @@ local CHAR_PX = 7 -- about how wide a character of 14px text is: a cell with mor
 local HEAD_WIDTH = 1.2 -- a header (bold, in a button) is about this much wider per character; one that doesn't fit leads its tooltip with its name
 local function open(widget) depth = depth + 1; return widget end
 local function close() depth = depth - 1; iris.End() end
-local function slot_ids(tbl, slot) -- widget ids for one visible row (slot 0 is the header)
+local function slot_ids(tbl, slot, suffix) -- widget ids for one visible row (slot 0 is the header); suffix: the table's generation
+    if tbl.slots_for ~= suffix then tbl.slots, tbl.slots_for = {}, suffix end
     local ids = tbl.slots[slot]
     if not ids then
         ids = {}
-        for c = 1, #tbl.columns do ids[c] = tbl.key .. ":" .. slot .. ":" .. c end
+        for c = 1, #tbl.columns do ids[c] = tbl.key .. suffix .. ":" .. slot .. ":" .. c end
         tbl.slots[slot] = ids
     end
     return ids
@@ -208,7 +209,15 @@ local function draw_table(tbl, ui)
     end
     ui.pages[tbl.key] = page
     local n = #tbl.columns
-    set_id(tbl.key)
+    local first = (page - 1) * per_page
+    local shown = math.min(per_page, #rows - first)
+    -- Iris before 2.4 keeps every table cell it ever made, so a table that shows fewer rows than last frame (back from
+    -- "Show all", a filter, the last page) would keep empty cells below its rows. A new table id drops the old table.
+    ui.shown, ui.gens = ui.shown or {}, ui.gens or {}
+    if ui.shown[tbl.key] and shown < ui.shown[tbl.key] then ui.gens[tbl.key] = (ui.gens[tbl.key] or 0) + 1 end
+    ui.shown[tbl.key] = shown
+    local suffix = ui.gens[tbl.key] and (":g" .. ui.gens[tbl.key]) or ""
+    set_id(tbl.key .. suffix)
     if NEW_TABLES then -- NumColumns, Header, RowBackground, OuterBorders, InnerBorders, Resizable, FixedWidth, ProportionalWidth
         open(iris.Table({ n, tbl.header, true, true, true, false, false, true }))
         if tbl.header then iris.SetHeaderColumnIndex(1) end
@@ -218,7 +227,7 @@ local function draw_table(tbl, ui)
     if tbl.header then -- the header row, made here so reports received by an older viewer have it too; Iris 2.4+ styles it, older gets bold
         if not tbl.head then tbl.head = { number = {}, bold = not NEW_TABLES }; for c, name in ipairs(tbl.columns) do tbl.head[c] = { name } end end
         if not tbl.head.is_head then tbl.head.is_head, tbl.head.rich_for = true, nil end -- (older viewers' header rows lack it; restyle them)
-        local ids, sort = slot_ids(tbl, 0), ui.sorts[tbl.key]
+        local ids, sort = slot_ids(tbl, 0, suffix), ui.sorts[tbl.key]
         local room = ui.width and (ui.width - 40) / n / CHAR_PX -- characters a column shows
         for c = 1, n do
             local about = tbl.tips and tbl.tips[c] ~= "" and tbl.tips[c] or nil -- what the column means (server's tips line)
@@ -230,10 +239,10 @@ local function draw_table(tbl, ui)
             end
         end
     end
-    local first, fonts = (page - 1) * per_page, shared.iris_viewer_fonts
+    local fonts = shared.iris_viewer_fonts
     local fits = ui.width and math.floor((ui.width - 40) / n / CHAR_PX) -- characters a column shows (columns are 1/n wide)
-    for slot = 1, math.min(per_page, #rows - first) do
-        local row, ids = rows[first + slot], slot_ids(tbl, slot)
+    for slot = 1, shown do
+        local row, ids = rows[first + slot], slot_ids(tbl, slot, suffix)
         for c = 1, n do
             local text = row[c] and row[c][1]
             local cut = fits and text and #text > fits and ((utf8 and utf8.len(text)) or #text) > fits -- characters, not bytes

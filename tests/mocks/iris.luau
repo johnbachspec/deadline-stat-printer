@@ -5,6 +5,7 @@
 local __new_tables = __NEW_TABLES__
 local __widgets, __stack, __next_id, __frame_fn, __clicks, __hovers = {}, {}, nil, nil, {}, {}
 local __drawn, __grids, __sent, __auto_ids, __configs, __pushed = {}, {}, 0, {}, 0, {} -- __pushed: the PushConfig stack
+local __frame_no = 0
 local function __state(v) return { value = v, set = function(self, x) self.value = x end } end
 local function __esc(s) return (tostring(s):gsub("\t", "<TAB>"):gsub("\n", "<NL>")) end
 local function __make(kind, container)
@@ -30,7 +31,8 @@ local function __make(kind, container)
     else
       table.insert(__drawn, kind .. " " .. __esc(text))
     end
-    if kind == "Table" then w.n, w.index, w.row, w.col = args[1], 0, 1, 1 end
+    if kind == "Table" then w.n, w.index, w.row, w.col, w.cells, w.drawn_in = args[1], 0, 1, 1, 0, __frame_no end
+    if (kind == "Text" or kind == "SmallButton") and parent and parent.kind == "Table" then parent.cells = parent.cells + 1 end
     if container then table.insert(__stack, w) end
     return w
   end
@@ -76,6 +78,7 @@ if __new_tables then
   iris.SetHeaderColumnIndex = function(i) local t = __stack[#__stack]; t.row = 0; t.col = i end
 end
 local function __frame()
+  __frame_no = __frame_no + 1
   __drawn, __grids = {}, {}
   __frame_fn()
   assert(#__stack == 0, "a frame left " .. #__stack .. " widgets open")
@@ -83,6 +86,14 @@ local function __frame()
   -- Under Fiu, Iris's automatic ids are draw order, so any widget without an explicit id can
   -- take over another one's state (or kind) when a report changes.
   assert(#__auto_ids == 0, "drawn without an explicit id: " .. table.concat(__auto_ids, "; "))
+  -- Iris before 2.4 makes a table's cells once and never removes them, so a table drawing fewer cells than it
+  -- did before keeps empty ones below its rows: the viewer must give such a table a new id.
+  for id, w in pairs(__widgets) do
+    if w.kind == "Table" and w.drawn_in == __frame_no then
+      assert(__new_tables or w.cells >= (w.max_cells or 0), "table " .. id .. " drew " .. w.cells .. " cells after " .. (w.max_cells or 0) .. ": Iris would keep dead cells")
+      w.max_cells = math.max(w.max_cells or 0, w.cells)
+    end
+  end
   __clicks, __hovers = {}, {}
 end
 local function __click(id) assert(__widgets[id], "no widget " .. id); __clicks[id] = true end

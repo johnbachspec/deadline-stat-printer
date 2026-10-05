@@ -102,6 +102,28 @@ __click("dsp:attachments:Big:2:2:all"); __frame(); __frame(); print("-- all"); _
         self.assertIn("SmallButton Pages", drawn(pages["all"]))
         self.assertNotIn("SmallButton Next >", drawn(pages["all"]))
 
+    def test_back_from_show_all_leaves_no_dead_rows(self):
+        # Iris before 2.4 never removes a table's cells, so after "Show all" the 50-row page would keep 70 empty
+        # ones below its rows. The mock fails any frame that leaves them; the table must get a fresh id.
+        after = r"""
+local R = require("x/modules/iris_report.luau")
+local report = R.new("attachments:Big", "Big", nil)
+report:section("All", true)
+report:columns({ "Name", "Note" })
+for i = 1, 120 do report:row({ "row " .. i, "note" }) end
+for _, m in ipairs(report:messages()) do __deliver(m) end
+__frame(); __click("dsp:attachments:Big:2:2:all"); __frame(); __frame()
+print("-- all"); __dump()
+__click("dsp:attachments:Big:2:2:all"); __frame(); __frame()
+print("-- pages"); __dump()
+"""
+        output = run_script("iris_viewer.luau", "nil", prelude=iris_mocks(False), after=after)
+        pages = dict(part.split("\n", 1) for part in output.split("-- ")[1:])
+        self.assertEqual(len(only_table(pages["all"], 2)), 1 + 120)
+        back = grids(pages["pages"])
+        self.assertEqual([len(rows) for rows in back.values()], [1 + 50])  # one table, header and 50 rows
+        self.assertEqual(list(back)[0], "dsp:attachments:Big:2:2:g1")  # a fresh table: Iris dropped the old one's cells
+
     def test_clicking_a_header_sorts_the_table(self):
         after = r"""
 local R = require("x/modules/iris_report.luau")
