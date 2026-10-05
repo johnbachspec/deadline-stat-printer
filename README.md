@@ -15,7 +15,7 @@ Prints detailed account and per-weapon statistics for Deadline (Roblox) players 
 
    ```lua
    local TARGET_WEAPON = "" -- one weapon only: raw id ("AK_762"), legacy id ("AKMN"), or display name ("AKM")
-   local FILTER_TYPE   = "" -- e.g. "556", "SMG", "RPG"; "" = everything except Unknown
+   local FILTER_TYPE   = "" -- e.g. "5.56" (or "556"), ".308", "SMG", "RPG"; "" = everything except Unknown
    local SORT_BY       = "KILLS" -- "KILLS" or "TYPE"
    ```
 

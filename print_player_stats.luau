@@ -36,7 +36,7 @@ local IrisBridge   = load_module("iris_bridge")
 -- Overrides FILTER_TYPE when set.
 local TARGET_WEAPON = ""
 
--- "308", "Bolt", "762", "556", "545", "58", "Pistol", "SMG", "Shotgun",
+-- ".308", "Bolt", "7.62", "5.56", "5.45", "5.8" (dots optional), "Pistol", "SMG", "Shotgun",
 -- "Melee", "RPG", "Grenade", "Fire", "Smoke", "Flash", "Healing", "Turret",
 -- "Unknown", or "" for everything except Unknown.
 local FILTER_TYPE = ""

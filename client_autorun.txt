@@ -231,10 +231,15 @@ local function fields(line)
     for field in (line .. "\t"):gmatch("([^\t]*)\t") do table.insert(out, (field:gsub("\\(.)", UNESCAPE))) end
     return out
 end
+local labels = { fonts = nil, count = 0 } -- rich() results, so a label isn't rebuilt every frame; reset when the fonts change
 local function rich(text, regular) -- titles, buttons, headers and tips in the theme's font (bold unless `regular`), by rich
     local theme, fonts = shared.iris_viewer_theme, shared.iris_viewer_fonts -- text, which iris_theme.luau turns on for these windows
     local tag = type(theme) == "table" and theme.RichText and fonts and (regular and fonts.text or fonts.label)
-    return tag and tag .. (tostring(text):gsub("[<>&]", RICH_ESCAPES)) .. "</font>" or text
+    if not tag then return text end
+    if labels.fonts ~= fonts or labels.count > 2000 then labels = { fonts = fonts, count = 0 } end
+    local key = (regular and "r" or "b") .. tostring(text)
+    if not labels[key] then labels[key], labels.count = tag .. (tostring(text):gsub("[<>&]", RICH_ESCAPES)) .. "</font>", labels.count + 1 end
+    return labels[key]
 end
 local function body(text, wrapped) -- iris.Text args in the theme's regular font
     local tagged = rich(text, true)
@@ -433,7 +438,8 @@ local function draw_table(tbl, ui)
         local row, ids = rows[first + slot], slot_ids(tbl, slot)
         for c = 1, n do
             local text = row[c] and row[c][1]
-            cell(ids[c], text and styled(row, c, fonts) or EMPTY, nil, fits and text and #text > fits and text or nil)
+            local cut = fits and text and #text > fits and ((utf8 and utf8.len(text)) or #text) > fits -- characters, not bytes
+            cell(ids[c], text and styled(row, c, fonts) or EMPTY, nil, cut and text or nil)
         end
     end
     close()

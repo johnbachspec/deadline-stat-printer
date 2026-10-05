@@ -17,6 +17,7 @@ local SECTION_TIPS       = { -- hover text for the viewer's section headers
     averages = "Lifetime totals divided by matches played or by minutes alive",
     weapons = "One row per weapon; % columns are shares of the weapons listed. Hover a column's name for what it means",
 }
+local CALIBERS           = { ["308"] = ".308", ["762"] = "7.62", ["556"] = "5.56", ["545"] = "5.45", ["58"] = "5.8" } -- shown for WeaponData.TYPES
 local WEAPON_TIPS        = { -- hover text for the viewer's weapon table headers
     ["Deaths w/"] = "Deaths while carrying it in any slot (a death counts for every weapon carried)",
     ["Deaths by"] = "Deaths to it", ["w-KDR"] = "Kills / Deaths w/", ["% allK"] = "Share of kills",
@@ -167,7 +168,7 @@ function Renderer:weapon_cells(w)
         fmt.format_num(x.xp),
         fmt.format_duration(x.use_time),
         string.format("%.2f%%", x.time_share),
-        w.caliber_type,
+        CALIBERS[w.caliber_type] or w.caliber_type,
     }
 end
 

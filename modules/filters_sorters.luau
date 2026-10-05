@@ -7,9 +7,10 @@ local FilterSort = {}
 
 -- Checks if a weapon caliber matches the filter query.
 -- Matches if weapon_type starts with or contains the filter string (case-insensitive).
+-- Dots are ignored, so "5.56" and ".308" (as the weapon table shows them) match "556" and "308".
 local function matches_type(weapon_type, filter_lower)
     local type_lower = string.lower(weapon_type)
-    return type_lower:find(filter_lower, 1, true) ~= nil
+    return type_lower:find((filter_lower:gsub("%.", "")), 1, true) ~= nil
 end
 
 -- filter_type:   "" -> everything except "Unknown"; otherwise a substring

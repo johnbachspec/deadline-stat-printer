@@ -25,17 +25,18 @@ class TestStatPanel(unittest.TestCase):
     def test_renamed_guns_merge_under_their_old_names(self):
         rows = stat_rows(run_script("print_player_stats.luau", self.players, settings=CONSOLE_TABLES))
         self.assertEqual(rows["Vector"], [(950, "SMG")])  # Vector + SCALAR
-        self.assertEqual(rows["SA58"], [(443, "308")])    # SA58 + SG58
+        self.assertEqual(rows["SA58"], [(443, ".308")])   # SA58 + SG58; the caliber shown as a caliber
         self.assertNotIn("SCALAR", rows)
         self.assertNotIn("SG58", rows)
 
     def test_lookup_by_old_or_new_id_and_filters(self):
         after = ("shared.print_player_stats('Tester', nil, 'scalar')\n"
                  "shared.print_player_stats('Tester', nil, 'SA58')\n"
-                 "shared.print_player_stats('Tester', 'SMG')")
+                 "shared.print_player_stats('Tester', 'SMG')\n"
+                 "shared.print_player_stats('Tester', '.308')")
         rows = stat_rows(run_script("print_player_stats.luau", self.players, settings=CONSOLE_TABLES, after=after))
         self.assertEqual(len(rows["Vector"]), 3)  # full report, target 'scalar', filter SMG
-        self.assertEqual(len(rows["SA58"]), 2)    # full report, target 'SA58'
+        self.assertEqual(len(rows["SA58"]), 3)    # full report, target 'SA58', filter '.308' (as shown) = "308"
         self.assertEqual(len(rows["M4A1"]), 1)    # only the full report
 
 
