@@ -418,6 +418,39 @@ local function draw_blocks(blocks, ui)
         if block.text then set_id(block.key); iris.Text(block.text) else draw_table(block, ui) end
     end
 end
+local function export_text(report, ui) -- the whole report as tab-separated lines: pasted into a spreadsheet, each cell lands in its own column
+    local lines, clean = { report.title }, function(value) return (tostring(value or ""):gsub("[\t\r\n]", " ")) end
+    local function add(blocks)
+        for _, block in ipairs(blocks) do
+            if block.text then table.insert(lines, clean(block.text[1])) else
+                if block.header then local names = {}; for c, name in ipairs(block.columns) do names[c] = clean(name) end; table.insert(lines, table.concat(names, "\t")) end
+                for _, row in ipairs(sorted_rows(block, ui)) do -- in the order the table is sorted to
+                    local cells = {}; for c = 1, #block.columns do cells[c] = clean(row[c] and row[c][1]) end; table.insert(lines, table.concat(cells, "\t"))
+                end
+            end
+        end
+    end
+    add(report.blocks)
+    for _, section in ipairs(report.sections) do table.insert(lines, ""); table.insert(lines, clean(section.title)); add(section.blocks) end
+    return table.concat(lines, "\n")
+end
+local function draw_export(report) -- the Export window: a text box to select and copy from
+    local ui = report.ui
+    set_id(report.key .. ":exportwin")
+    local window = open(iris.Window({ "Export: " .. report.title }))
+    if ui.export_new then
+        window.state.isOpened:set(true)
+        pcall(function() window.state.size:set(Vector2.new(700, 500)) end) -- skipped if Vector2 is not available
+    end
+    if window.state.isOpened.value and window.state.isUncollapsed.value then
+        set_id(report.key .. ":exporthelp"); iris.Text({ "Click in the box, press Ctrl+A then Ctrl+C, and paste into Excel or Google Sheets. Export again after a Refresh or a new sort.", true })
+        set_id(report.key .. ":exportbox")
+        local box = iris.InputText({ "", "", false, true }) -- Text, TextHint, ReadOnly, MultiLine
+        if ui.export_new then box.state.text:set(ui.export) end
+        ui.export_new = nil
+    end
+    close()
+end
 local function draw_report(report, index)
     local ui = report.ui
     ui.sorts = ui.sorts or {} -- (reports kept from an older viewer lack it)
@@ -440,6 +473,8 @@ local function draw_report(report, index)
                 pcall(fire_server, "dsp1|refresh|" .. report.refresh)
             end
         end
+        set_id(report.key .. ":export")
+        if tip(iris.SmallButton({ "Export" }), "Show this report as text to copy into Excel or Google Sheets").clicked() then ui.export, ui.export_new = export_text(report, ui), true end
         set_id(report.key .. ":updated"); iris.Text({ "updated " .. report.received })
         close()
         draw_blocks(report.blocks, ui)
@@ -498,6 +533,7 @@ viewer.draw = function()
     end
     for i, id in ipairs(viewer.order) do
         guarded(draw_report, viewer.reports[id], i)
+        if viewer.reports[id] and viewer.reports[id].ui.export then guarded(draw_export, viewer.reports[id]) end
     end
     if theme then pcall(iris.PopConfig) end
 end

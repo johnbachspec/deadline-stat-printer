@@ -37,7 +37,7 @@ The reports can also open as windows built with [Iris](https://sirmallard.github
 1. In the **Luau client console**, paste the whole of `iris_viewer.luau` and run it (the client console has no `require`). A small "Stat printer" window opens. To never paste it again, copy `client_autorun.txt` (viewer and theme together) into the **Client Autorun** tab instead ([details](IRIS_VIEWER.md#starting-it-automatically-client-autorun)).
 2. In the server console, run `print_player_stats.luau`, `print_attachment_stats.luau` or `cap_announcer.luau` as usual.
 
-Each report opens in its own window, with collapsible sections, filterable and paged tables (click a column header to sort by it), and a **Refresh** button. By default the scripts still print to the console as well; set `SHOW_IN` at the top of a script to `"iris"` for windows only or `"console"` for none. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
+Each report opens in its own window, with collapsible sections, filterable and paged tables (click a column header to sort by it), a **Refresh** button, and an **Export** button that shows the report as text to copy into Excel or Google Sheets (Ctrl+A, Ctrl+C, paste: every value lands in its own cell). By default the scripts still print to the console as well; set `SHOW_IN` at the top of a script to `"iris"` for windows only or `"console"` for none. `explore_console.luau` and `print_attachment_stats_delimited.luau` stay console-only, because their output is meant to be copied.
 
 To pick colors, spacing, a font or a text size, paste `iris_theme.luau` into the client console as well ([details](IRIS_VIEWER.md#theme-colors-spacing-font-and-text-size)).
 

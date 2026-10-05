@@ -44,6 +44,7 @@ In the windows:
 - Tables with more than 12 rows get a filter box (matches any cell, case-insensitive). Tables with more than 50 rows get **< Prev** / **Next >** pages and a **Show all** button that puts every row on one page (**Pages** switches back). Show all on a very long table, like 1,000+ attachments, can cost frame rate, because every visible cell is drawn each frame.
 - Hovering a button or the filter box shows an Iris tooltip explaining it. Hovering a section header shows what that section holds (the weapon section's tip also explains each column); the server sends that text with the section (`report:section(title, open, tip)`), so new sections get their own without changing the viewer. The viewer's `tip(widget, text)` helper draws it (`iris.Tooltip`, skipped if this Iris lacks it) and returns the widget, so it wraps a call without adding a line.
 - **Refresh** asks the server for a fresh copy of that report.
+- **Export** opens an "Export: ..." window with the whole report as text: its title, each section's title, and every table with columns separated by tabs, in the order you sorted them to. Click in the box, press Ctrl+A then Ctrl+C, and paste into Excel or Google Sheets: each value lands in its own cell, and numbers like `950` or `2.37` come out as numbers. The text is a snapshot, so press Export again after a Refresh or a new sort.
 - The "Stat printer" window lists every report received. **Show** reopens a closed window and **Clear all** forgets them all.
 - `shared.iris_viewer.show()` in the client console reopens every window. Pasting the file again does the same and also loads any changes to the viewer, keeping the reports it has.
 
@@ -130,7 +131,7 @@ The consoles run scripts in Fiu, a Luau interpreter written in Luau. Iris itself
 The game's Fiu build fails to load any function spanning more than 255 source lines (see the main README's [Fiu section](README.md#the-fiu-255-line-limit)). A file's top level is a function that runs from its first line to its last, so the viewer is split in two:
 
 - **The top level** (settings, `parse`, `viewer.receive`) ends at the line `return (function(drawing) drawing() end)(function() -- drawing ...`. The compiler puts that call, and the `return`, on the line where its argument list opens, and adds no hidden return after a chunk that ends in `return`, so the top level stops there.
-- **The drawing function** (everything from `local depth = 0` to the closing `end)`) is the function passed to that call, with its own 255 lines. It sees every local the top level declared.
+- **The drawing function** (everything from `local depth = 0` to the closing `end)`) is the function passed to that call, with its own 255 lines. It sees every local the top level declared. It is nearly full (lines 82-334, a span of 252), so the next drawing feature needs a third part: split it the same way, with the second half passed as another function.
 
 The same works in `client_autorun.txt`, where the whole viewer becomes one function passed to `run(...)`. To keep room in each part:
 

@@ -644,6 +644,41 @@ __hover(key .. "4"); __frame(); print("-- hover"); __dump()
         self.assertIn("Tooltip Sort by this column. Click again to reverse, a third time for the original order",
                       drawn(steps["hover"]))
 
+    def test_export_shows_the_report_as_tab_separated_text(self):
+        after = """__frame()
+__click("dsp:stats:Tester:export"); __frame()
+print("EXPORT<<" .. __widgets["dsp:stats:Tester:exportbox"].state.text.value .. ">>")
+__dump()"""
+        output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE), prelude=viewer_prelude(), after=after)
+        self.assertIn("Window Export: Stats: Tester", drawn(output))
+        text = re.search(r"EXPORT<<(.*)>>", output, re.S).group(1)
+        lines = text.split("\n")
+        self.assertEqual(lines[0], "Stats: Tester")
+        self.assertIn("Kills:\t3,000", text)  # the recap's label / value pairs
+        header = next(line for line in lines if line.startswith("weapon\t"))
+        self.assertEqual(header.split("\t")[:3], ["weapon", "kills", "deaths w/"])
+        vector = next(line for line in lines if line.startswith("Vector\t"))
+        self.assertEqual(vector.split("\t")[1], "950")
+        self.assertEqual(len(vector.split("\t")), len(header.split("\t")))  # one cell per column
+        self.assertTrue(any(line.startswith("Detailed weapon stats") for line in lines))  # section titles
+
+    def test_export_follows_the_sort(self):
+        after = r"""
+local R = require("x/modules/iris_report.luau")
+local report = R.new("attachments:Sort", "Sort", nil)
+report:section("All", true)
+report:columns({ "Name", "Kills" })
+report:row({ "a", "5" }); report:row({ "b", "50" }); report:row({ "c", "7" })
+for _, m in ipairs(report:messages()) do __deliver(m) end
+__frame()
+__click("dsp:attachments:Sort:2:2:0:2"); __frame()
+__click("dsp:attachments:Sort:export"); __frame()
+print("EXPORT<<" .. __widgets["dsp:attachments:Sort:exportbox"].state.text.value .. ">>")
+"""
+        output = run_script("iris_viewer.luau", "nil", prelude=IRIS_MOCKS.replace("__NEW_TABLES__", "true"), after=after)
+        text = re.search(r"EXPORT<<(.*)>>", output, re.S).group(1)
+        self.assertEqual(text, "Sort\n\nAll\nName\tKills\nb\t50\nc\t7\na\t5")
+
     def test_sorting_works_with_paging_filter_and_old_tables(self):
         after = r"""
 local R = require("x/modules/iris_report.luau")
