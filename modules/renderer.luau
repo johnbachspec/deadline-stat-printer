@@ -117,6 +117,7 @@ function Renderer:recap_cells(data)
     return totals, averages
 end
 
+return (function(printing) printing(); return Renderer end)(function() -- printing: a second part with its own 255 lines (README.md, "The Fiu 255-line limit")
 function Renderer:print_overall_recap(data)
     local totals, averages = self:recap_cells(data)
     local function lines(column, format)
@@ -215,5 +216,4 @@ function Renderer:add_to_report(report, data)
         report:row(self:weapon_cells(w))
     end
 end
-
-return Renderer
+end)

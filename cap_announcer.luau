@@ -91,6 +91,7 @@ local function standings_text()
     return "Captures this match: " .. table.concat(parts, ", ")
 end
 
+return (function(running) running() end)(function() -- running: a second part with its own 255 lines (README.md, "The Fiu 255-line limit")
 local wait_for = task and task.wait
 if not (task and task.spawn and wait_for) then
     print("[caps] the task library is not available here; cannot run")
@@ -210,3 +211,4 @@ end)
 
 print(string.format("[caps] announcing captures (%s)%s", ANNOUNCE_IN,
     CHAT_COMMAND ~= "" and ("; type " .. CHAT_COMMAND .. " in chat for the standings") or ""))
+end)

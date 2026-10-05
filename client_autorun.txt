@@ -54,7 +54,7 @@ local DEADLINE_GREYS = {
     TableBorderStrongColor = 60, TableBorderLightColor = 36, TableRowBgColor = 0, TableRowBgAltColor = 255,
 }
 local DEADLINE_TRANSPARENCIES = {
-    WindowBgTransparency = 0, TitleBgTransparency = 0, -- opaque: a window behind must not show through TitleBgActiveTransparency = 0,
+    WindowBgTransparency = 0, TitleBgTransparency = 0, TitleBgActiveTransparency = 0, -- opaque: a window behind must not show through
     ButtonTransparency = 0, HeaderTransparency = 0, FrameBgTransparency = 0,
     TableRowBgTransparency = 1, TableRowBgAltTransparency = 0.95,
 }
@@ -305,6 +305,7 @@ end
 if #viewer.order == 0 and fire_server then pcall(fire_server, "dsp1|hello") end -- the server resends reports sent before this viewer started
 return (function(drawing) drawing() end)(function() -- drawing: its own function with its own 255 lines (IRIS_VIEWER.md)
 local depth = 0 -- open Iris containers, so an error can close them again
+local CHAR_PX = 7 -- about how wide a character of 14px text is: a cell with more text than its column fits shows it all on hover
 local function open(widget) depth = depth + 1; return widget end
 local function close() depth = depth - 1; iris.End() end
 local function slot_ids(tbl, slot) -- widget ids for one visible row (slot 0 is the header)
@@ -424,9 +425,13 @@ local function draw_table(tbl, ui)
         end
     end
     local first, fonts = (page - 1) * per_page, shared.iris_viewer_fonts
+    local fits = ui.width and math.floor((ui.width - 40) / n / CHAR_PX) -- characters a column shows (columns are 1/n wide)
     for slot = 1, math.min(per_page, #rows - first) do
         local row, ids = rows[first + slot], slot_ids(tbl, slot)
-        for c = 1, n do cell(ids[c], row[c] and styled(row, c, fonts) or EMPTY) end
+        for c = 1, n do
+            local text = row[c] and row[c][1]
+            cell(ids[c], text and styled(row, c, fonts) or EMPTY, nil, fits and text and #text > fits and text or nil)
+        end
     end
     close()
 end
@@ -494,6 +499,8 @@ local function draw_report(report, index)
     ui.sorts = ui.sorts or {} -- (reports kept from an older viewer lack it)
     set_id(report.key)
     local window = open(iris.Window({ rich(report.title) }))
+    local sized, width = pcall(function() return window.state.size.value.X end)
+    ui.width = sized and type(width) == "number" and width or nil -- for draw_table's cut-off cells
     if not ui.placed then
         ui.placed = true
         local size = WINDOW_SIZES[report.id:match("^[^:]*")] or DEFAULT_SIZE

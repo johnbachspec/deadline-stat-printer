@@ -144,6 +144,7 @@ local function call(label, fn)
     if ok then survey(result, label, 0) else print(label .. " failed: " .. tostring(result)) end
 end
 
+return (function(report) report() end)(function() -- report: a second part with its own 255 lines (README.md, "The Fiu 255-line limit")
 print("===== GLOBALS =====")
 -- The documented globals; reading one that is not defined just gives nil.
 local PROBES = {
@@ -222,3 +223,4 @@ end
 print("===== SHARED =====")
 list_names("shared", shared)
 print("===== END =====")
+end)

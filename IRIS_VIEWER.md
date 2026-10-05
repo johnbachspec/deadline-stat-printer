@@ -163,6 +163,7 @@ The same works in `client_autorun.txt`, where the whole viewer becomes one funct
 | `[viewer] theme turned off, Iris rejected it: ...` (e.g. `Font expected, got EnumItem`) | A theme value this Iris can't use; the viewer dropped the theme so the windows keep working | Send the message; paste the theme again after a fix |
 | Theme pasted but nothing changed | Pasted before the viewer, or the viewer is from before themes existed | Paste the current `iris_viewer.luau`, then the theme |
 | No X or arrow in a window's title bar | Iris draws them with images that only exist in Roblox Studio | Use the red **Close** button at the top left of each window. The invisible title-bar buttons still work too: top right closes, top left collapses. The hub's **Show** reopens a closed report; `shared.iris_viewer.show()` reopens everything |
+| Long names in a table end early | Columns are all the same width on this Iris and can't be resized | Hover the cell: cut-off text shows in full. Widen the window to fit more |
 | Columns in the Export box don't line up | The box shows the tabs that separate cells; they don't line up as text | Expected: after pasting into Excel or Google Sheets each cell lands in its own column |
 | Frame rate drops with a window open | Too many cells drawn per frame | Press **Pages** instead of Show all, lower `PAGE_ROWS`, or collapse sections you are not reading |
 

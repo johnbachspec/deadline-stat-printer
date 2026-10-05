@@ -195,6 +195,18 @@ __frame(); __dump()"""
         self.assertIn("Window Stats: Tester", frame)
 
 
+    def test_cut_off_cells_show_their_text_on_hover(self):
+        # The attachments window is 1000 wide with 7 columns: about 19 characters fit in each.
+        after = """
+__frame(); __frame()
+local base
+for id in pairs(__widgets) do base = base or id:match("^(dsp:attachments:Tester:%d+:7):1:2$") end
+__hover(base .. ":1:2"); __hover(base .. ":1:1"); __frame(); __dump()"""
+        prelude = viewer_prelude(extra="local Vector2 = { new = function(x, y) return { X = x, Y = y } end }\n")
+        output = run_script("print_attachment_stats.luau", self.players, prelude=prelude, after=after)
+        tips = [line for line in drawn(output) if line.startswith("Tooltip ")]
+        self.assertEqual(tips, ["Tooltip 10mm Thread Protector"])  # 21 characters: cut off; "1" fits, no tip
+
 @needs_luau
 class TestFixtureView(unittest.TestCase):
     def test_output_matches_the_python_replay(self):
