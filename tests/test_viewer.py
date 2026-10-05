@@ -7,7 +7,7 @@ from pathlib import Path
 
 from iris_support import drawn, grids, iris_mocks, only_table, viewer_prelude
 from profiles import CAP_PRELUDE, STAT_PROFILE
-from support import CONSOLE_TABLES, ROOT, needs_luau, players_lua, run_script
+from support import ROOT, needs_luau, players_lua, run_script
 
 import build_client_autorun as client_autorun  # noqa: E402
 

@@ -1,7 +1,7 @@
 """explore_console.luau under the luau CLI: what it surveys, and that it only calls read-only getters."""
 import unittest
 
-from support import dd, fixture_profile_lua, lua_string, needs_luau, players_lua, run_script
+from support import fixture_profile_lua, lua_string, needs_luau, players_lua, run_script
 import fixture_replay as fx  # noqa: E402
 
 

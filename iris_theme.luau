@@ -114,8 +114,8 @@ local function font_tag(font, weight)
     return tag .. ">"
 end
 
--- Titles, buttons and section headers use Iris's own font setting, which only takes a
--- Font object. Without the Font type there are two sources: Iris's presets (Code, Ubuntu)
+-- Iris's own font setting (the console, typing boxes, and anything not given rich text) only
+-- takes a Font object. Without the Font type there are two sources: Iris's presets (Code, Ubuntu)
 -- and a hidden TextLabel's FontFace (any built-in font name).
 local function is_font(value) -- a real Font object has a Family like "rbxasset://fonts/families/Ubuntu.json"
     local ok, family = pcall(function() return value.Family end)

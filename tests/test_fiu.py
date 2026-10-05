@@ -10,7 +10,6 @@ from pathlib import Path
 from support import LUAU_COMPILE, ROOT, needs_luau_compile
 
 import check_fiu_compat  # noqa: E402
-import build_client_autorun as client_autorun  # noqa: E402
 
 
 @needs_luau_compile

@@ -120,8 +120,8 @@ local function font_tag(font, weight)
     return tag .. ">"
 end
 
--- Titles, buttons and section headers use Iris's own font setting, which only takes a
--- Font object. Without the Font type there are two sources: Iris's presets (Code, Ubuntu)
+-- Iris's own font setting (the console, typing boxes, and anything not given rich text) only
+-- takes a Font object. Without the Font type there are two sources: Iris's presets (Code, Ubuntu)
 -- and a hidden TextLabel's FontFace (any built-in font name).
 local function is_font(value) -- a real Font object has a Family like "rbxasset://fonts/families/Ubuntu.json"
     local ok, family = pcall(function() return value.Family end)
@@ -422,6 +422,7 @@ local function draw_table(tbl, ui)
     if ui.shown[tbl.key] and shown < ui.shown[tbl.key] then ui.gens[tbl.key] = (ui.gens[tbl.key] or 0) + 1 end
     ui.shown[tbl.key] = shown
     local suffix = ui.gens[tbl.key] and (":g" .. ui.gens[tbl.key]) or ""
+    local room = ui.width and (ui.width - 40) / n / CHAR_PX -- characters a column shows (columns are 1/n wide)
     set_id(tbl.key .. suffix)
     if NEW_TABLES then -- NumColumns, Header, RowBackground, OuterBorders, InnerBorders, Resizable, FixedWidth, ProportionalWidth
         open(iris.Table({ n, tbl.header, true, true, true, false, false, true }))
@@ -433,7 +434,6 @@ local function draw_table(tbl, ui)
         if not tbl.head then tbl.head = { number = {}, bold = not NEW_TABLES }; for c, name in ipairs(tbl.columns) do tbl.head[c] = { name } end end
         if not tbl.head.is_head then tbl.head.is_head, tbl.head.rich_for = true, nil end -- (older viewers' header rows lack it; restyle them)
         local ids, sort = slot_ids(tbl, 0, suffix), ui.sorts[tbl.key]
-        local room = ui.width and (ui.width - 40) / n / CHAR_PX -- characters a column shows
         for c = 1, n do
             local about = tbl.tips and tbl.tips[c] ~= "" and tbl.tips[c] or nil -- what the column means (server's tips line)
             if room and tbl.columns[c] ~= "" and #tbl.columns[c] * HEAD_WIDTH + 1 > room then about = about and (tbl.columns[c] .. ": " .. about) or tbl.columns[c] end
@@ -445,7 +445,7 @@ local function draw_table(tbl, ui)
         end
     end
     local fonts = shared.iris_viewer_fonts
-    local fits = ui.width and math.floor((ui.width - 40) / n / CHAR_PX) -- characters a column shows (columns are 1/n wide)
+    local fits = room and math.floor(room)
     for slot = 1, shown do
         local row, ids = rows[first + slot], slot_ids(tbl, slot, suffix)
         for c = 1, n do

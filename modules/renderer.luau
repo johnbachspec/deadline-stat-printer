@@ -11,7 +11,7 @@ local DEFAULT_GRID_WIDTH = 166
 local ROW_FORMAT         = "%-20s %10s %11s %11s %10s %10s %12s %8s %8s %14s %16s %10s  %-8.8s"
 local WEAPON_COLUMNS     = { "Weapon", "Kills", "Deaths w/", "Deaths by", "w-KDR", "% allK", "Rds. ct", "K/Min",
     "RFpK", "Weapon XP", "Time used", "% allT", "Type" }
-local DEATHS_WITH_NOTE   = "Deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)" -- console only: Iris shows SECTION_TIPS.weapons
+local DEATHS_WITH_NOTE   = "Deaths w/ = deaths while carrying the weapon in any slot (one death counts toward every carried weapon)" -- console only: Iris shows it on the Deaths w/ header (WEAPON_TIPS)
 local SECTION_TIPS       = { -- hover text for the viewer's section headers
     overall = "Lifetime totals from this player's profile: kills, deaths, headshots, wallbangs, money, XP and time played",
     averages = "Lifetime totals divided by matches played or by minutes alive",
