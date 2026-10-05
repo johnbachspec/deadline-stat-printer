@@ -236,7 +236,7 @@ __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame
                             after="__frame(); __dump()")
         frame = drawn(output)
         self.assertEqual(frame[0], "PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)")  # no FONT: Iris's own
-        self.assertEqual(frame[1], "Window Stat printer")  # the push wraps our windows only
+        self.assertEqual(frame[1], 'Window <font family="rbxassetid://12187365977" weight="700">Stat printer</font>')  # the push wraps our windows only
         self.assertEqual(frame[-1], "PopConfig")
 
     def test_every_window_has_a_red_close_button(self):
@@ -262,8 +262,8 @@ __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame
                 if width:
                     self.assertEqual(frame[i - 1], f"PushConfig dsp:stats:Tester:exportbox:config width={width}")
                     self.assertEqual(frame[i + 1], "PopConfig")
-                else:
-                    self.assertFalse(frame[i - 1].startswith("PushConfig"))
+                else:  # still plain text (no rich text in what you copy)
+                    self.assertEqual(frame[i - 1], "PushConfig dsp:stats:Tester:exportbox:config width=nil")
 
     def test_close_button_closes_its_window(self):
         output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(),
@@ -276,15 +276,20 @@ __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame
                             after="__frame(); __dump()")
         self.assertEqual(drawn(output)[:2], ["Window Stat printer", "SmallButton Close"])  # no red push
 
-    def test_theme_defaults_are_rubik_with_robotomono_numbers(self):
+    def test_theme_defaults_are_rubik_everywhere(self):
         output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
                             prelude=viewer_prelude(extra="local Font = nil\n" + self.theme_source()),
                             after="__frame(); __dump()")
         weapons = only_table(output, 13)
         vector = next(row for row in weapons if "Vector" in row[0])
         self.assertEqual(vector[:2], ['<font family="rbxassetid://12187365977" weight="400">Vector</font>',
-                                      '<font face="RobotoMono" weight="400">950</font>'])  # content Regular
-        self.assertEqual(weapons[0][0], "Weapon")  # a sortable header is a button, in Iris's own font
+                                      '<font family="rbxassetid://12187365977" weight="400">950</font>'])  # content Regular, numbers too
+        # Sort buttons, titles, buttons and section headers: the same font, Bold, by rich text.
+        self.assertEqual(weapons[0][0], '<font family="rbxassetid://12187365977" weight="700">Weapon</font>')
+        frame = drawn(output)
+        self.assertIn('Window <font family="rbxassetid://12187365977" weight="700">Stats: Tester</font>', frame)
+        self.assertIn('SmallButton <font family="rbxassetid://12187365977" weight="700">Refresh</font>', frame)
+        self.assertIn('Text <font family="rbxassetid://12187365977" weight="400">Updated ', "\n".join(frame))
         self.assertNotIn("<b>", output)
 
     def test_console_font_sets_every_iris_window(self):
@@ -391,7 +396,7 @@ end"""
                                     prelude=viewer_prelude(new_tables, extra=extra), after="__frame(); __dump()")
                 self.assertEqual(drawn(output)[0], "PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)")
                 weapons = only_table(output, 13)
-                self.assertEqual(weapons[0][0], "Weapon")  # sortable header: a button in Iris's font
+                self.assertEqual(weapons[0][0], f"{text}Weapon</font>")  # sortable header: a button, in the font by rich text
                 vector = next(row for row in weapons if row[0] == f"{text}Vector</font>")
                 self.assertEqual((vector[1], vector[12]), (f"{number}950</font>", f"{text}SMG</font>"))
                 self.assertEqual(only_table(output, 6)[1][:2], [f"{text}Kills:</font>", f"{number}3,000</font>"])
@@ -448,7 +453,7 @@ local Font = {
         self.assertNotIn("[theme] applied", output)
         self.assertIn("[viewer] ready", output)
         self.assertEqual(drawn(output)[:2], ["PushConfig dsp:theme size=14 font=nil color=rgb(255,255,255)",
-                                             "Window Stat printer"])
+                                             'Window <font family="rbxassetid://12187365977" weight="700">Stat printer</font>'])
 
     def test_reports_from_an_older_viewer_still_draw(self):
         # Pasting a new viewer keeps the reports the old one parsed, which lack newer fields.
@@ -470,7 +475,7 @@ __frame(); __dump()"""
         self.assertFalse(any(line.startswith("Text Error") for line in drawn(output)))
         text = '<font family="rbxassetid://12187365977">'
         weapons = only_table(output, 13)
-        self.assertEqual(weapons[0][0], "Weapon")
+        self.assertEqual(weapons[0][0], f"{text}Weapon</font>")  # a sort button, in the font by rich text too
         self.assertIn([f"{text}Vector</font>", f"{text}950</font>"], [row[:2] for row in weapons])
 
     def test_header_rows_from_an_older_viewer_get_the_header_weight(self):

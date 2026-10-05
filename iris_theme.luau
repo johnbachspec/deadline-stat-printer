@@ -8,26 +8,25 @@ local COLORS = "deadline" -- "deadline": black and grey with white text, like De
                           -- "dark" / "light": Iris's own sets (only if this console exposes them); nil: leave alone
 local CONSOLE_COLORS = true -- also give the client console (every Iris window) the "deadline" colors
 local SPACING = nil     -- "clear" (roomier), "default" (compact), or nil to leave spacing alone
--- FONT styles the tables (cells and headers). Titles, buttons and section headers follow
--- CONSOLE_FONT below: Deadline's client console has no Font type, so they can't use an
--- asset id like Rubik.
+-- FONT is all the stat printer's text: tables, titles, buttons, section headers and tips (by rich
+-- text, so an asset id like Rubik works without the Font type). Only typing boxes keep CONSOLE_FONT.
 local FONT = 12187365977  -- Rubik (Deadline's UI font), by its Creator Store asset id. Or a Roblox font
                           -- name in quotes, like "RobotoMono", "BuilderSans", "Ubuntu", "Arial";
                           -- nil for Iris's font (Code); "?" prints every font name
-local FONT_WEIGHT = "Regular" -- table text: nil, or "Light", "Regular", "Medium", "SemiBold", "Bold", "ExtraBold", "Heavy"
-local HEADER_WEIGHT = "Bold"  -- table headers (same font as FONT); nil = same as FONT_WEIGHT
+local FONT_WEIGHT = "Regular" -- text: nil, or "Light", "Regular", "Medium", "SemiBold", "Bold", "ExtraBold", "Heavy"
+local HEADER_WEIGHT = "Bold"  -- table headers, titles, buttons and section headers (same font as FONT); nil = same as FONT_WEIGHT
 local TEXT_SIZE = 14    -- text size in pixels, or nil to leave it alone
 
--- Font of every Iris window: the client Luau console itself, and the stat printer's
--- titles, buttons and section headers. A built-in Roblox font name in quotes, with the
--- weight in the name ("BuilderSansBold", "GothamBold", "SourceSansBold"); nil leaves it
--- alone. Rubik isn't built in and needs the Font type, so it can't be used here.
+-- Font of every Iris window: the client Luau console itself, and the stat printer's typing
+-- boxes (filter, Export). A built-in Roblox font name in quotes, with the weight in the name
+-- ("BuilderSansBold", "GothamBold", "SourceSansBold"); nil leaves it alone. Rubik isn't built
+-- in and needs the Font type, so it can't be used here.
 local CONSOLE_FONT = "BuilderSansBold"
 
 -- A second font for table cells that are only a number ("12,345", "3.721", "61.28%",
 -- "$1,234", "2h 3m 20s"), e.g. a monospaced one so numbers line up while names use FONT.
-local NUMBER_FONT = "RobotoMono" -- a font name in quotes or an asset id, like FONT; nil = same as FONT
-                                 -- (numbers line up best in a monospaced font: "RobotoMono" or "Code")
+local NUMBER_FONT = nil -- a font name in quotes or an asset id, like FONT; nil = same as FONT
+                        -- (numbers line up best in a monospaced font: "RobotoMono" or "Code")
 local NUMBER_WEIGHT = "Regular" -- like FONT_WEIGHT
 
 -- Any other Iris style key, applied last. Needs Roblox types, e.g.
@@ -183,6 +182,10 @@ elseif FONT or NUMBER_FONT then
     local text = font_tag(FONT, FONT_WEIGHT)
     fonts = { text = text, number = font_tag(NUMBER_FONT, NUMBER_WEIGHT) or text,
         header = HEADER_WEIGHT and font_tag(FONT, HEADER_WEIGHT) or text }
+    -- Titles, buttons, section headers and tips get FONT too, by rich text (headers' weight): they can't take an
+    -- asset id as a Font here. RichText covers only the viewer's windows; the console keeps CONSOLE_FONT.
+    fonts.label = FONT and fonts.header
+    if FONT then theme.RichText = true end
     local face = FONT and iris_font(FONT, FONT_WEIGHT)
     if face then theme.TextFont = face end
 end

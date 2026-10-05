@@ -26,8 +26,17 @@ local function fields(line)
     for field in (line .. "\t"):gmatch("([^\t]*)\t") do table.insert(out, (field:gsub("\\(.)", UNESCAPE))) end
     return out
 end
+local function rich(text, regular) -- titles, buttons, headers and tips in the theme's font (bold unless `regular`), by rich
+    local theme, fonts = shared.iris_viewer_theme, shared.iris_viewer_fonts -- text, which iris_theme.luau turns on for these windows
+    local tag = type(theme) == "table" and theme.RichText and fonts and (regular and fonts.text or fonts.label)
+    return tag and tag .. (tostring(text):gsub("[<>&]", RICH_ESCAPES)) .. "</font>" or text
+end
+local function body(text, wrapped) -- iris.Text args in the theme's regular font
+    local tagged = rich(text, true)
+    return tagged ~= text and { tagged, wrapped, nil, true } or { text, wrapped }
+end
 local function tip(widget, text) -- hover help; hands the widget back so calls chain: tip(iris.X(...), "..").clicked()
-    if text and iris.Tooltip and widget.hovered and widget.hovered() then set_id("dsp:tip"); iris.Tooltip({ text }) end
+    if text and iris.Tooltip and widget.hovered and widget.hovered() then set_id("dsp:tip"); iris.Tooltip({ rich(text, true) }) end
     return widget
 end
 local function parse(text)
@@ -156,7 +165,7 @@ local function visible_rows(tbl, ui)
     local all = sorted_rows(tbl, ui)
     if #all <= FILTER_ROWS then return all end
     set_id(tbl.key .. ":filter")
-    local query = string.lower(tip(iris.InputText({ "Filter", "type to filter rows" }), "Show only rows containing this text (any column)").state.text.value or "")
+    local query = string.lower(tip(iris.InputText({ rich("Filter"), "type to filter rows" }), "Show only rows containing this text (any column)").state.text.value or "")
     local cache = ui.filters[tbl.key]
     if not (cache and cache.query == query and cache.source == all) then
         cache = { query = query, source = all, rows = {} }
@@ -177,14 +186,15 @@ local function draw_table(tbl, ui)
         set_id(tbl.key .. ":pager"); open(iris.SameLine())
         if not all then
             set_id(tbl.key .. ":prev")
-            if tip(iris.SmallButton({ "< Prev" }), "Previous page of rows").clicked() and page > 1 then page = page - 1 end
+            if tip(iris.SmallButton({ rich("< Prev") }), "Previous page of rows").clicked() and page > 1 then page = page - 1 end
             set_id(tbl.key .. ":next")
-            if tip(iris.SmallButton({ "Next >" }), "Next page of rows").clicked() and page < pages then page = page + 1 end
+            if tip(iris.SmallButton({ rich("Next >") }), "Next page of rows").clicked() and page < pages then page = page + 1 end
         end
         set_id(tbl.key .. ":all")
-        if tip(iris.SmallButton({ all and "Pages" or "Show all" }), all and "Back to paged rows" or "Draw every row (slow on long tables)").clicked() then ui.pages[tbl.key .. ":all"] = not all end
-        set_id(tbl.key .. ":rows"); iris.Text({ all and string.format("all %d rows", #rows) or string.format("rows %d-%d of %d",
-            (page - 1) * per_page + 1, math.min(page * per_page, #rows), #rows) })
+        if tip(iris.SmallButton({ rich(all and "Pages" or "Show all") }), all and "Back to paged rows" or "Draw every row (slow on long tables)").clicked() then ui.pages[tbl.key .. ":all"] = not all end
+        set_id(tbl.key .. ":rows")
+        iris.Text(body(all and string.format("all %d rows", #rows) or string.format("rows %d-%d of %d",
+            (page - 1) * per_page + 1, math.min(page * per_page, #rows), #rows)))
         close()
     end
     ui.pages[tbl.key] = page
@@ -202,7 +212,7 @@ local function draw_table(tbl, ui)
         local ids, sort = slot_ids(tbl, 0), ui.sorts[tbl.key]
         for c = 1, n do
             if #tbl.rows < 2 then cell(ids[c], styled(tbl.head, c, shared.iris_viewer_fonts)) -- nothing to sort: plain header
-            elseif cell(ids[c], { tbl.columns[c] .. (sort and sort.col == c and (sort.desc and " \u{25BC}" or " \u{25B2}") or "") },
+            elseif cell(ids[c], { rich(tbl.columns[c] .. (sort and sort.col == c and (sort.desc and " \u{25BC}" or " \u{25B2}") or "")) },
                 iris.SmallButton, SORT_TIP).clicked() then
                 ui.sorts[tbl.key], ui.pages[tbl.key] = next_sort(tbl, sort, c), 1
             end
@@ -217,7 +227,7 @@ local function draw_table(tbl, ui)
 end
 local function draw_blocks(blocks, ui)
     for _, block in ipairs(blocks) do
-        if block.text then set_id(block.key); iris.Text(block.text) else draw_table(block, ui) end
+        if block.text then set_id(block.key); iris.Text(body(block.text[1], true)) else draw_table(block, ui) end
     end
 end
 return (function(windows) windows() end)(function() -- windows: a third part with its own 255 lines (IRIS_VIEWER.md)
@@ -225,9 +235,9 @@ return (function(windows) windows() end)(function() -- windows: a third part wit
 -- its background is see-through until hovered. So each window gets its own Close button, red if Color3 exists.
 local CLOSE_COLORS = Color3 and { ButtonColor = Color3.fromRGB(170, 35, 25), ButtonHoveredColor = Color3.fromRGB(205, 50, 35),
     ButtonActiveColor = Color3.fromRGB(135, 25, 18) }
-local FULL_WIDTH = (function() -- the Export box as wide as its window (Iris's ContentWidth is 65%); nil without UDim
-    local ok, width = pcall(function() return UDim and UDim.new(1, 0) or UDim2.new(1, 0, 0, 0).X end)
-    return ok and width and { ContentWidth = width } or nil
+local EXPORT_BOX = (function() -- the Export box: plain text (rich text would eat "<" and "&" from what you copy), as wide
+    local ok, width = pcall(function() return UDim and UDim.new(1, 0) or UDim2.new(1, 0, 0, 0).X end) -- as its window (Iris: 65%; needs UDim)
+    return { RichText = false, ContentWidth = ok and width or nil }
 end)()
 local function configured(key, config, widget, args) -- widget(args) with `config` pushed for it alone
     local pushed = config and iris.PushConfig
@@ -239,7 +249,7 @@ local function configured(key, config, widget, args) -- widget(args) with `confi
     return drawn
 end
 local function close_button(key, window, help) -- closes `window` when clicked
-    if tip(configured(key .. ":close", CLOSE_COLORS, iris.SmallButton, { "Close" }), help).clicked() then window.state.isOpened:set(false) end
+    if tip(configured(key .. ":close", CLOSE_COLORS, iris.SmallButton, { rich("Close") }), help).clicked() then window.state.isOpened:set(false) end
 end
 local function export_text(report, ui) -- the whole report as tab-separated lines: pasted into a spreadsheet, each cell lands in its own column
     local lines, clean = { report.title }, function(value) return (tostring(value or ""):gsub("[\t\r\n]", " ")) end
@@ -260,15 +270,15 @@ end
 local function draw_export(report) -- the Export window: a text box to select and copy from
     local ui = report.ui
     set_id(report.key .. ":exportwin")
-    local window = open(iris.Window({ "Export: " .. report.title }))
+    local window = open(iris.Window({ rich("Export: " .. report.title) }))
     if ui.export_new then
         window.state.isOpened:set(true)
         pcall(function() window.state.size:set(Vector2.new(700, 500)) end) -- skipped if Vector2 is not available
     end
     if window.state.isOpened.value and window.state.isUncollapsed.value then
         close_button(report.key .. ":export", window, "Close this window (Export opens it again)")
-        set_id(report.key .. ":exporthelp"); iris.Text({ "Click in the box, press Ctrl+A then Ctrl+C, and paste into Excel or Google Sheets. Export again after a Refresh or a new sort.", true })
-        local box = configured(report.key .. ":exportbox", FULL_WIDTH, iris.InputText, { "", "", false, true }) -- Text, TextHint, ReadOnly, MultiLine
+        set_id(report.key .. ":exporthelp"); iris.Text(body("Click in the box, press Ctrl+A then Ctrl+C, and paste into Excel or Google Sheets. Export again after a Refresh or a new sort.", true))
+        local box = configured(report.key .. ":exportbox", EXPORT_BOX, iris.InputText, { "", "", false, true }) -- Text, TextHint, ReadOnly, MultiLine
         if ui.export_new then box.state.text:set(ui.export) end
         ui.export_new = nil
     end
@@ -278,7 +288,7 @@ local function draw_report(report, index)
     local ui = report.ui
     ui.sorts = ui.sorts or {} -- (reports kept from an older viewer lack it)
     set_id(report.key)
-    local window = open(iris.Window({ report.title }))
+    local window = open(iris.Window({ rich(report.title) }))
     if not ui.placed then
         ui.placed = true
         local size = WINDOW_SIZES[report.id:match("^[^:]*")] or DEFAULT_SIZE
@@ -293,18 +303,18 @@ local function draw_report(report, index)
         close_button(report.key, window, "Close this window (the Stat printer window's Show opens it again)")
         if report.refresh ~= "" then
             set_id(report.key .. ":refresh")
-            if tip(iris.SmallButton({ "Refresh" }), "Ask the server for a fresh copy of this report").clicked() and fire_server then
+            if tip(iris.SmallButton({ rich("Refresh") }), "Ask the server for a fresh copy of this report").clicked() and fire_server then
                 pcall(fire_server, "dsp1|refresh|" .. report.refresh)
             end
         end
         set_id(report.key .. ":export")
-        if tip(iris.SmallButton({ "Export" }), "Show this report as text to copy into Excel or Google Sheets").clicked() then ui.export, ui.export_new = export_text(report, ui), true end
-        set_id(report.key .. ":updated"); iris.Text({ "Updated " .. report.received })
+        if tip(iris.SmallButton({ rich("Export") }), "Show this report as text to copy into Excel or Google Sheets").clicked() then ui.export, ui.export_new = export_text(report, ui), true end
+        set_id(report.key .. ":updated"); iris.Text(body("Updated " .. report.received))
         close()
         draw_blocks(report.blocks, ui)
         for _, section in ipairs(report.sections) do
             set_id(section.key)
-            local header = open(tip(iris.CollapsingHeader({ section.title }), section.tip)) -- tip: sent by the server
+            local header = open(tip(iris.CollapsingHeader({ rich(section.title) }), section.tip)) -- tip: sent by the server
             if section.open and not ui.seen[section.key] then header.state.isUncollapsed:set(true) end
             ui.seen[section.key] = true -- after the first report, keep what the user opened or closed
             if header.state.isUncollapsed.value then draw_blocks(section.blocks, ui) end
@@ -315,28 +325,29 @@ local function draw_report(report, index)
 end
 local function draw_hub()
     set_id("dsp:hub")
-    local hub = open(iris.Window({ "Stat printer" }))
+    local hub = open(iris.Window({ rich("Stat printer") }))
     if viewer.show_hub then viewer.show_hub = false; hub.state.isOpened:set(true) end
     if hub.state.isOpened.value and hub.state.isUncollapsed.value then
         close_button("dsp:hub", hub, "Close this window (shared.iris_viewer.show() in the client console opens it again)")
         if #viewer.order == 0 then
-            set_id("dsp:hub:waiting"); iris.Text({ string.format("Waiting for reports: run print_player_stats, print_attachment_stats or "
+            set_id("dsp:hub:waiting")
+            iris.Text(body(string.format("Waiting for reports: run print_player_stats, print_attachment_stats or "
                 .. "cap_announcer in the server console. Messages received: %d%s", viewer.messages or 0,
-                viewer.other and (", last one not a report: " .. viewer.other) or ""), true })
+                viewer.other and (", last one not a report: " .. viewer.other) or ""), true))
         end
         for _, id in ipairs(viewer.order) do
             local report = viewer.reports[id]
             set_id(report.key .. ":hubrow"); open(iris.SameLine())
             set_id(report.key .. ":show")
-            if tip(iris.SmallButton({ "Show" }), "Open this report's window again").clicked() then report.popup = true end
-            set_id(report.key .. ":hubtitle"); iris.Text({ report.title .. "  (" .. report.received .. ")" })
+            if tip(iris.SmallButton({ rich("Show") }), "Open this report's window again").clicked() then report.popup = true end
+            set_id(report.key .. ":hubtitle"); iris.Text(body(report.title .. "  (" .. report.received .. ")"))
             close()
         end
         if #viewer.order > 0 then
             set_id("dsp:hub:clear")
-            if tip(iris.SmallButton({ "Clear all" }), "Forget every report received so far").clicked() then viewer.reports, viewer.order = {}, {} end
+            if tip(iris.SmallButton({ rich("Clear all") }), "Forget every report received so far").clicked() then viewer.reports, viewer.order = {}, {} end
         end
-        if viewer.error then set_id("dsp:hub:error"); iris.Text({ "Error: " .. viewer.error, true }) end
+        if viewer.error then set_id("dsp:hub:error"); iris.Text(body("Error: " .. viewer.error, true)) end
     end
     close()
 end
