@@ -260,7 +260,17 @@ __widgets["dsp:attachments:Big:2:2:filter"].state.text.value = "row 11"; __frame
     def test_close_button_without_color3_is_plain(self):
         output = run_script("iris_viewer.luau", "nil", prelude=viewer_prelude(extra="local Color3 = nil\n"),
                             after="__frame(); __dump()")
-        self.assertEqual(drawn(output)[:2], ["Window Stat printer", "SmallButton Close"])  # no red push
+        self.assertEqual(drawn(output)[:4], ["Window Stat printer", "SameLine nil", "Text ", "SmallButton Close"])  # no red push
+
+    def test_close_button_sits_at_the_right_of_the_window(self):
+        vector2 = "local Vector2 = { new = function(x, y) return { X = x, Y = y } end }\n"
+        output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE), prelude=viewer_prelude(extra=vector2),
+                            after="__frame(); __dump()")
+        frame = drawn(output)
+        i = frame.index("Window Stats: Tester")
+        # Its own row: a blank, then the button, spaced by the window's width (1180) less the edges and the button.
+        self.assertEqual(frame[i + 1:i + 3], ["SameLine 1105", "Text "])
+        self.assertEqual(frame[i + 4], "SmallButton Close")
 
     def test_theme_defaults_are_rubik_with_robotomono_numbers(self):
         output = run_script("print_player_stats.luau", players_lua(STAT_PROFILE),
