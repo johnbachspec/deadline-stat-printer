@@ -66,7 +66,7 @@ WeaponData.TYPES = {
     AK_545 = "545", AK12 = "545", AK_545_Carbine = "545",
     QBZ95 = "58",
     SCALAR = "SMG", UMP = "SMG", MP5 = "SMG", AK_9 = "SMG", MK9 = "SMG",
-    TT33 = "Pistol", Makarov = "Pistol", KOSCH = "Pistol", EDC_X9 = "Pistol", P320 = "Pistol",
+    TT33 = "Pistol", Makarov = "Pistol", KOSCH = "Pistol", EDC_X9 = "Pistol", P320 = "Pistol", P226 = "Pistol",
     Remington870 = "Shotgun", MP133 = "Shotgun",
     M9 = "Melee", M11_EOD = "Melee", IZHEVSK_AKM_TYPE1 = "Melee", IZHEVSK_AKM_TYPE2 = "Melee",
     PSRL = "RPG", RPG7 = "RPG",

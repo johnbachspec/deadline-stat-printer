@@ -41,7 +41,8 @@ class TestRenames(unittest.TestCase):
         # Hand-added targets the balancing sheet has no row for (the game has them, the sheet does not).
         unlisted = {"kosch_default_mag_release", "paramount_arms_slx_1.53inch_straight_spacer_alt",
                     "paramount_arms_slx_1x_microprism_acss_g2_scope_alt", "whitner_defense_um3_mount"}
-        missing = {n for n in self.aliases.values() if n not in names} - unlisted
+        # Chains (A -> B, B -> C) are fine: the printer follows them, so only the last id must exist.
+        missing = {n for n in dd.final_renames(self.aliases.items()).values() if n not in names} - unlisted
         self.assertEqual(missing, set())
 
     def test_alias_table_in_sync(self):
