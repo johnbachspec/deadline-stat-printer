@@ -70,6 +70,11 @@ class TestNames(unittest.TestCase):
         for name, pretty in balancing.items():
             self.assertEqual(self.names[name], pretty)
 
+    def test_no_stale_extra_names(self):
+        # A row the sheet now names too is dead weight; the build prints a note for each.
+        _, _, _, shadowed = names_builder.load_all_names()
+        self.assertEqual(shadowed, [])
+
     def test_attachment_names_are_unique(self):
         self.assertEqual(len(self.shown), len(set(self.shown.values())))
 
@@ -98,6 +103,8 @@ class TestNames(unittest.TestCase):
         self.assertEqual({k for k, v in groups.items() if v == "AFT SC Stock"},
                          {"aft_sc_stock_adapter", "aft_sc_stock_adjustment_lever", "aft_sc_stock_adjustment_rail",
                           "aft_sc_stock_buttpad", "aft_sc_stock_cheekpad"})
+        self.assertEqual({k for k, v in groups.items() if v == "AFT SSR Stock"},
+                         {"aft_ssr_stock_assembly", "aft_ssr_std_stock_riser", "aft_ssr_std_stock_buttpad"})
         self.assertEqual(groups["insight_technology_an_paq_4a_ir_laser"],
                          groups["insight_technology_an_paq_4a_carry_handle_mount"])
         # Products with swappable add-ons stay separate: the PT-1 takes a Tailhook adapter,
