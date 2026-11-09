@@ -12,6 +12,7 @@ local WeaponData = {}
 WeaponData.ALIASES = {
     HK416A5 = "KF416",
     AK74N   = "AK_545",
+    AK74    = "AK_545", -- briefly the sheet id (April 2025)
     AKMN    = "AK_762",
     PP19    = "AK_9",
     UMP45   = "UMP",
