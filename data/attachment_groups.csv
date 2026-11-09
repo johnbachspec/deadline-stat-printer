@@ -14,7 +14,6 @@ talvern_m7a1_pdw_base_stock,Troy M7A1 PDW Stock
 talvern_m7a1_pdw_extendable_stock,Troy M7A1 PDW Stock
 magtap_prs_gen3_stock,Magtap PRS Gen3 Stock
 prs_adjustable_piece,Magtap PRS Gen3 Stock
-prs_gen3_buttpad,Magtap PRS Gen3 Stock
 resiliant_suppressors_obsidian_9_body,Resiliant Suppressors Obsidian9 9x19
 resiliant_suppressors_obsidian_9_cap,Resiliant Suppressors Obsidian9 9x19
 magtap_xtm_enhanced_half_panel_1,Magtap XTM Enhanced Modular Half Panel
@@ -66,3 +65,128 @@ hk_mp5_hk94_cartman_stock_base,MP5/HK94 Cartman Stock
 hk_mp5_hk94_cartman_stock,MP5/HK94 Cartman Stock
 thordsen_frs_15_stock,Thordsen FRS-15 Stock
 t_frs15_pad,Thordsen FRS-15 Stock
+hk_mp5sd_upper_receiver,MPi-54SD Upper & Barrel
+hk_mp5sd_9x19_front_trunnion,MPi-54SD Upper & Barrel
+hk_mp5sd_9x19_146mm_barrel,MPi-54SD Upper & Barrel
+hk_ump45_bcg,UMK-45 BCG & Magazine
+hk_ump45_45acp_25r_mag,UMK-45 BCG & Magazine
+hk_ump9_bcg,UMK-9 BCG & Magazine
+hk_ump9_9x19_30r_mag,UMK-9 BCG & Magazine
+hk_ump_stock_block,UMK Core Parts
+hk_ump_trigger,UMK Core Parts
+hk_ump_paddle_mag_release,UMK Core Parts
+hk_ump_cocking_tube,UMK Core Parts
+hk_ump_charging_handle,UMK Core Parts
+hk_ump_fire_selector,UMK Core Parts
+hk_ump_bolt_catch,UMK Core Parts
+izhevsk_pm_9x18_std_frame,Izhevsk PM 9x18 Frame & Slide
+izhevsk_pm_9x18_std_slide,Izhevsk PM 9x18 Frame & Slide
+izhevsk_pm_mag_release_spring,Izhevsk PM 9x18 Internals
+izhevsk_pm_std_hammer,Izhevsk PM 9x18 Internals
+izhevsk_pm_spring_retainer,Izhevsk PM 9x18 Internals
+izhevsk_pm_trigger_connect,Izhevsk PM 9x18 Internals
+izhevsk_pm_std_slide_stop,Izhevsk PM 9x18 Internals
+izhevsk_pm_std_9x18_ejector,Izhevsk PM 9x18 Internals
+izhevsk_pm_std_safety,Izhevsk PM 9x18 Internals
+izhevsk_pm_9x18_firing_pin,Izhevsk PM 9x18 Internals
+izhevsk_pm_trigger_guard,Izhevsk PM 9x18 Internals
+tt33_hammer,TT33 Internals
+tt33_hammer_group,TT33 Internals
+tt33_mag_release,TT33 Internals
+tt33_slide_catch,TT33 Internals
+tt33_trigger,TT33 Internals
+roosevelt_model_700_short_action_receiver,Roosevelt Model 700 Internals
+r700_std_bolt_handle,Roosevelt Model 700 Internals
+roosevelt_model_700_.308_bolt_face,Roosevelt Model 700 Internals
+roosevelt_model_700_bolt_plug,Roosevelt Model 700 Internals
+roosevelt_model_700_firing_pin,Roosevelt Model 700 Internals
+roosevelt_model_700_factory_recoil_lug,Roosevelt Model 700 Internals
+sanxian_qbz95_lower_receiver,Sanxian QBZ-95 Core Parts
+sanxian_qbz95_upper_receiver,Sanxian QBZ-95 Core Parts
+sanxian_qbz95_bolt,Sanxian QBZ-95 Core Parts
+sanxian_qbz95_gasblock,Sanxian QBZ-95 Core Parts
+sanxian_qbz95_mag_release,Sanxian QBZ-95 Core Parts
+sanxian_qbz95_463mm_barrel,Sanxian QBZ-95 Core Parts
+sanxian_qbz95_rear_ironsight_base,Sanxian QBZ-95 Core Parts
+sanxian_qbz95_front_ironsight_post,Sanxian QBZ-95 Core Parts
+aft_mk_16_bolt_carrier,AFT MK-16 Core Parts
+aft_mk_16_gasblock,AFT MK-16 Core Parts
+aft_mk_16_lower_receiver,AFT MK-16 Core Parts
+aft_mk_16_upper_receiver,AFT MK-16 Core Parts
+mosin_std_receiver,Mosin Nagant Core Parts
+mosin_std_bolt_assembly,Mosin Nagant Core Parts
+kazarov_pp-19-01_vityaz_front_sight_block,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_front_trunnion,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_lower_receiver,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_fire_selector,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_trigger_guard,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_mag_release,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_magwell,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_spring,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_spring_retainer,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_9x19_bolt_carrier,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_bolt_piston,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_gastube,Kazarov PP-19-01 Vityaz Core Parts
+kazarov_pp-19-01_vityaz_rear_sight_block,Kazarov PP-19-01 Vityaz Core Parts
+sno_vulkan_rpg_7n2_tube,SNO Vulkan RPG-7 Core Parts
+sno_vulkan_rpg_7n2_tube_additions,SNO Vulkan RPG-7 Core Parts
+sno_vulkan_rpg_7_wooden_shoulder_padding,SNO Vulkan RPG-7 Core Parts
+sno_vulkan_rpg_7_hammer,SNO Vulkan RPG-7 Core Parts
+sno_vulkan_rpg_7_safety,SNO Vulkan RPG-7 Core Parts
+sno_vulkan_rpg_7_trigger,SNO Vulkan RPG-7 Core Parts
+sno_vulkan_rpg_7_pistol_grip,SNO Vulkan RPG-7 Core Parts
+launchtron_psrl_2_tube,LaunchTron USA PSRL-2 Core Parts
+launchtron_psrl_2_tube_shoulder_padding,LaunchTron USA PSRL-2 Core Parts
+launchtron_psrl_2_trigger_housing,LaunchTron USA PSRL-2 Core Parts
+launchtron_psrl_2_hammer,LaunchTron USA PSRL-2 Core Parts
+launchtron_psrl_2_safety,LaunchTron USA PSRL-2 Core Parts
+launchtron_psrl_2_trigger,LaunchTron USA PSRL-2 Core Parts
+whitner_defense_edc_x9_light_rail_receiver,Whitner Defense EDC X9 Core Parts
+whitner_defense_edc_x9_hammer,Whitner Defense EDC X9 Core Parts
+whitner_defense_edc_x9_aggressive_starburst_g10_grip,Whitner Defense EDC X9 Core Parts
+sig_sauer_p320_fcu,Sic Stürmer P320 Core Parts
+sig_sauer_p320_extractor,Sic Stürmer P320 Core Parts
+sig_sauer_p320_mag_release,Sic Stürmer P320 Core Parts
+sig_sauer_p320_sear_housing,Sic Stürmer P320 Core Parts
+sig_sauer_p320_slide_cap,Sic Stürmer P320 Core Parts
+sig_sauer_p320_slide_release,Sic Stürmer P320 Core Parts
+sig_sauer_p320_takedown_lever,Sic Stürmer P320 Core Parts
+sig_sauer_p320_10mm_takedown_safety_lever,Sic Stürmer P320 Core Parts
+mp133_bolt,MP-133 Core Parts
+mp133_shell_feeder,MP-133 Core Parts
+mp133_std_receiver,MP-133 Core Parts
+r870_std_bolt,Roosevelt 870 Core Parts
+r870_shell_carrier,Roosevelt 870 Core Parts
+r870_shell_extractor,Roosevelt 870 Core Parts
+r870_std_trigger,Roosevelt 870 Core Parts
+hilt_defense_scar47_394mm_barrel,HILT DEFENSE FANG 47 Core Parts
+scar47_lower_receiver,HILT DEFENSE FANG 47 Core Parts
+scar47_mag_release,HILT DEFENSE FANG 47 Core Parts
+sg58_std_lower_receiver,RSA SG58 Core Parts
+sg58_std_charging_handle,RSA SG58 Core Parts
+sg58_std_fire_selector,RSA SG58 Core Parts
+rsa_sg58_7.62x51_bolt,RSA SG58 Core Parts
+kazarov_akm_front_trunnion,Kazarov AKM Core Parts
+kazarov_akm_lower_receiver,Kazarov AKM Core Parts
+kazarov_akm_front_sight_block,Kazarov AKM Core Parts
+kazarov_akm_7.62x39_bolt,Kazarov AKM Core Parts
+kazarov_akm_7.62x39_bolt_carrier,Kazarov AKM Core Parts
+kazarov_akm_bolt_piston,Kazarov AKM Core Parts
+kazarov_akm_mag_release,Kazarov AKM Core Parts
+kazarov_akm_trigger_guard,Kazarov AKM Core Parts
+kazarov_aks74u_lower_receiver,Kazarov AKS-74U Core Parts
+kazarov_aks74u_5.45x39_bolt,Kazarov AKS-74U Core Parts
+kazarov_aks74u_5.45x39_bolt_carrier,Kazarov AKS-74U Core Parts
+kazarov_aks74u_front_sight_block,Kazarov AKS-74U Core Parts
+kazarov_aks74u_rear_sight_block,Kazarov AKS-74U Core Parts
+kazarov_aks74_front_trunnion,Kazarov AKS-74U Core Parts
+kazarov_aks74u_210mm_5.45x39_barrel,Kazarov AKS-74U Core Parts
+kazarov_aks74u_6p26_sb1_2_gastube,Kazarov AKS-74U Core Parts
+kazarov_aks74u_handguard_retainer,Kazarov AKS-74U Core Parts
+kazarov_aks74u_bolt_piston,Kazarov AKS-74U Core Parts
+kosch_default_trigger,KOSCH Default Internals
+kosch_default_trigger_safety,KOSCH Default Internals
+kosch_default_trigger_bar,KOSCH Default Internals
+kosch_default_trigger_housing,KOSCH Default Internals
+kosch_default_extractor,KOSCH Default Internals
+kosch_default_recoil_spring,KOSCH Default Internals

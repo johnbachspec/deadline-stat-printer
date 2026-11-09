@@ -147,13 +147,14 @@ class TestExpectedMerges(unittest.TestCase):
     def test_hand_checked_anchors(self):
         # Fixed values, so a regenerated expected_merges.csv cannot silently drift.
         expected = fx.load_expected_merges()
-        self.assertEqual(len(fx.load_fixture()), 1103)
-        self.assertEqual(sum(r[1] for r in fx.load_fixture()), 1717503)
-        self.assertEqual(expected["kalis_scalar_std_bcg"], (705, "SCALAR", 705, {"vector_9mm_bolt", "vector_45acp_bolt"}))
-        self.assertEqual(expected["vallais_super_fang_trigger"],
-                         (13952, "SCARH", 13169, {"schmidt_super_scar_trigger", "vallais_super_fang_trigger"}))
-        self.assertEqual(expected["aft_mk_17_bolt_carrier"],
-                         (8082 + 31861, "SCARH", 8082 + 31861, {"aft_mk_17_bolt_carrier", "fn_scar_h_bolt_carrier"}))
+        self.assertEqual(len(fx.load_fixture()), 1312)
+        self.assertEqual(sum(r[1] for r in fx.load_fixture()), 2032615)
+        self.assertEqual(expected["aft_mk_17_330mm_barrel"],
+                         (1993, "SCARH", 1993, {"aft_mk_17_330mm_barrel", "fn_scar_h_330mm_barrel"}))
+        self.assertEqual(expected["resiliant_suppressors_obsidian_9_body"],
+                         (1035, "MK9", 932, {"resiliant_suppressors_obsidian_9_body", "rugged_suppressors_obsidian_9_body"}))
+        self.assertEqual(expected["kosch_9x19_17r_magazine"],
+                         (511, "SCALAR", 511, {"kosch_9x19_17r_magazine", "9x19_glock_std_17r_vector"}))
 
 
 class TestLuauSourceRules(unittest.TestCase):

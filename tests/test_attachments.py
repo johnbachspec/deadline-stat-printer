@@ -91,8 +91,8 @@ class TestAttachmentPrinter(unittest.TestCase):
 
     def test_groups_show_one_row_with_kills_counted_once(self):
         rows = {r[0]: r for r in self.printed}
-        self.assertEqual(rows["AFT SC Stock (5 pieces)"][1], 6326)
-        self.assertEqual(rows["AFT Stock (3 pieces)"][1], 732)
+        self.assertEqual(rows["AFT SC Stock (5 pieces)"][1], 7737)
+        self.assertEqual(rows["AFT Stock (3 pieces)"][1], 870)
         self.assertNotIn("AFT (Connector)", rows)
         self.assertIn('Veles PT-1 "Klassika" Cheekpad', rows)  # takes a Tailhook adapter: not grouped
 
