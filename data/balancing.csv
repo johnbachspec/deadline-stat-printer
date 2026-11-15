@@ -1504,7 +1504,7 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,kazarov_akm_415mm_7.62x39_barrel,Kazarov AKM 415mm 7.62x39,-6,0.55,-7,-8,,0,,43,,,,0
 ,,cjam_ak_318mm_7.62x39_barrel,CJAM AK 318mm 7.62x39,-1,0.36,-2,-3,,0.16,-0.1,-151,,,,2500
 ,,cjam_ak_368mm_7.62x39_barrel,CJAM AK 368mm 7.62x39,-4,0.41,-4,-5,,0.1,-0.07,-54,,,,2000
-,,al_qadissiya_tabuk_sniper_600mm_7.62x39_barrel,Al-Qadissiya Tabuk Sniper 600mm 7.62x39,-8,0.96,-9,-10,,-0.3,,120,,,,1000
+,,al_qadissiya_tabuk_sniper_600mm_7.62x39_barrel,Al-Qadissiya Tabuk Sniper 600mm 7.62x39,-8,0.96,-9,-10,,-0.3,0.02,120,,,,1000
 ,akm_gasblock,,,,,,,,,,,,,,
 ,,kazarov_akm_gasblock,Kazarov AKM,0,0.06,,,,,,,,,,0
 ,,cjam_ak_gbc13_gasblock,CJAM AK GBC13,1,0.1,,,,,,,,,,500
@@ -1974,8 +1974,8 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,9x18_novosibirsk_57_t_181_56gr_red_tracer,Novosibirsk 57-T-181 56gr Red Tracer,1,-0.04,-1,-1,,0.1,,100,,,,500
 ,,9x18_underworld_xtreme_penetrator_95gr_sm,Underworld Xtreme Penetrator 95gr SM,-1,0.01,1,1,,-0.05,,50,,,,1000
 ,,9x18_kazarov_7n25_pbm_56gr_ap,Kazarov 7N25 PBM 56gr AP,1,-0.04,1,-1,,-0.1,,600,,,0.1,2000
-,,9x18_bison_caliber_115gr_hcfn,Bison Caliber 115gr HCFN +P,-2,0.03,1,2,,0.05,,150,,,,1500
-,,9x18_tsniitekhmash_sp7_gzh_80gr,TsNIITekhMash SP7 gzh 80gr,-1,-0.02,3,1,,0.1,,400,,,0.1,2000
+,,9x18_bison_caliber_115gr_hcfn,Bison Caliber 115gr HCFN +P,-2,0.03,42,78,,0.05,,150,,,,1500
+,,9x18_tsniitekhmash_sp7_gzh_80gr,TsNIITekhMash SP7 gzh 80gr,-1,-0.02,52,65,,0.1,,400,,,0.1,2000
 ,ammo_9x19,,,,,,,,,,,,,,
 ,,9x19_roosevelt_umc_115gr_fmj,Roosevelt UMC 115gr FMJ ,0,0,0,0,,0,,0,,,,0
 ,,9x19_appalachian_mk254_mod0_90gr_frangible,Appalachian Mk.254 Mod0 90gr Frangible,0,-0.06,-3,-2,,0,,100,,,,750
@@ -2425,8 +2425,8 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,goliath_tactical_aug_bayonet_lug,Goliath Tactical AUG,-1,0.03,,,,,,,,,,500
 ,mosin_barrel,,,,,,,,,,,,,,
 ,,mosin_730mm_barrel,Mosin 730mm,-5,1.5,-2,-10,,-0.2,0.1,348,,,,0
-,,mosin_sawn_off_200mm_barrel,Mosin Sawn Off 200mm,25,0.4,5,10,,0.8,-0.27,-128,,,,1200
-,,mosin_sawn_off_220mm_barrel,Mosin Sawn Off 220mm w/ front sight,22,0.42,4,9,,0.7,-0.27,-93,,,,1200
+,,mosin_sawn_off_200mm_barrel,Mosin Sawn Off 200mm,25,0.4,5,10,,0.8,-0.13,-128,,,,1200
+,,mosin_sawn_off_220mm_barrel,Mosin Sawn Off 220mm w/ front sight,22,0.42,4,9,,0.7,-0.13,-93,,,,1200
 ,,mosin_514mm_barrel,Mosin Regular 514mm,7,1,0,-2,,0.15,0,219,,,,1000
 ,,uk_vz59_546mm_straight_profile_barrel,UK VZ59 546mm Straight Profile,6,1.06,1,-1,,0.1,0.02,240,,,,3000
 ,mosin_barrel_end,,,,,,,,,,,,,,
@@ -3302,7 +3302,7 @@ id,class,name,pretty_name,ergonomics,weight,horizontal_recoil,vertical_recoil,ma
 ,,MP133,Ladoga MP133,25,0,60,70,1,0.6,1,1000,2,,1,9000
 ,smg,,,,,,,,,,,,,,
 ,,MP5,KF MPi-54,40,0,45,55,0,1.05,1,1200,,,1,5000
-,,SCALAR,KALIS Scalar Gen II,45,0,60,60,0,1.2,1,900,,,1,90000
+,,SCALAR,KALIS Scalar Gen II,40,0,60,60,0,1.2,1,900,,,1,90000
 ,,MK9,AR-9,30,0,55,70,0,1.05,1,1200,,,1,20000
 ,,UMP,KF UMC-45,60,0,80,90,0,1.05,1,900,,,1,15000
 ,,AK_9,Kazarov Group PP-19-01,30,0,50,50,0,0.9,1,1200,,,1,11000
